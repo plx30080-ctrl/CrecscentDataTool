@@ -2,20 +2,20 @@
 import React, { useState } from 'react';
 import { Button, TextField, Typography, Container, Paper, Box, Alert } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
 
-function LoginPage() {
+function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, email, password);
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -40,10 +40,10 @@ function LoginPage() {
           fontWeight: 700,
           color: '#333'
         }}>
-          Welcome Back!
+          Create an Account
         </Typography>
         {error && <Alert severity="error" sx={{ mt: 2, width: '100%' }}>{error}</Alert>}
-        <Box component="form" onSubmit={handleLogin} sx={{ mt: 1 }}>
+        <Box component="form" onSubmit={handleRegister} sx={{ mt: 1 }}>
           <TextField
             margin="normal"
             required
@@ -65,7 +65,7 @@ function LoginPage() {
             label="Password"
             type="password"
             id="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             variant="outlined"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -90,12 +90,12 @@ function LoginPage() {
               }
             }}
           >
-            Sign In
+            Sign Up
           </Button>
           <Typography variant="body2" sx={{ textAlign: 'center' }}>
-            Don't have an account?{' '}
-            <Link to="/register" style={{ color: '#FF8E53', textDecoration: 'none', fontWeight: 'bold' }}>
-              Sign Up
+            Already have an account?{' '}
+            <Link to="/login" style={{ color: '#FF8E53', textDecoration: 'none', fontWeight: 'bold' }}>
+              Sign In
             </Link>
           </Typography>
         </Box>
@@ -104,4 +104,4 @@ function LoginPage() {
   );
 }
 
-export default LoginPage;
+export default RegisterPage;
