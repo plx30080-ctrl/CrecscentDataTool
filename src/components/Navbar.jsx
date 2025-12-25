@@ -22,7 +22,7 @@ function Navbar({ user }) {
       <Toolbar>
         <Typography variant="h5" component="div" sx={{ flexGrow: 1, color: '#fff', fontFamily: "'Montserrat'", fontWeight: 700 }}>
           <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-            Dreamscape
+            Scorecard
           </Link>
         </Typography>
         <Box>
@@ -34,6 +34,9 @@ function Navbar({ user }) {
           </Button>
           {user ? (
             <>
+              <Button color="inherit" component={Link} to="/scorecard" sx={{ color: '#fff', fontWeight: 500, marginRight: 2, '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' } }}>
+                Scorecard
+              </Button>
               <Button color="inherit" component={Link} to="/profile" sx={{ color: '#fff', fontWeight: 500, marginRight: 2, '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' } }}>
                 Profile
               </Button>

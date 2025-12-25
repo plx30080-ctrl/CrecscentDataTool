@@ -1,52 +1,69 @@
-# Dreamscape App Blueprint
+# Workforce Management Application Blueprint
 
 ## Overview
 
-Dreamscape is a modern, responsive React web application designed to provide a seamless user experience for authentication and future functionalities. It is built with Vite, Material-UI, and Firebase, featuring a clean and visually appealing design.
+This document outlines the development plan for a comprehensive workforce management application. The application will provide tools for tracking employee data, managing shifts, forecasting staffing needs, and streamlining data entry and analysis.
 
-## Project Structure
+## Core Features
 
-- `src/`
-  - `components/`: Reusable React components (e.g., `Navbar.jsx`).
-  - `pages/`: Page components for different routes (e.g., `HomePage.jsx`, `LoginPage.jsx`).
-  - `assets/`: Static assets like images and CSS.
-  - `App.jsx`: Main application component with routing.
-  - `main.jsx`: Application entry point.
-  - `firebase.js`: Firebase configuration.
-  - `theme.js`: Material-UI theme customization.
-- `public/`: Public assets.
-- `.idx/`: IDE-specific configurations.
-- `blueprint.md`: This file, documenting the project.
+*   **Shift Tracking:** Monitor per-shift attendance, client requests, new starts, send-homes, and line cuts.
+*   **Hours Tracking:** Aggregate and report hours worked by associate, shift, and total (daily, weekly, monthly, YTD).
+*   **Forecasting & Recruiting:** Analyze historical and current data to forecast staffing needs and manage the recruiting pipeline.
+*   **Early Leave Tracking:** Track and analyze early leave data to identify trends.
+*   **Data Integration:** Automate data ingestion from various sources, including SharePoint and email.
+*   **Applicant Tracking:** Manage the applicant pipeline from processing to start date.
+*   **Role-Based Data Entry:** Provide a tailored data entry interface for different user roles (Market Manager, Recruiter, On-Site Manager).
+*   **Historical Data Upload:** Allow users to upload historical data from a CSV file.
 
-## Design and Styling
+## Technology Stack
 
-- **Component Library:** Material-UI for a professional and consistent look and feel.
-- **Theme:** A custom theme is defined in `src/theme.js` with a color palette and typography.
-- **Styling:** A combination of Material-UI's `sx` prop and CSS for fine-grained control.
-- **Visuals:** The app features a gradient background, glassmorphism effects on forms, and a modern, clean design.
+*   **Frontend:** React with Vite
+*   **Component Library:** Material-UI (MUI)
+*   **Routing:** React Router
+*   **Backend & Database:** Firebase (Firestore, Authentication)
+*   **CSV Parsing:** PapaParse
 
-## Implemented Features
+## Development Plan
 
-- **User Authentication:**
-  - User registration with email and password using Firebase Authentication.
-  - User login and logout.
-  - Dynamic navbar that adapts to the user's authentication state.
-  - Protected routes for login and registration pages, redirecting authenticated users.
+### Phase 1: Foundation and Core UI
 
-- **Routing:**
-  - `react-router-dom` for client-side routing.
-  - Routes for Home, About, Login, and Register pages.
+1.  **Initialize Project:** Set up a new React project using Vite.
+2.  **Install Dependencies:** Install MUI, React Router, and Firebase.
+3.  **Firebase Setup:** Configure Firebase and create a `firebase.js` configuration file.
+4.  **Routing:** Implement basic routing for the main pages of the application.
+5.  **Layout:** Create a main layout component with a navigation bar and a content area.
 
-- **UI/UX:**
-  - A visually appealing home page with a hero section.
-  - User-friendly forms with validation feedback.
-  - A responsive design that works on different screen sizes.
+### Phase 2: Data Entry and User Roles
 
-## Current Plan
+1.  **Role Selection:** Implement a component for users to select their role.
+2.  **Dynamic Forms:** Create dynamic data entry forms that adapt to the selected role.
+3.  **Data-Entry Component:** Create a page for data-entry.
 
-The next feature to be implemented is a user profile page.
+### Phase 3: Dashboard and Data Visualization
 
-- **Create Profile Page:** A new page will be created at `/profile` to display user information.
-- **Protected Route:** The profile page will be a protected route, accessible only to authenticated users.
-- **Display User Information:** The page will display the user's email and other relevant information.
-- **Update Navbar:** A link to the profile page will be added to the navbar for logged-in users.
+1.  **Shift-Tracking Dashboard:** Create a dashboard to visualize shift data.
+2.  **Hours-Tracking Dashboard:** Create a dashboard for visualizing hours worked.
+3.  **Charts and Graphs:** Use a charting library to display data visualizations.
+
+### Phase 4: Historical Data Upload
+
+1.  **Install PapaParse:** Add `papaparse` for CSV parsing.
+2.  **Create Upload Page:** Build a new page at `/upload`.
+3.  **File Uploader:** Implement a component for file selection and upload.
+4.  **CSV Template:** Provide a downloadable CSV template.
+5.  **Data Processing:** Implement the logic to parse the uploaded CSV file.
+
+### Phase 5: Backend Integration and Automation
+
+1.  **Firestore Schema:** Design and implement the Firestore database schema.
+2.  **Data-Entry Logic:** Connect the data entry forms to Firestore.
+3.  **Data-Integration:** Explore options for integrating with SharePoint and email.
+
+### Phase 6: Advanced Features
+
+1.  **Forecasting Tool:** Develop an algorithm for forecasting staffing needs.
+2.  **Applicant-Tracking System:** Build a system for managing the applicant pipeline.
+
+## Current Task
+
+Implement the historical data upload feature. I will create a new page with a file uploader and a downloadable CSV template.
