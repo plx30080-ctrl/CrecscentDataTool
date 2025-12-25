@@ -20,9 +20,19 @@
 2. Start in **production mode**
 3. Choose your preferred region (us-central1 recommended)
 
+## Step 3.5: Enable Firebase Storage (for Badge Photos)
+
+1. Go to **Storage** in the left menu
+2. Click **Get started**
+3. Start in **production mode**
+4. Use same region as Firestore
+5. Click **Done**
+
 ## Step 4: Set Firestore Security Rules
 
-Go to **Firestore Database** > **Rules** and paste:
+Go to **Firestore Database** > **Rules** and paste the rules from below.
+
+### Firestore Rules:
 
 ```
 rules_version = '2';
@@ -80,6 +90,48 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && getUserRole() in ['Market Manager', 'admin'];
     }
+
+    // Badge data
+    match /badges/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && getUserRole() in ['On-Site Manager', 'Market Manager', 'admin'];
+    }
+
+    // Badge print queue
+    match /badgePrintQueue/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && getUserRole() in ['On-Site Manager', 'Market Manager', 'admin'];
+    }
+
+    // Badge templates (Admin only)
+    match /badgeTemplates/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && getUserRole() in ['Market Manager', 'admin'];
+    }
+
+    // Audit logs (Admin/Market Manager read, system writes)
+    match /auditLog/{docId} {
+      allow read: if isAuthenticated() && getUserRole() in ['Market Manager', 'admin'];
+      allow write: if isAuthenticated(); // All authenticated users can create audit logs
+    }
+  }
+}
+```
+
+### Storage Rules:
+
+Go to **Storage** > **Rules** and paste:
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Badge photos - authenticated users can read, only managers can write
+    match /badges/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['On-Site Manager', 'Market Manager', 'admin'];
+    }
   }
 }
 ```
@@ -100,9 +152,9 @@ Replace the placeholder values in `src/firebase.js` with your actual Firebase co
 
 After updating firebase.js:
 1. Run the app: `npm run dev`
-2. Sign up with your email
+2. Sign up with your email at the Crescent Management Platform signup page
 3. Go to Firebase Console > Firestore Database
 4. Find your user document in the `users` collection
 5. Manually add a field: `role: "admin"`
 
-Now you're ready to use the app!
+Now you're ready to use Crescent Management Platform V0.1!

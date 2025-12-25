@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Container, Typography, Paper, Box, TextField, Button, Alert, Avatar, Chip } from '@mui/material';
 import { AccountCircle, Email, Work } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthProvider';
+import FixMyUserProfile from '../utils/FixMyUserProfile';
 
 const EnhancedProfile = () => {
   const { currentUser, userProfile } = useAuth();
@@ -12,6 +13,18 @@ const EnhancedProfile = () => {
       <Typography variant="h4" gutterBottom>
         My Profile
       </Typography>
+
+      {/* Temporary fix tool - remove after fixing profile */}
+      <FixMyUserProfile />
+
+      {/* Debug info - remove this after fixing */}
+      {process.env.NODE_ENV === 'development' && (
+        <Alert severity="info" sx={{ marginBottom: 2 }}>
+          <Typography variant="caption" component="pre" sx={{ fontSize: '0.7rem' }}>
+            {JSON.stringify(userProfile, null, 2)}
+          </Typography>
+        </Alert>
+      )}
 
       {success && (
         <Alert severity="success" sx={{ marginBottom: 3 }} onClose={() => setSuccess('')}>

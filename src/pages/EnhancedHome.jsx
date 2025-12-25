@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Typography, Grid, Card, CardContent, CardActions, Button, Paper, Box, Chip } from '@mui/material';
-import { Dashboard, Assessment, People, CloudUpload, AddCircle, TrendingUp } from '@mui/icons-material';
+import { Dashboard, Assessment, People, CloudUpload, AddCircle, TrendingUp, Badge } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthProvider';
 import { getShiftData, getApplicantPipeline } from '../services/firestoreService';
@@ -46,6 +46,13 @@ const EnhancedHome = () => {
       icon: <Dashboard fontSize="large" color="success" />,
       path: '/dashboard',
       color: '#2e7d32'
+    },
+    {
+      title: 'Badge Management',
+      description: 'Create badges, verify status, and print',
+      icon: <Badge fontSize="large" sx={{ color: '#f50057' }} />,
+      path: '/badges',
+      color: '#f50057'
     },
     {
       title: 'Performance Scorecard',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Typography,
@@ -25,9 +25,11 @@ import {
   Card,
   CardContent,
   Alert,
-  IconButton
+  IconButton,
+  Avatar,
+  Stack
 } from '@mui/material';
-import { Add, Edit, TrendingUp } from '@mui/icons-material';
+import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -39,6 +41,7 @@ import {
   getApplicants,
   getApplicantPipeline
 } from '../services/firestoreService';
+import { createBadge } from '../services/badgeService';
 
 const ApplicantsPage = () => {
   const { currentUser } = useAuth();
@@ -48,7 +51,9 @@ const ApplicantsPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingApplicant, setEditingApplicant] = useState(null);
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
+    eid: '',
     email: '',
     phone: '',
     source: 'Indeed',
@@ -60,6 +65,14 @@ const ApplicantsPage = () => {
   });
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+
+  // Photo capture state
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [webcamActive, setWebcamActive] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     loadData();
@@ -87,7 +100,9 @@ const ApplicantsPage = () => {
     if (applicant) {
       setEditingApplicant(applicant);
       setFormData({
-        name: applicant.name || '',
+        firstName: applicant.firstName || '',
+        lastName: applicant.lastName || '',
+        eid: applicant.eid || '',
         email: applicant.email || '',
         phone: applicant.phone || '',
         source: applicant.source || 'Indeed',
@@ -97,10 +112,15 @@ const ApplicantsPage = () => {
         projectedStartDate: applicant.projectedStartDate ? dayjs(applicant.projectedStartDate) : null,
         notes: applicant.notes || ''
       });
+      if (applicant.photoURL) {
+        setPhotoPreview(applicant.photoURL);
+      }
     } else {
       setEditingApplicant(null);
       setFormData({
-        name: '',
+        firstName: '',
+        lastName: '',
+        eid: '',
         email: '',
         phone: '',
         source: 'Indeed',
@@ -110,14 +130,66 @@ const ApplicantsPage = () => {
         projectedStartDate: null,
         notes: ''
       });
+      setPhotoFile(null);
+      setPhotoPreview('');
     }
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
+    stopWebcam();
     setDialogOpen(false);
     setEditingApplicant(null);
+    setPhotoFile(null);
+    setPhotoPreview('');
     setError('');
+  };
+
+  // Webcam functions
+  const startWebcam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setWebcamActive(true);
+      }
+    } catch (err) {
+      setError('Unable to access webcam: ' + err.message);
+    }
+  };
+
+  const stopWebcam = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+      setWebcamActive(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (canvasRef.current && videoRef.current) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+
+      canvas.toBlob((blob) => {
+        setPhotoFile(blob);
+        setPhotoPreview(URL.createObjectURL(blob));
+        stopWebcam();
+      }, 'image/jpeg');
+    }
+  };
+
+  const handlePhotoUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
   };
 
   const handleChange = (field, value) => {
@@ -128,8 +200,13 @@ const ApplicantsPage = () => {
     setError('');
     setSuccess('');
 
-    if (!formData.name) {
-      setError('Name is required');
+    if (!formData.firstName || !formData.lastName) {
+      setError('First name and last name are required');
+      return;
+    }
+
+    if (!formData.eid) {
+      setError('Employee ID is required');
       return;
     }
 
@@ -146,7 +223,38 @@ const ApplicantsPage = () => {
     }
 
     if (result.success) {
-      setSuccess(editingApplicant ? 'Applicant updated!' : 'Applicant added!');
+      // Auto-create badge for new applicants or when photo is provided
+      if (!editingApplicant || photoFile) {
+        const badgeData = {
+          firstName: formData.firstName.toUpperCase(),
+          lastName: formData.lastName.toUpperCase(),
+          eid: formData.eid,
+          position: formData.position || 'Production Associate',
+          shift: formData.shift,
+          status: formData.status === 'Hired' || formData.status === 'Started' ? 'Pending' : 'Not Cleared',
+          notes: `Auto-created from applicant: ${formData.firstName} ${formData.lastName}`,
+          applicantId: result.id || editingApplicant.id
+        };
+
+        const badgeResult = await createBadge(badgeData, photoFile, currentUser.uid);
+
+        if (badgeResult.success) {
+          setSuccess(
+            editingApplicant
+              ? 'Applicant updated and badge created!'
+              : `Applicant added! Badge ID: ${badgeResult.badgeId}`
+          );
+        } else {
+          setSuccess(
+            editingApplicant
+              ? 'Applicant updated but badge creation failed'
+              : 'Applicant added but badge creation failed: ' + badgeResult.error
+          );
+        }
+      } else {
+        setSuccess(editingApplicant ? 'Applicant updated!' : 'Applicant added!');
+      }
+
       handleCloseDialog();
       loadData();
     } else {
@@ -269,7 +377,11 @@ const ApplicantsPage = () => {
               <TableBody>
                 {applicants.map((applicant) => (
                   <TableRow key={applicant.id}>
-                    <TableCell>{applicant.name}</TableCell>
+                    <TableCell>
+                      {applicant.firstName && applicant.lastName
+                        ? `${applicant.firstName} ${applicant.lastName}`
+                        : applicant.name || 'N/A'}
+                    </TableCell>
                     <TableCell>
                       <Typography variant="body2">{applicant.email}</Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -324,13 +436,108 @@ const ApplicantsPage = () => {
             {error && <Alert severity="error" sx={{ marginBottom: 2 }}>{error}</Alert>}
 
             <Grid container spacing={2} sx={{ marginTop: 1 }}>
-              <Grid item xs={12} md={6}>
+              {/* Photo Capture Section */}
+              <Grid item xs={12}>
+                <Paper sx={{ padding: 2, backgroundColor: '#f5f5f5' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Associate Photo
+                  </Typography>
+
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    {photoPreview && (
+                      <Avatar
+                        src={photoPreview}
+                        sx={{ width: 120, height: 120 }}
+                        variant="rounded"
+                      />
+                    )}
+
+                    <Stack spacing={1}>
+                      {!webcamActive && (
+                        <>
+                          <Button
+                            variant="outlined"
+                            startIcon={<CameraAlt />}
+                            onClick={startWebcam}
+                            size="small"
+                          >
+                            Use Webcam
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            component="label"
+                            startIcon={<Upload />}
+                            size="small"
+                          >
+                            Upload Photo
+                            <input
+                              type="file"
+                              hidden
+                              accept="image/*"
+                              onChange={handlePhotoUpload}
+                            />
+                          </Button>
+                        </>
+                      )}
+
+                      {webcamActive && (
+                        <>
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            style={{ width: '200px', borderRadius: '8px' }}
+                          />
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              variant="contained"
+                              startIcon={<PhotoCamera />}
+                              onClick={capturePhoto}
+                              size="small"
+                            >
+                              Capture
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={stopWebcam}
+                              size="small"
+                            >
+                              Cancel
+                            </Button>
+                          </Stack>
+                        </>
+                      )}
+                    </Stack>
+                  </Stack>
+                  <canvas ref={canvasRef} style={{ display: 'none' }} />
+                </Paper>
+              </Grid>
+
+              {/* Basic Information */}
+              <Grid item xs={12} md={4}>
                 <TextField
-                  label="Full Name"
+                  label="First Name"
                   fullWidth
                   required
-                  value={formData.name}
-                  onChange={(e) => handleChange('name', e.target.value)}
+                  value={formData.firstName}
+                  onChange={(e) => handleChange('firstName', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Last Name"
+                  fullWidth
+                  required
+                  value={formData.lastName}
+                  onChange={(e) => handleChange('lastName', e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  label="Employee ID"
+                  fullWidth
+                  required
+                  value={formData.eid}
+                  onChange={(e) => handleChange('eid', e.target.value)}
                 />
               </Grid>
               <Grid item xs={12} md={6}>

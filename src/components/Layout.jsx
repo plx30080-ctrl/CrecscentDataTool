@@ -39,12 +39,16 @@ const Layout = () => {
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Mid-States Workforce
+            Crescent Management Platform
           </Typography>
           <Button color="inherit" component={Link} to="/">Home</Button>
           <Button color="inherit" component={Link} to="/data-entry">Data Entry</Button>
           <Button color="inherit" component={Link} to="/dashboard">Dashboard</Button>
           <Button color="inherit" component={Link} to="/applicants">Applicants</Button>
+          <Button color="inherit" component={Link} to="/badges">Badges</Button>
+          {userProfile && (userProfile.role === 'Market Manager' || userProfile.role === 'admin') && (
+            <Button color="inherit" component={Link} to="/admin">Admin</Button>
+          )}
           <Button color="inherit" component={Link} to="/upload">Upload</Button>
 
           {currentUser && (

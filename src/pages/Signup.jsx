@@ -80,7 +80,7 @@ const Signup = () => {
             Sign Up
           </Typography>
           <Typography variant="body2" color="text.secondary" align="center" gutterBottom>
-            Create your Mid-States Workforce Management account
+            Create your Crescent Management Platform account
           </Typography>
 
           {error && (

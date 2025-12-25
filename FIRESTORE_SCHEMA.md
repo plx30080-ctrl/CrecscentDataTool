@@ -139,7 +139,51 @@ Master list of all associates/employees.
   position: string,
   totalHoursYTD: number,
   earlyLeavesCount: number,
+  badgeStatus: "Not Created" | "Created" | "Printed" | "Issued",
+  badgeId: string,               // Reference to badges collection
   lastUpdated: timestamp
+}
+```
+
+### 8. badges
+Badge management for associate identification.
+
+```javascript
+{
+  badgeId: string,               // Unique badge ID
+  eid: string,                   // Employee ID
+  name: string,
+  photoURL: string,              // Firebase Storage URL for photo
+  status: "Pending" | "Cleared" | "Not Cleared" | "Suspended",
+  createdAt: timestamp,
+  createdBy: uid,
+  printedAt: timestamp,
+  printedBy: uid,
+  issuedAt: timestamp,
+  issuedBy: uid,
+  position: string,
+  shift: "1st" | "2nd",
+  notes: string,
+  expirationDate: timestamp,
+  applicantId: string            // Link to applicants collection
+}
+```
+
+### 9. badgePrintQueue
+Queue for badges ready to print.
+
+```javascript
+{
+  badgeId: string,
+  eid: string,
+  name: string,
+  priority: "Normal" | "Urgent",
+  status: "Queued" | "Printing" | "Completed" | "Failed",
+  queuedAt: timestamp,
+  queuedBy: uid,
+  completedAt: timestamp,
+  printerName: "Fargo DTC1250e",
+  error: string                  // If print failed
 }
 ```
 

@@ -1,6 +1,7 @@
 import {
   collection,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -424,8 +425,8 @@ export const getAssociates = async (status = 'Active') => {
 // ============ USER MANAGEMENT ============
 export const createUserProfile = async (uid, email, displayName, role = 'On-Site Manager') => {
   try {
-    await addDoc(collection(db, 'users'), {
-      uid,
+    // Use setDoc with the UID as the document ID for easier lookups
+    await setDoc(doc(db, 'users', uid), {
       email,
       displayName,
       role,
@@ -441,14 +442,30 @@ export const createUserProfile = async (uid, email, displayName, role = 'On-Site
 
 export const getUserProfile = async (uid) => {
   try {
+    console.log('getUserProfile called with UID:', uid);
+
+    // First try to get document by UID as document ID
+    const docRef = doc(db, 'users', uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      console.log('Found user by direct UID lookup:', docSnap.data());
+      return { success: true, data: { id: docSnap.id, ...docSnap.data() } };
+    }
+
+    console.log('User not found by direct UID, trying query...');
+
+    // Fall back to querying by uid field (for older user documents)
     const q = query(collection(db, 'users'), where('uid', '==', uid), limit(1));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
+      console.log('User not found by query either');
       return { success: false, error: 'User not found' };
     }
 
     const userData = querySnapshot.docs[0].data();
+    console.log('Found user by query:', userData);
     return { success: true, data: { id: querySnapshot.docs[0].id, ...userData } };
   } catch (error) {
     console.error('Error getting user profile:', error);
@@ -458,12 +475,24 @@ export const getUserProfile = async (uid) => {
 
 export const updateUserLastLogin = async (uid) => {
   try {
+    // First try to update document by UID as document ID
+    const docRef = doc(db, 'users', uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      await updateDoc(docRef, {
+        lastLogin: serverTimestamp()
+      });
+      return { success: true };
+    }
+
+    // Fall back to querying by uid field (for older user documents)
     const q = query(collection(db, 'users'), where('uid', '==', uid), limit(1));
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
-      const docRef = doc(db, 'users', querySnapshot.docs[0].id);
-      await updateDoc(docRef, {
+      const oldDocRef = doc(db, 'users', querySnapshot.docs[0].id);
+      await updateDoc(oldDocRef, {
         lastLogin: serverTimestamp()
       });
     }

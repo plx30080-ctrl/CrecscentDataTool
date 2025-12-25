@@ -1,16 +1,159 @@
-# React + Vite
+# Crescent Management Platform V0.1
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive, production-ready workforce management system built with React, Firebase, and Material-UI. Track attendance, forecast staffing needs, and manage your recruiting pipeline - all in one powerful platform designed specifically for Crescent operations.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Core Functionality
+- ✅ **Role-Based Authentication** - Secure login with role-specific permissions
+- ✅ **Admin Panel** - User management, badge templates, and audit logs (Market Managers only)
+- ✅ **Real-Time Data Entry** - Tailored forms for each role
+- ✅ **Comprehensive Dashboard** - Visualize trends and metrics with Chart.js
+- ✅ **Applicant Tracking System** - Full recruiting pipeline with photo capture
+- ✅ **Badge Management System** - Create, verify, and print badges with PLX format
+- ✅ **Performance Scorecard** - Track KPIs and performance
+- ✅ **Intelligent Forecasting** - AI-driven staffing predictions
+- ✅ **Bulk Data Import** - CSV upload for historical data
+- ✅ **Early Leave Tracking** - Monitor and analyze trends
 
-## React Compiler
+### Key Metrics Tracked
+- Per-shift attendance and staffing levels
+- Client requests vs. actual headcount
+- New starts and send-homes
+- Hours worked by shift and total
+- Early leaves with corrective actions
+- Recruiting pipeline metrics
+- Interview show rates
+- Turnover analysis
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Tech Stack
 
-## Expanding the ESLint configuration
+- **Frontend**: React 19 + Vite
+- **UI Framework**: Material-UI (MUI) v7
+- **Backend**: Firebase (Firestore, Authentication, Storage)
+- **Charts**: Chart.js + React-Chartjs-2
+- **Date Handling**: Day.js
+- **CSV Processing**: PapaParse
+- **Routing**: React Router v7
+- **Media**: Webcam API for photo capture
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 📦 Installation
+
+### Prerequisites
+- Node.js 18+
+- Firebase account
+- Git
+
+### Quick Start
+
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Set up Firebase**
+
+   Follow [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for detailed instructions:
+   - Create Firebase project
+   - Enable Authentication
+   - Create Firestore database
+   - Configure security rules
+
+3. **Configure Firebase credentials**
+
+   Edit `src/firebase.js` with your Firebase config
+
+4. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+5. **First-time setup**
+   - Sign up for an account
+   - Go to Firebase Console → Firestore → `users` collection
+   - Add `role: "admin"` to your user document
+
+## 📖 Usage Guide
+
+### For On-Site Managers
+- Record shift attendance, new starts, and send-homes
+- Track line cuts and operational metrics
+
+### For Recruiters
+- Log interviews and applications processed
+- Manage applicant pipeline
+- Track conversion rates
+
+### For Market Managers
+- Submit hours worked
+- Record early leaves
+- Access full analytics and forecasting
+
+## 🎯 Key Features
+
+### Intelligent Forecasting
+Analyzes 90 days of historical data to predict:
+- Future headcount needs
+- Recommended hiring numbers
+- Recruiting timelines
+- Confidence scores
+
+### Applicant Tracking System
+- Full pipeline: Applied → Interviewed → Processed → Hired → Started
+- Conversion rate tracking
+- Projected start dates
+- Pipeline health metrics
+
+### Performance Scorecard
+- Overall performance score (0-100)
+- Fill rate tracking
+- Staffing movement analysis
+- Hours and recruiting metrics
+
+## 📁 Project Structure
+
+```
+src/
+├── components/          # Reusable UI components
+├── contexts/            # React context providers
+├── pages/               # Page components
+├── services/            # Business logic and API calls
+├── firebase.js          # Firebase configuration
+└── App.jsx             # Main app component
+```
+
+## 🚢 Deployment
+
+### Firebase Hosting
+```bash
+npm run build
+firebase deploy
+```
+
+### Vercel/Netlify
+- Build command: `npm run build`
+- Output directory: `dist`
+
+## 📚 Documentation
+
+- [Firebase Setup Guide](FIREBASE_SETUP.md)
+- [Firestore Schema](FIRESTORE_SCHEMA.md)
+- [Badge Management System](BADGE_SYSTEM.md)
+- [Admin Panel Guide](ADMIN_PANEL.md)
+
+## 🗺️ Roadmap
+
+- [ ] Email notifications
+- [ ] SharePoint integration
+- [ ] PDF/Excel exports
+- [ ] Mobile optimizations
+- [ ] Advanced analytics
+- [ ] Multi-client support
+
+## 📄 License
+
+Proprietary software for Crescent Management Platform V0.1.
+
+---
+
+**Built with ❤️ for efficient workforce management**

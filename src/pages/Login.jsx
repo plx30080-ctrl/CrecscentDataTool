@@ -48,7 +48,7 @@ const Login = () => {
             Login
           </Typography>
           <Typography variant="body2" color="text.secondary" align="center" gutterBottom>
-            Mid-States Workforce Management
+            Crescent Management Platform V0.1
           </Typography>
 
           {error && (

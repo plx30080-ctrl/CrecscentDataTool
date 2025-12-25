@@ -12,6 +12,8 @@ import Upload from './pages/EnhancedUpload';
 import ProfilePage from './pages/EnhancedProfile';
 import ApplicantsPage from './pages/ApplicantsPage';
 import ScorecardPage from './pages/ScorecardPage';
+import BadgeManagement from './pages/BadgeManagement';
+import AdminPanel from './pages/AdminPanel';
 
 function App() {
   return (
@@ -36,6 +38,8 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="scorecard" element={<ScorecardPage />} />
             <Route path="applicants" element={<ApplicantsPage />} />
+            <Route path="badges" element={<BadgeManagement />} />
+            <Route path="admin" element={<AdminPanel />} />
             <Route path="upload" element={<Upload />} />
             <Route path="profile" element={<ProfilePage />} />
           </Route>
