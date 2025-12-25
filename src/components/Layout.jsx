@@ -1,22 +1,87 @@
 import React from 'react';
-import { Outlet, Link } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Button, Container } from '@mui/material';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Container,
+  Box,
+  Menu,
+  MenuItem,
+  IconButton,
+  Chip
+} from '@mui/material';
+import { AccountCircle } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthProvider';
 
 const Layout = () => {
+  const { currentUser, userProfile, logout } = useAuth();
+  const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = React.useState(null);
+
+  const handleMenu = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    handleClose();
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <>
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Workforce Management
+            Mid-States Workforce
           </Typography>
           <Button color="inherit" component={Link} to="/">Home</Button>
           <Button color="inherit" component={Link} to="/data-entry">Data Entry</Button>
           <Button color="inherit" component={Link} to="/dashboard">Dashboard</Button>
+          <Button color="inherit" component={Link} to="/applicants">Applicants</Button>
           <Button color="inherit" component={Link} to="/upload">Upload</Button>
+
+          {currentUser && (
+            <Box sx={{ marginLeft: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              {userProfile && (
+                <Chip
+                  label={userProfile.role}
+                  size="small"
+                  color="secondary"
+                  variant="outlined"
+                />
+              )}
+              <IconButton
+                size="large"
+                onClick={handleMenu}
+                color="inherit"
+              >
+                <AccountCircle />
+              </IconButton>
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+              >
+                <MenuItem disabled>
+                  {userProfile?.displayName || currentUser.email}
+                </MenuItem>
+                <MenuItem component={Link} to="/profile" onClick={handleClose}>
+                  Profile
+                </MenuItem>
+                <MenuItem onClick={handleLogout}>Logout</MenuItem>
+              </Menu>
+            </Box>
+          )}
         </Toolbar>
       </AppBar>
-      <Container sx={{ marginTop: '2rem' }}>
+      <Container sx={{ marginTop: '2rem', marginBottom: '2rem' }}>
         <Outlet />
       </Container>
     </>

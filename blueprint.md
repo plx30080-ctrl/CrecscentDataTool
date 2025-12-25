@@ -12,13 +12,14 @@ This document outlines the development plan for a comprehensive workforce manage
 *   **Early Leave Tracking:** Track and analyze early leave data to identify trends.
 *   **Data Integration:** Automate data ingestion from various sources, including SharePoint and email.
 *   **Applicant Tracking:** Manage the applicant pipeline from processing to start date.
-*   **Role-Based Data Entry:** Provide a tailored data entry interface for different user roles (Market Manager, Recruiter, On-Site Manager).
+*   **Role-Based Data Entry:** Provide a tailored data entry interface for different user roles.
 *   **Historical Data Upload:** Allow users to upload historical data from a CSV file.
 
 ## Technology Stack
 
 *   **Frontend:** React with Vite
 *   **Component Library:** Material-UI (MUI)
+*   **Date Management:** Day.js
 *   **Routing:** React Router
 *   **Backend & Database:** Firebase (Firestore, Authentication)
 *   **CSV Parsing:** PapaParse
@@ -35,9 +36,11 @@ This document outlines the development plan for a comprehensive workforce manage
 
 ### Phase 2: Data Entry and User Roles
 
-1.  **Role Selection:** Implement a component for users to select their role.
-2.  **Dynamic Forms:** Create dynamic data entry forms that adapt to the selected role.
-3.  **Data-Entry Component:** Create a page for data-entry.
+1.  **Date Selection:** Add a date picker to the main data entry page.
+2.  **Role-Specific Forms:** Create detailed forms for each user role:
+    *   **On-Site Manager:** Shift selection (1st/2nd), "Number Requested", "Number Required", "Number Working", "New Starts" (Name and EID), and "Send Homes".
+    *   **Recruiter:** "Name", "Interviews Scheduled", "Interview Shows", "Applicants Processed", and "Daily Notes".
+    *   **Market Manager:** "Hours Worked 1st Shift", "Hours Worked 2nd Shift", "Early Leaves", and "DNRs".
 
 ### Phase 3: Dashboard and Data Visualization
 
@@ -66,4 +69,4 @@ This document outlines the development plan for a comprehensive workforce manage
 
 ## Current Task
 
-Implement the historical data upload feature. I will create a new page with a file uploader and a downloadable CSV template.
+Enhance the data entry forms with detailed, role-specific fields and a date picker for selecting the submission date.
