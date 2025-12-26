@@ -17,10 +17,35 @@ const EnhancedUpload = () => {
     setError('');
     setSuccess('');
 
+    if (!file) {
+      setError('No file selected');
+      return;
+    }
+
+    if (!file.name.endsWith('.csv')) {
+      setError('Please select a CSV file');
+      return;
+    }
+
     Papa.parse(file, {
       header: true,
+      skipEmptyLines: true,
       complete: (results) => {
-        setData(results.data.filter(row => row.date));
+        const validData = results.data.filter(row => {
+          // Must have a date field
+          if (!row.date || row.date.trim() === '') {
+            return false;
+          }
+          // Must have at least shift data or hours data
+          return (row.shift && row.numberWorking) || (row.shift1Hours || row.shift2Hours);
+        });
+
+        if (validData.length === 0) {
+          setError('No valid data found in CSV. Please check the format.');
+          return;
+        }
+
+        setData(validData);
       },
       error: (error) => {
         setError(`Failed to parse CSV: ${error.message}`);
@@ -41,30 +66,60 @@ const EnhancedUpload = () => {
 
     for (const row of data) {
       try {
+        // Validate and parse date
+        const date = new Date(row.date);
+        if (isNaN(date.getTime())) {
+          console.error('Invalid date:', row.date);
+          failCount++;
+          continue;
+        }
+
         if (row.shift && row.numberWorking) {
-          await addShiftData({
-            date: new Date(row.date),
+          // Parse newStarts safely
+          let newStarts = [];
+          if (row.newStarts) {
+            try {
+              newStarts = JSON.parse(row.newStarts);
+              if (!Array.isArray(newStarts)) {
+                newStarts = [];
+              }
+            } catch (e) {
+              console.error('Failed to parse newStarts:', row.newStarts);
+            }
+          }
+
+          const result = await addShiftData({
+            date,
             shift: row.shift,
             numberRequested: parseInt(row.numberRequested) || 0,
             numberRequired: parseInt(row.numberRequired) || 0,
             numberWorking: parseInt(row.numberWorking) || 0,
             sendHomes: parseInt(row.sendHomes) || 0,
             lineCuts: parseInt(row.lineCuts) || 0,
-            newStarts: row.newStarts ? JSON.parse(row.newStarts) : [],
+            newStarts,
             notes: row.notes || ''
           }, currentUser.uid);
+
+          if (!result.success) {
+            throw new Error(result.error);
+          }
         }
 
         if (row.shift1Hours || row.shift2Hours) {
           const shift1 = parseFloat(row.shift1Hours) || 0;
           const shift2 = parseFloat(row.shift2Hours) || 0;
-          await addHoursData({
-            date: new Date(row.date),
+
+          const result = await addHoursData({
+            date,
             shift1Hours: shift1,
             shift2Hours: shift2,
             totalHours: shift1 + shift2,
             associateHours: []
           }, currentUser.uid);
+
+          if (!result.success) {
+            throw new Error(result.error);
+          }
         }
 
         successCount++;
