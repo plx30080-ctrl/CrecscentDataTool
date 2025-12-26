@@ -13,6 +13,7 @@ import {
   limit,
   startAfter,
   Timestamp,
+  writeBatch,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -381,6 +382,101 @@ export const getApplicantPipeline = async () => {
   } catch (error) {
     console.error('Error calculating applicant pipeline:', error);
     return { success: false, error: error.message };
+  }
+};
+
+// Bulk upload applicants
+export const bulkUploadApplicants = async (applicants, userId, replaceAll = false) => {
+  try {
+    const batchSize = 500; // Firestore batch write limit
+    const batches = [];
+    let currentBatch = writeBatch(db);
+    let operationCount = 0;
+
+    // If replace all, delete existing applicants first
+    if (replaceAll) {
+      const existingApplicants = await getDocs(collection(db, 'applicants'));
+      existingApplicants.docs.forEach(doc => {
+        currentBatch.delete(doc.ref);
+        operationCount++;
+
+        if (operationCount === batchSize) {
+          batches.push(currentBatch);
+          currentBatch = writeBatch(db);
+          operationCount = 0;
+        }
+      });
+    }
+
+    // Add new applicants
+    applicants.forEach((applicant) => {
+      const docRef = doc(collection(db, 'applicants'));
+      currentBatch.set(docRef, {
+        ...applicant,
+        uploadedAt: serverTimestamp(),
+        uploadedBy: userId,
+        lastModified: serverTimestamp(),
+        lastModifiedBy: userId
+      });
+      operationCount++;
+
+      if (operationCount === batchSize) {
+        batches.push(currentBatch);
+        currentBatch = writeBatch(db);
+        operationCount = 0;
+      }
+    });
+
+    // Add the last batch if it has operations
+    if (operationCount > 0) {
+      batches.push(currentBatch);
+    }
+
+    // Commit all batches
+    await Promise.all(batches.map(batch => batch.commit()));
+
+    // Log upload to history
+    await addDoc(collection(db, 'uploadHistory'), {
+      type: 'applicants',
+      recordCount: applicants.length,
+      operation: replaceAll ? 'replace' : 'append',
+      uploadedAt: serverTimestamp(),
+      uploadedBy: userId
+    });
+
+    return { success: true, count: applicants.length };
+  } catch (error) {
+    console.error('Error bulk uploading applicants:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Check for duplicate CRM numbers
+export const checkDuplicateApplicants = async (crmNumbers) => {
+  try {
+    const duplicates = [];
+
+    // Query in chunks of 10 (Firestore 'in' query limit)
+    for (let i = 0; i < crmNumbers.length; i += 10) {
+      const chunk = crmNumbers.slice(i, i + 10);
+      const q = query(
+        collection(db, 'applicants'),
+        where('crmNumber', 'in', chunk)
+      );
+      const snapshot = await getDocs(q);
+      snapshot.docs.forEach(doc => {
+        duplicates.push({
+          crmNumber: doc.data().crmNumber,
+          name: doc.data().name,
+          status: doc.data().status
+        });
+      });
+    }
+
+    return { success: true, duplicates };
+  } catch (error) {
+    console.error('Error checking duplicates:', error);
+    return { success: false, error: error.message, duplicates: [] };
   }
 };
 
