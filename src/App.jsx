@@ -19,7 +19,7 @@ import AdminPanel from './pages/AdminPanel';
 function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter basename="/">
+      <BrowserRouter basename="/CrecscentDataTool">
         <AuthProvider>
           <Routes>
           {/* Public routes */}
