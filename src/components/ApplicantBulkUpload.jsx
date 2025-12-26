@@ -58,6 +58,12 @@ const ApplicantBulkUpload = () => {
 
   const VALID_SHIFTS = ['1st', '2nd', 'Mid'];
 
+  // Helper function to safely convert to string
+  const toString = (value) => {
+    if (value === null || value === undefined) return '';
+    return String(value);
+  };
+
   // Column mapping to handle line breaks and variations
   const normalizeColumnName = (col) => {
     const normalized = col.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
@@ -81,9 +87,10 @@ const ApplicantBulkUpload = () => {
   };
 
   const validateEmail = (email) => {
-    if (!email || email.trim() === '') return true; // Optional field
+    const emailStr = toString(email).trim();
+    if (!emailStr) return true; // Optional field
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+    return re.test(emailStr);
   };
 
   const normalizePhone = (phone) => {
@@ -123,24 +130,27 @@ const ApplicantBulkUpload = () => {
   const validateRow = (row, index) => {
     const errors = [];
 
-    // Required fields
-    if (!row.name || row.name.trim() === '') {
+    // Required fields - convert to string first
+    const name = toString(row.name).trim();
+    if (!name) {
       errors.push(`Row ${index + 2}: Missing required field 'name'`);
     }
 
-    if (!row.status || row.status.trim() === '') {
+    const status = toString(row.status).trim();
+    if (!status) {
       errors.push(`Row ${index + 2}: Missing required field 'status'`);
     } else {
       // Validate status value
       const normalizedStatus = VALID_STATUSES.find(
-        s => s.toLowerCase() === row.status.toLowerCase()
+        s => s.toLowerCase() === status.toLowerCase()
       );
       if (!normalizedStatus) {
-        errors.push(`Row ${index + 2}: Invalid status '${row.status}'. Must be one of: ${VALID_STATUSES.join(', ')}`);
+        errors.push(`Row ${index + 2}: Invalid status '${status}'. Must be one of: ${VALID_STATUSES.join(', ')}`);
       }
     }
 
-    if (!row.crmNumber) {
+    const crmNumber = toString(row.crmNumber).trim();
+    if (!crmNumber) {
       errors.push(`Row ${index + 2}: Missing required field 'crmNumber'`);
     }
 
@@ -155,11 +165,12 @@ const ApplicantBulkUpload = () => {
 
     // Optional field validations
     if (row.email && !validateEmail(row.email)) {
-      errors.push(`Row ${index + 2}: Invalid email '${row.email}'`);
+      errors.push(`Row ${index + 2}: Invalid email '${toString(row.email)}'`);
     }
 
-    if (row.shift && !VALID_SHIFTS.includes(row.shift)) {
-      errors.push(`Row ${index + 2}: Invalid shift '${row.shift}'. Must be one of: ${VALID_SHIFTS.join(', ')}`);
+    const shift = toString(row.shift).trim();
+    if (shift && !VALID_SHIFTS.includes(shift)) {
+      errors.push(`Row ${index + 2}: Invalid shift '${shift}'. Must be one of: ${VALID_SHIFTS.join(', ')}`);
     }
 
     return errors;
@@ -167,22 +178,23 @@ const ApplicantBulkUpload = () => {
 
   const processApplicantData = (row) => {
     // Normalize status to match valid values
+    const statusStr = toString(row.status);
     const normalizedStatus = VALID_STATUSES.find(
-      s => s.toLowerCase() === (row.status || '').toLowerCase()
-    ) || row.status;
+      s => s.toLowerCase() === statusStr.toLowerCase()
+    ) || statusStr;
 
     return {
       status: normalizedStatus,
-      name: row.name?.trim() || '',
+      name: toString(row.name).trim(),
       phoneNumber: normalizePhone(row.phoneNumber),
-      email: row.email?.trim() || '',
-      crmNumber: row.crmNumber?.toString() || '',
+      email: toString(row.email).trim(),
+      crmNumber: toString(row.crmNumber),
       processDate: parseExcelDate(row.processDate),
-      i9Cleared: row.i9Cleared === 'Yes' ? 'Yes' : '',
-      backgroundStatus: row.backgroundStatus?.trim() || '',
-      shift: row.shift || '',
-      notes: row.notes?.trim() || '',
-      fill: row.fill?.trim() || ''
+      i9Cleared: toString(row.i9Cleared) === 'Yes' ? 'Yes' : '',
+      backgroundStatus: toString(row.backgroundStatus).trim(),
+      shift: toString(row.shift).trim(),
+      notes: toString(row.notes).trim(),
+      fill: toString(row.fill).trim()
     };
   };
 
