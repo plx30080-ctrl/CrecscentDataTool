@@ -317,7 +317,8 @@ export const getApplicants = async (status = null) => {
       constraints.push(where('status', '==', status));
     }
 
-    constraints.push(orderBy('appliedDate', 'desc'));
+    // Note: Removed orderBy to support both appliedDate and processDate fields
+    // Client-side sorting can be applied if needed
 
     const q = query(collection(db, 'applicants'), ...constraints);
     const querySnapshot = await getDocs(q);
@@ -325,6 +326,7 @@ export const getApplicants = async (status = null) => {
       id: doc.id,
       ...doc.data(),
       appliedDate: doc.data().appliedDate?.toDate(),
+      processDate: doc.data().processDate?.toDate(),
       interviewDate: doc.data().interviewDate?.toDate(),
       processedDate: doc.data().processedDate?.toDate(),
       projectedStartDate: doc.data().projectedStartDate?.toDate(),
@@ -346,12 +348,20 @@ export const getApplicantPipeline = async () => {
     const pipeline = {
       total: result.data.length,
       byStatus: {
+        // Support both old and new status formats
         'Applied': 0,
         'Interviewed': 0,
         'Processed': 0,
         'Hired': 0,
         'Started': 0,
-        'Rejected': 0
+        'Rejected': 0,
+        // New bulk upload statuses
+        'CB Updated': 0,
+        'BG Pending': 0,
+        'Adjudication Pending': 0,
+        'I-9 Pending': 0,
+        'Declined': 0,
+        'No Contact': 0
       },
       projectedStarts: [],
       conversionRate: 0
@@ -360,7 +370,7 @@ export const getApplicantPipeline = async () => {
     result.data.forEach(applicant => {
       pipeline.byStatus[applicant.status] = (pipeline.byStatus[applicant.status] || 0) + 1;
 
-      if (applicant.projectedStartDate && applicant.status === 'Hired') {
+      if (applicant.projectedStartDate && (applicant.status === 'Hired' || applicant.status === 'Started')) {
         pipeline.projectedStarts.push({
           name: applicant.name,
           date: applicant.projectedStartDate
@@ -368,12 +378,9 @@ export const getApplicantPipeline = async () => {
       }
     });
 
-    // Calculate conversion rate (Applied -> Started)
-    const applied = pipeline.byStatus['Applied'] + pipeline.byStatus['Interviewed'] +
-                    pipeline.byStatus['Processed'] + pipeline.byStatus['Hired'] +
-                    pipeline.byStatus['Started'];
+    // Calculate conversion rate (total -> Started)
     const started = pipeline.byStatus['Started'];
-    pipeline.conversionRate = applied > 0 ? ((started / applied) * 100).toFixed(1) : 0;
+    pipeline.conversionRate = pipeline.total > 0 ? ((started / pipeline.total) * 100).toFixed(1) : 0;
 
     // Sort projected starts by date
     pipeline.projectedStarts.sort((a, b) => new Date(a.date) - new Date(b.date));

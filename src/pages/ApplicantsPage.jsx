@@ -264,12 +264,20 @@ const ApplicantsPage = () => {
 
   const getStatusColor = (status) => {
     const colors = {
+      // Original statuses
       'Applied': 'info',
       'Interviewed': 'warning',
       'Processed': 'secondary',
       'Hired': 'success',
       'Started': 'primary',
-      'Rejected': 'error'
+      'Rejected': 'error',
+      // Bulk upload statuses
+      'CB Updated': 'info',
+      'BG Pending': 'warning',
+      'Adjudication Pending': 'warning',
+      'I-9 Pending': 'secondary',
+      'Declined': 'error',
+      'No Contact': 'default'
     };
     return colors[status] || 'default';
   };
@@ -307,51 +315,26 @@ const ApplicantsPage = () => {
         {/* Pipeline Overview */}
         {pipeline && (
           <Grid container spacing={2} sx={{ marginBottom: 4 }}>
-            <Grid item xs={12} md={2}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary" gutterBottom>Applied</Typography>
-                  <Typography variant="h4">{pipeline.byStatus['Applied']}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary" gutterBottom>Interviewed</Typography>
-                  <Typography variant="h4">{pipeline.byStatus['Interviewed']}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary" gutterBottom>Processed</Typography>
-                  <Typography variant="h4">{pipeline.byStatus['Processed']}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary" gutterBottom>Hired</Typography>
-                  <Typography variant="h4">{pipeline.byStatus['Hired']}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary" gutterBottom>Started</Typography>
-                  <Typography variant="h4">{pipeline.byStatus['Started']}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={2}>
+            {Object.entries(pipeline.byStatus)
+              .filter(([_, count]) => count > 0)
+              .map(([status, count]) => (
+                <Grid item xs={12} sm={6} md={3} lg={2} key={status}>
+                  <Card>
+                    <CardContent>
+                      <Typography color="text.secondary" gutterBottom fontSize="0.85rem">
+                        {status}
+                      </Typography>
+                      <Typography variant="h4">{count}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))
+            }
+            <Grid item xs={12} sm={6} md={3} lg={2}>
               <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
                 <CardContent>
-                  <Typography color="white" gutterBottom>Conversion</Typography>
-                  <Typography variant="h4" color="white">{pipeline.conversionRate}%</Typography>
+                  <Typography color="white" gutterBottom fontSize="0.85rem">Total</Typography>
+                  <Typography variant="h4" color="white">{pipeline.total}</Typography>
                 </CardContent>
               </Card>
             </Grid>
