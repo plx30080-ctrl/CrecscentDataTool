@@ -54,8 +54,14 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
-    // Audit logs
-    match /auditLogs/{document=**} {
+    // Badge Templates (for admin panel)
+    match /badgeTemplates/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Audit logs (singular - must match code)
+    match /auditLog/{document=**} {
       allow read: if request.auth != null;
       allow write: if request.auth != null;
     }
