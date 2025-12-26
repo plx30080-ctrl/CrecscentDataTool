@@ -35,17 +35,17 @@ export const addShiftData = async (shiftData, userId) => {
 
 export const getShiftData = async (startDate, endDate, shift = null) => {
   try {
-    let q = query(
-      collection(db, 'shiftData'),
+    const constraints = [
       where('date', '>=', Timestamp.fromDate(new Date(startDate))),
       where('date', '<=', Timestamp.fromDate(new Date(endDate))),
       orderBy('date', 'desc')
-    );
+    ];
 
     if (shift) {
-      q = query(q, where('shift', '==', shift));
+      constraints.push(where('shift', '==', shift));
     }
 
+    const q = query(collection(db, 'shiftData'), ...constraints);
     const querySnapshot = await getDocs(q);
     const data = querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -201,17 +201,17 @@ export const addEarlyLeave = async (earlyLeaveData, userId) => {
 
 export const getEarlyLeaves = async (startDate, endDate, associateId = null) => {
   try {
-    let q = query(
-      collection(db, 'earlyLeaves'),
+    const constraints = [
       where('date', '>=', Timestamp.fromDate(new Date(startDate))),
       where('date', '<=', Timestamp.fromDate(new Date(endDate))),
       orderBy('date', 'desc')
-    );
+    ];
 
     if (associateId) {
-      q = query(q, where('associateId', '==', associateId));
+      constraints.push(where('associateId', '==', associateId));
     }
 
+    const q = query(collection(db, 'earlyLeaves'), ...constraints);
     const querySnapshot = await getDocs(q);
     const data = querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -310,14 +310,15 @@ export const updateApplicant = async (applicantId, updates) => {
 
 export const getApplicants = async (status = null) => {
   try {
-    let q = collection(db, 'applicants');
+    const constraints = [];
 
     if (status) {
-      q = query(q, where('status', '==', status), orderBy('appliedDate', 'desc'));
-    } else {
-      q = query(q, orderBy('appliedDate', 'desc'));
+      constraints.push(where('status', '==', status));
     }
 
+    constraints.push(orderBy('appliedDate', 'desc'));
+
+    const q = query(collection(db, 'applicants'), ...constraints);
     const querySnapshot = await getDocs(q);
     const data = querySnapshot.docs.map(doc => ({
       id: doc.id,
