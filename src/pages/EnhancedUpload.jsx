@@ -61,15 +61,22 @@ const EnhancedUpload = () => {
 
     setUploading(true);
     setError('');
+    setSuccess('');
     let successCount = 0;
     let failCount = 0;
+    const errors = [];
 
-    for (const row of data) {
+    console.log(`Starting bulk upload of ${data.length} rows...`);
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
       try {
         // Validate and parse date
         const date = new Date(row.date);
         if (isNaN(date.getTime())) {
-          console.error('Invalid date:', row.date);
+          const errorMsg = `Row ${i + 1}: Invalid date "${row.date}"`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
           failCount++;
           continue;
         }
@@ -77,14 +84,15 @@ const EnhancedUpload = () => {
         if (row.shift && row.numberWorking) {
           // Parse newStarts safely
           let newStarts = [];
-          if (row.newStarts) {
+          if (row.newStarts && row.newStarts.trim() !== '' && row.newStarts !== '[]') {
             try {
               newStarts = JSON.parse(row.newStarts);
               if (!Array.isArray(newStarts)) {
                 newStarts = [];
               }
             } catch (e) {
-              console.error('Failed to parse newStarts:', row.newStarts);
+              console.warn(`Row ${i + 1}: Failed to parse newStarts, using empty array:`, row.newStarts);
+              newStarts = [];
             }
           }
 
@@ -123,35 +131,105 @@ const EnhancedUpload = () => {
         }
 
         successCount++;
+        if (successCount % 10 === 0) {
+          console.log(`Uploaded ${successCount}/${data.length} rows...`);
+        }
       } catch (err) {
-        console.error('Error uploading row:', err);
+        const errorMsg = `Row ${i + 1} (${row.date} ${row.shift}): ${err.message}`;
+        console.error(errorMsg);
+        errors.push(errorMsg);
         failCount++;
       }
     }
 
     setUploading(false);
+    console.log(`Upload complete: ${successCount} succeeded, ${failCount} failed`);
+
     if (successCount > 0) {
-      setSuccess(`Successfully uploaded ${successCount} records!${failCount > 0 ? ` (${failCount} failed)` : ''}`);
+      let message = `✅ Successfully uploaded ${successCount} records!`;
+      if (failCount > 0) {
+        message += ` ⚠️ ${failCount} records failed. Check the console for details.`;
+      }
+      setSuccess(message);
       setData([]);
+
+      // Show first few errors if any
+      if (errors.length > 0) {
+        console.error('Upload errors:', errors);
+      }
     } else {
-      setError(`Failed to upload data. ${failCount} records failed.`);
+      setError(`❌ Failed to upload data. ${failCount} records failed. Check the console for details.`);
     }
   };
 
   const downloadTemplate = () => {
-    const template = [{
-      date: '2024-01-15',
-      shift: '1st',
-      numberRequested: '50',
-      numberRequired: '45',
-      numberWorking: '48',
-      sendHomes: '2',
-      lineCuts: '1',
-      newStarts: '[{"name":"John Doe","eid":"12345"}]',
-      shift1Hours: '380',
-      shift2Hours: '0',
-      notes: 'Sample data'
-    }];
+    const template = [
+      {
+        date: '2024-01-15',
+        shift: '1st',
+        numberRequested: '50',
+        numberRequired: '45',
+        numberWorking: '48',
+        sendHomes: '2',
+        lineCuts: '0',
+        newStarts: '[]',
+        shift1Hours: '380',
+        shift2Hours: '0',
+        notes: 'Normal day'
+      },
+      {
+        date: '2024-01-15',
+        shift: '2nd',
+        numberRequested: '30',
+        numberRequired: '28',
+        numberWorking: '29',
+        sendHomes: '0',
+        lineCuts: '1',
+        newStarts: '[{"name":"Jane Smith","eid":"67890"}]',
+        shift1Hours: '0',
+        shift2Hours: '232',
+        notes: 'One new hire started'
+      },
+      {
+        date: '2024-01-16',
+        shift: '1st',
+        numberRequested: '50',
+        numberRequired: '45',
+        numberWorking: '47',
+        sendHomes: '1',
+        lineCuts: '0',
+        newStarts: '[]',
+        shift1Hours: '376',
+        shift2Hours: '0',
+        notes: ''
+      },
+      {
+        date: '2024-01-16',
+        shift: '2nd',
+        numberRequested: '30',
+        numberRequired: '28',
+        numberWorking: '28',
+        sendHomes: '0',
+        lineCuts: '0',
+        newStarts: '[]',
+        shift1Hours: '0',
+        shift2Hours: '224',
+        notes: ''
+      },
+      {
+        date: '2024-01-17',
+        shift: '1st',
+        numberRequested: '50',
+        numberRequired: '45',
+        numberWorking: '50',
+        sendHomes: '5',
+        lineCuts: '0',
+        newStarts: '[{"name":"John Doe","eid":"12345"},{"name":"Mary Johnson","eid":"54321"}]',
+        shift1Hours: '400',
+        shift2Hours: '0',
+        notes: 'Overstaffed - two new hires'
+      }
+    ];
     const csv = Papa.unparse(template);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -174,10 +252,36 @@ const EnhancedUpload = () => {
       <Paper sx={{ padding: 3, marginBottom: 3 }}>
         <Typography variant="h6" gutterBottom>1. Download CSV Template</Typography>
         <Typography variant="body2" sx={{ marginBottom: 2 }}>
-          Download the CSV template and fill it with your historical data.
+          Download the CSV template and fill it with your historical data. The template includes examples for both 1st and 2nd shifts.
         </Typography>
+
+        <Alert severity="info" sx={{ marginBottom: 2 }}>
+          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Required Fields:</Typography>
+          <Typography variant="body2" component="div">
+            • <strong>date</strong> - Format: YYYY-MM-DD (e.g., 2024-01-15)<br/>
+            • <strong>shift</strong> - Either "1st" or "2nd"<br/>
+            • <strong>numberWorking</strong> - Number of associates who showed up<br/>
+          </Typography>
+
+          <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ marginTop: 2 }}>Optional Fields:</Typography>
+          <Typography variant="body2" component="div">
+            • <strong>numberRequested</strong> - How many associates you requested<br/>
+            • <strong>numberRequired</strong> - Minimum required for operations<br/>
+            • <strong>sendHomes</strong> - Number sent home (overstaffed)<br/>
+            • <strong>lineCuts</strong> - Number of line cuts that day<br/>
+            • <strong>newStarts</strong> - New hires as JSON: <code>[]</code> or <code>[{"{"}name":"John","eid":"123"{"}"}]</code><br/>
+            • <strong>shift1Hours</strong> - Total hours worked by 1st shift (0 for 2nd shift rows)<br/>
+            • <strong>shift2Hours</strong> - Total hours worked by 2nd shift (0 for 1st shift rows)<br/>
+            • <strong>notes</strong> - Any notes for that day/shift
+          </Typography>
+
+          <Typography variant="subtitle2" fontWeight="bold" sx={{ marginTop: 2 }}>
+            Important: Each date typically needs TWO rows - one for 1st shift and one for 2nd shift.
+          </Typography>
+        </Alert>
+
         <Button variant="outlined" onClick={downloadTemplate} startIcon={<CloudUpload />}>
-          Download Template
+          Download Template (5 Sample Rows)
         </Button>
       </Paper>
 
