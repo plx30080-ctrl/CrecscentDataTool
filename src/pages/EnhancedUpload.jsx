@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Typography, Container, Button, Paper, Box, Alert, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
-import { CloudUpload, CheckCircle } from '@mui/icons-material';
+import { Typography, Container, Button, Paper, Box, Alert, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
+import { CloudUpload, CheckCircle, People, BarChart } from '@mui/icons-material';
 import Papa from 'papaparse';
 import { useAuth } from '../contexts/AuthProvider';
 import { addShiftData, addHoursData } from '../services/firestoreService';
+import ApplicantBulkUpload from '../components/ApplicantBulkUpload';
 
 const EnhancedUpload = () => {
   const { currentUser } = useAuth();
+  const [tabValue, setTabValue] = useState(0);
   const [data, setData] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -245,11 +247,23 @@ const EnhancedUpload = () => {
   return (
     <Container>
       <Typography variant="h4" gutterBottom>Bulk Data Upload</Typography>
+      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ marginBottom: 3 }}>
+        Upload historical data in bulk using CSV (for shift/hours data) or Excel (for applicants)
+      </Typography>
 
-      {success && <Alert severity="success" sx={{ marginBottom: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
-      {error && <Alert severity="error" sx={{ marginBottom: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', marginBottom: 3 }}>
+        <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+          <Tab label="Shift & Hours Data" icon={<BarChart />} iconPosition="start" />
+          <Tab label="Applicant Data" icon={<People />} iconPosition="start" />
+        </Tabs>
+      </Box>
 
-      <Paper sx={{ padding: 3, marginBottom: 3 }}>
+      {tabValue === 0 && (
+        <Box>
+          {success && <Alert severity="success" sx={{ marginBottom: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
+          {error && <Alert severity="error" sx={{ marginBottom: 2 }} onClose={() => setError('')}>{error}</Alert>}
+
+          <Paper sx={{ padding: 3, marginBottom: 3 }}>
         <Typography variant="h6" gutterBottom>1. Download CSV Template</Typography>
         <Typography variant="body2" sx={{ marginBottom: 2 }}>
           Download the CSV template and fill it with your historical data. The template includes examples for both 1st and 2nd shifts.
@@ -338,6 +352,14 @@ const EnhancedUpload = () => {
           </Box>
         )}
       </Paper>
+        </Box>
+      )}
+
+      {tabValue === 1 && (
+        <Box>
+          <ApplicantBulkUpload />
+        </Box>
+      )}
     </Container>
   );
 };
