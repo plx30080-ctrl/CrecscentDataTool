@@ -15,6 +15,7 @@ import ApplicantsPage from './pages/ApplicantsPage';
 import ScorecardPage from './pages/ScorecardPage';
 import BadgeManagement from './pages/BadgeManagement';
 import AdminPanel from './pages/AdminPanel';
+import DataDebug from './pages/DataDebug';
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
             <Route path="badges" element={<BadgeManagement />} />
             <Route path="admin" element={<AdminPanel />} />
             <Route path="upload" element={<Upload />} />
+            <Route path="debug" element={<DataDebug />} />
             <Route path="profile" element={<ProfilePage />} />
           </Route>
           </Routes>
