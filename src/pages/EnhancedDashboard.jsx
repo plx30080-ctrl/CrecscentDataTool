@@ -82,13 +82,28 @@ const EnhancedDashboard = () => {
       getApplicantPipeline()
     ]);
 
+    console.log('Dashboard data loaded:', {
+      shiftResult,
+      hoursResult,
+      earlyLeavesResult,
+      pipelineResult
+    });
+
     // Generate forecast
     const forecastResult = await generateForecast(end, 30);
 
     if (shiftResult.success && hoursResult.success) {
       setDashboardData({
-        shifts: shiftResult.data,
-        hours: hoursResult.data,
+        shifts: shiftResult.data || [],
+        hours: hoursResult.data || [],
+        earlyLeaves: earlyLeavesResult.success ? earlyLeavesResult.data : null,
+        pipeline: pipelineResult.success ? pipelineResult.data : null
+      });
+    } else {
+      console.error('Shift or hours data failed:', { shiftResult, hoursResult });
+      setDashboardData({
+        shifts: [],
+        hours: [],
         earlyLeaves: earlyLeavesResult.success ? earlyLeavesResult.data : null,
         pipeline: pipelineResult.success ? pipelineResult.data : null
       });
