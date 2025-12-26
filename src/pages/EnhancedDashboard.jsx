@@ -14,7 +14,8 @@ import {
   Button,
   Tabs,
   Tab,
-  Alert
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { TrendingUp, TrendingDown, People, EventAvailable, Warning } from '@mui/icons-material';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
@@ -61,6 +62,7 @@ const EnhancedDashboard = () => {
   const [timeRange, setTimeRange] = useState('30'); // days
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
   const [forecast, setForecast] = useState(null);
   const [startDate, setStartDate] = useState(dayjs().subtract(30, 'days'));
@@ -72,15 +74,18 @@ const EnhancedDashboard = () => {
 
   const loadDashboardData = async () => {
     setLoading(true);
-    const start = startDate.toDate();
-    const end = endDate.toDate();
+    setError(null);
 
-    const [shiftResult, hoursResult, earlyLeavesResult, pipelineResult] = await Promise.all([
-      getShiftData(start, end),
-      getAggregateHours(start, end, 'day'),
-      getEarlyLeaveTrends(start, end),
-      getApplicantPipeline()
-    ]);
+    try {
+      const start = startDate.toDate();
+      const end = endDate.toDate();
+
+      const [shiftResult, hoursResult, earlyLeavesResult, pipelineResult] = await Promise.all([
+        getShiftData(start, end),
+        getAggregateHours(start, end, 'day'),
+        getEarlyLeaveTrends(start, end),
+        getApplicantPipeline()
+      ]);
 
     console.log('Dashboard data loaded:', {
       shiftResult,
@@ -109,11 +114,16 @@ const EnhancedDashboard = () => {
       });
     }
 
-    if (forecastResult.success) {
-      setForecast(forecastResult.forecast);
-    }
+      if (forecastResult.success) {
+        setForecast(forecastResult.forecast);
+      }
 
-    setLoading(false);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+      setError('Failed to load dashboard data. Please try again.');
+      setLoading(false);
+    }
   };
 
   const calculateKPIs = () => {
@@ -245,8 +255,33 @@ const EnhancedDashboard = () => {
   if (loading) {
     return (
       <Container>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <CircularProgress size={60} />
+          <Typography variant="h6" sx={{ marginTop: 2 }}>Loading dashboard data...</Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container>
         <Typography variant="h4" gutterBottom>Dashboard</Typography>
-        <Typography>Loading data...</Typography>
+        <Alert severity="error" sx={{ marginTop: 2 }}>
+          {error}
+          <Button onClick={loadDashboardData} sx={{ marginLeft: 2 }}>Retry</Button>
+        </Alert>
+      </Container>
+    );
+  }
+
+  if (!dashboardData || (dashboardData.shifts.length === 0 && dashboardData.hours.length === 0)) {
+    return (
+      <Container>
+        <Typography variant="h4" gutterBottom>Dashboard</Typography>
+        <Alert severity="info" sx={{ marginTop: 2 }}>
+          No data available for the selected date range. Try uploading some data first or selecting a different date range.
+        </Alert>
       </Container>
     );
   }
