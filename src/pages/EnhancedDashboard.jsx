@@ -88,10 +88,24 @@ const EnhancedDashboard = () => {
       ]);
 
     console.log('Dashboard data loaded:', {
-      shiftResult,
-      hoursResult,
-      earlyLeavesResult,
-      pipelineResult
+      dateRange: { start: start, end: end },
+      shiftResult: {
+        success: shiftResult.success,
+        dataCount: shiftResult.data?.length || 0,
+        sample: shiftResult.data?.[0]
+      },
+      hoursResult: {
+        success: hoursResult.success,
+        dataKeys: Object.keys(hoursResult.data || {}).length
+      },
+      earlyLeavesResult: {
+        success: earlyLeavesResult.success,
+        total: earlyLeavesResult.data?.total
+      },
+      pipelineResult: {
+        success: pipelineResult.success,
+        total: pipelineResult.data?.total
+      }
     });
 
     // Generate forecast
@@ -280,7 +294,25 @@ const EnhancedDashboard = () => {
       <Container>
         <Typography variant="h4" gutterBottom>Dashboard</Typography>
         <Alert severity="info" sx={{ marginTop: 2 }}>
-          No data available for the selected date range. Try uploading some data first or selecting a different date range.
+          <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+            No Data Available
+          </Typography>
+          <Typography variant="body2" gutterBottom>
+            No shift data found for the selected date range ({startDate.format('MMM D, YYYY')} - {endDate.format('MMM D, YYYY')}).
+          </Typography>
+          <Typography variant="body2" sx={{ marginTop: 1 }}>
+            <strong>To get started:</strong>
+          </Typography>
+          <Typography variant="body2" component="div">
+            1. Navigate to the <strong>Bulk Data Upload</strong> page<br/>
+            2. Download the CSV template<br/>
+            3. Fill in your workforce data<br/>
+            4. Upload the file to Firestore<br/>
+            5. Return here to view your dashboard
+          </Typography>
+          <Typography variant="body2" sx={{ marginTop: 2 }}>
+            See <code>TROUBLESHOOTING_DASHBOARD_ZEROS.md</code> for detailed instructions.
+          </Typography>
         </Alert>
       </Container>
     );
