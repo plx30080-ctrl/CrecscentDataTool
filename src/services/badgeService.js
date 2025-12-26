@@ -145,9 +145,10 @@ export const getBadgeByEID = async (eid) => {
 export const searchBadges = async (searchTerm) => {
   try {
     const badges = [];
+    const applicants = [];
     const searchUpper = searchTerm.toUpperCase();
 
-    // Search by EID
+    // Search badges by EID
     const eidQuery = query(
       collection(db, 'badges'),
       where('eid', '>=', searchTerm),
@@ -155,10 +156,10 @@ export const searchBadges = async (searchTerm) => {
     );
     const eidSnapshot = await getDocs(eidQuery);
     eidSnapshot.forEach(doc => {
-      badges.push({ id: doc.id, ...doc.data() });
+      badges.push({ id: doc.id, ...doc.data(), source: 'badge' });
     });
 
-    // Search by lastName
+    // Search badges by lastName
     const lastNameQuery = query(
       collection(db, 'badges'),
       where('lastName', '>=', searchUpper),
@@ -168,11 +169,11 @@ export const searchBadges = async (searchTerm) => {
     lastNameSnapshot.forEach(doc => {
       const existingBadge = badges.find(b => b.id === doc.id);
       if (!existingBadge) {
-        badges.push({ id: doc.id, ...doc.data() });
+        badges.push({ id: doc.id, ...doc.data(), source: 'badge' });
       }
     });
 
-    // Search by firstName
+    // Search badges by firstName
     const firstNameQuery = query(
       collection(db, 'badges'),
       where('firstName', '>=', searchUpper),
@@ -182,20 +183,60 @@ export const searchBadges = async (searchTerm) => {
     firstNameSnapshot.forEach(doc => {
       const existingBadge = badges.find(b => b.id === doc.id);
       if (!existingBadge) {
-        badges.push({ id: doc.id, ...doc.data() });
+        badges.push({ id: doc.id, ...doc.data(), source: 'badge' });
       }
     });
 
-    // Convert timestamps
-    const formattedBadges = badges.map(badge => ({
-      ...badge,
-      createdAt: badge.createdAt?.toDate(),
-      printedAt: badge.printedAt?.toDate(),
-      issuedAt: badge.issuedAt?.toDate(),
-      expirationDate: badge.expirationDate?.toDate()
+    // Also search applicants by CRM Number (which is used as EID)
+    const crmQuery = query(
+      collection(db, 'applicants'),
+      where('crmNumber', '>=', searchTerm),
+      where('crmNumber', '<=', searchTerm + '\uf8ff')
+    );
+    const crmSnapshot = await getDocs(crmQuery);
+    crmSnapshot.forEach(doc => {
+      const data = doc.data();
+      applicants.push({
+        id: doc.id,
+        ...data,
+        source: 'applicant',
+        // Convert applicant data to badge-like format for display
+        firstName: data.name?.split(' ')[0]?.toUpperCase() || '',
+        lastName: data.name?.split(' ').slice(1).join(' ')?.toUpperCase() || '',
+        eid: data.eid || data.crmNumber
+      });
+    });
+
+    // Search applicants by name (case-insensitive partial match)
+    const allApplicantsSnapshot = await getDocs(collection(db, 'applicants'));
+    allApplicantsSnapshot.forEach(doc => {
+      const data = doc.data();
+      const name = (data.name || '').toLowerCase();
+      const searchLower = searchTerm.toLowerCase();
+
+      if (name.includes(searchLower) && !applicants.find(a => a.id === doc.id)) {
+        applicants.push({
+          id: doc.id,
+          ...data,
+          source: 'applicant',
+          firstName: data.name?.split(' ')[0]?.toUpperCase() || '',
+          lastName: data.name?.split(' ').slice(1).join(' ')?.toUpperCase() || '',
+          eid: data.eid || data.crmNumber
+        });
+      }
+    });
+
+    // Combine and convert timestamps
+    const allResults = [...badges, ...applicants].map(item => ({
+      ...item,
+      createdAt: item.createdAt?.toDate?.(),
+      printedAt: item.printedAt?.toDate?.(),
+      issuedAt: item.issuedAt?.toDate?.(),
+      expirationDate: item.expirationDate?.toDate?.(),
+      processDate: item.processDate?.toDate?.()
     }));
 
-    return { success: true, data: formattedBadges };
+    return { success: true, data: allResults };
   } catch (error) {
     console.error('Error searching badges:', error);
     return { success: false, error: error.message, data: [] };

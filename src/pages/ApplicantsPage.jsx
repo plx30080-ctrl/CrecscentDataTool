@@ -11,6 +11,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Chip,
   Dialog,
   DialogTitle,
@@ -29,7 +30,7 @@ import {
   Avatar,
   Stack
 } from '@mui/material';
-import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload } from '@mui/icons-material';
+import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -46,6 +47,10 @@ import { createBadge } from '../services/badgeService';
 const ApplicantsPage = () => {
   const { currentUser } = useAuth();
   const [applicants, setApplicants] = useState([]);
+  const [filteredApplicants, setFilteredApplicants] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState('processDate');
+  const [sortDirection, setSortDirection] = useState('desc');
   const [pipeline, setPipeline] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -87,6 +92,7 @@ const ApplicantsPage = () => {
 
     if (applicantsResult.success) {
       setApplicants(applicantsResult.data);
+      setFilteredApplicants(applicantsResult.data);
     }
 
     if (pipelineResult.success) {
@@ -94,6 +100,62 @@ const ApplicantsPage = () => {
     }
 
     setLoading(false);
+  };
+
+  // Search and sort filter
+  useEffect(() => {
+    let filtered = searchTerm ? applicants.filter(applicant => {
+      const searchLower = searchTerm.toLowerCase();
+      const name = (applicant.name || '').toLowerCase();
+      const email = (applicant.email || '').toLowerCase();
+      const crmNumber = (applicant.crmNumber || '').toLowerCase();
+      const eid = (applicant.eid || '').toLowerCase();
+      const status = (applicant.status || '').toLowerCase();
+
+      return name.includes(searchLower) ||
+             email.includes(searchLower) ||
+             crmNumber.includes(searchLower) ||
+             eid.includes(searchLower) ||
+             status.includes(searchLower);
+    }) : [...applicants];
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      // Handle null/undefined values
+      if (!aVal && !bVal) return 0;
+      if (!aVal) return 1;
+      if (!bVal) return -1;
+
+      // Handle dates
+      if (sortField === 'processDate' || sortField === 'projectedStartDate') {
+        aVal = aVal instanceof Date ? aVal.getTime() : 0;
+        bVal = bVal instanceof Date ? bVal.getTime() : 0;
+      }
+
+      // Handle strings (case-insensitive)
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal || '').toLowerCase();
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    setFilteredApplicants(filtered);
+  }, [searchTerm, applicants, sortField, sortDirection]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
 
   const handleOpenDialog = (applicant = null) => {
@@ -262,6 +324,17 @@ const ApplicantsPage = () => {
     }
   };
 
+  const handleQuickStatusUpdate = async (applicantId, newStatus) => {
+    const result = await updateApplicant(applicantId, { status: newStatus });
+    if (result.success) {
+      setSuccess(`Status updated to ${newStatus}`);
+      loadData();
+      setTimeout(() => setSuccess(''), 3000);
+    } else {
+      setError(`Failed to update status: ${result.error}`);
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       // Original statuses
@@ -281,6 +354,11 @@ const ApplicantsPage = () => {
     };
     return colors[status] || 'default';
   };
+
+  const ALL_STATUSES = [
+    'Applied', 'Interviewed', 'Processed', 'Hired', 'Started', 'Rejected',
+    'CB Updated', 'BG Pending', 'Adjudication Pending', 'I-9 Pending', 'Declined', 'No Contact'
+  ];
 
   if (loading) {
     return (
@@ -311,6 +389,24 @@ const ApplicantsPage = () => {
             {success}
           </Alert>
         )}
+
+        {/* Search Bar */}
+        <Paper sx={{ padding: 2, marginBottom: 3 }}>
+          <TextField
+            fullWidth
+            placeholder="Search by name, email, CRM number, EID, or status..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: <Search sx={{ marginRight: 1, color: 'text.secondary' }} />
+            }}
+          />
+          {searchTerm && (
+            <Typography variant="caption" color="text.secondary" sx={{ marginTop: 1, display: 'block' }}>
+              Found {filteredApplicants.length} result{filteredApplicants.length !== 1 ? 's' : ''}
+            </Typography>
+          )}
+        </Paper>
 
         {/* Pipeline Overview */}
         {pipeline && (
@@ -347,43 +443,96 @@ const ApplicantsPage = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortField === 'name'}
+                      direction={sortField === 'name' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('name')}
+                    >
+                      Name
+                    </TableSortLabel>
+                  </TableCell>
                   <TableCell>Contact</TableCell>
-                  <TableCell>Source</TableCell>
-                  <TableCell>Status</TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortField === 'source'}
+                      direction={sortField === 'source' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('source')}
+                    >
+                      Source
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortField === 'status'}
+                      direction={sortField === 'status' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('status')}
+                    >
+                      Status
+                    </TableSortLabel>
+                  </TableCell>
                   <TableCell>Position</TableCell>
-                  <TableCell>Shift</TableCell>
-                  <TableCell>Projected Start</TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortField === 'shift'}
+                      direction={sortField === 'shift' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('shift')}
+                    >
+                      Shift
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortField === 'processDate'}
+                      direction={sortField === 'processDate' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('processDate')}
+                    >
+                      Process Date
+                    </TableSortLabel>
+                  </TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {applicants.map((applicant) => (
+                {filteredApplicants.map((applicant) => (
                   <TableRow key={applicant.id}>
                     <TableCell>
                       {applicant.firstName && applicant.lastName
                         ? `${applicant.firstName} ${applicant.lastName}`
                         : applicant.name || 'N/A'}
+                      <Typography variant="caption" display="block" color="text.secondary">
+                        EID: {applicant.eid || applicant.crmNumber || 'N/A'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">{applicant.email}</Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {applicant.phone}
+                        {applicant.phoneNumber || applicant.phone}
                       </Typography>
                     </TableCell>
                     <TableCell>{applicant.source}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={applicant.status}
-                        color={getStatusColor(applicant.status)}
-                        size="small"
-                      />
+                      <FormControl size="small" fullWidth>
+                        <Select
+                          value={applicant.status}
+                          onChange={(e) => handleQuickStatusUpdate(applicant.id, e.target.value)}
+                          sx={{ minWidth: 140 }}
+                        >
+                          {ALL_STATUSES.map(status => (
+                            <MenuItem key={status} value={status}>
+                              {status}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
                     </TableCell>
                     <TableCell>{applicant.position}</TableCell>
                     <TableCell>{applicant.shift}</TableCell>
                     <TableCell>
                       {applicant.projectedStartDate
                         ? dayjs(applicant.projectedStartDate).format('MMM D, YYYY')
+                        : applicant.processDate
+                        ? dayjs(applicant.processDate).format('MMM D, YYYY')
                         : '-'}
                     </TableCell>
                     <TableCell>
@@ -396,11 +545,11 @@ const ApplicantsPage = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {applicants.length === 0 && (
+                {filteredApplicants.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={8} align="center">
                       <Typography color="text.secondary" sx={{ padding: 4 }}>
-                        No applicants yet. Click &quot;Add Applicant&quot; to get started.
+                        {searchTerm ? 'No applicants found matching your search.' : 'No applicants yet. Click "Add Applicant" to get started.'}
                       </Typography>
                     </TableCell>
                   </TableRow>

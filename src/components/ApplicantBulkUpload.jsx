@@ -183,12 +183,15 @@ const ApplicantBulkUpload = () => {
       s => s.toLowerCase() === statusStr.toLowerCase()
     ) || statusStr;
 
+    const crmNumber = toString(row.crmNumber);
+
     return {
       status: normalizedStatus,
       name: toString(row.name).trim(),
       phoneNumber: normalizePhone(row.phoneNumber),
       email: toString(row.email).trim(),
-      crmNumber: toString(row.crmNumber),
+      crmNumber: crmNumber,
+      eid: crmNumber, // Use CRM Number as Employee ID
       processDate: parseExcelDate(row.processDate),
       i9Cleared: toString(row.i9Cleared) === 'Yes' ? 'Yes' : '',
       backgroundStatus: toString(row.backgroundStatus).trim(),
