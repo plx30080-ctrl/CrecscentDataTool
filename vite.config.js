@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/', // Root path for GitHub Pages
+  base: '/CrecscentDataTool/', // GitHub Pages subdirectory
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
