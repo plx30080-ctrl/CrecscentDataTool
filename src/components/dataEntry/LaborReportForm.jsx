@@ -443,36 +443,105 @@ const LaborReportForm = () => {
 
         {/* Parsed Data Summary */}
         {parsedData && (
-          <Grid item xs={12}>
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Metric</strong></TableCell>
-                    <TableCell align="right"><strong>Hours</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>Direct Hours</TableCell>
-                    <TableCell align="right">{parsedData.directHours.toFixed(2)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Indirect Hours</TableCell>
-                    <TableCell align="right">{parsedData.indirectHours.toFixed(2)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell><strong>Total Hours</strong></TableCell>
-                    <TableCell align="right"><strong>{parsedData.totalHours.toFixed(2)}</strong></TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Employees</TableCell>
-                    <TableCell align="right">{parsedData.employeeCount}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Grid>
+          <>
+            <Grid item xs={12}>
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Metric</strong></TableCell>
+                      <TableCell align="right"><strong>Hours</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>Direct Hours</TableCell>
+                      <TableCell align="right">{parsedData.directHours.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Indirect Hours</TableCell>
+                      <TableCell align="right">{parsedData.indirectHours.toFixed(2)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Total Hours</strong></TableCell>
+                      <TableCell align="right"><strong>{parsedData.totalHours.toFixed(2)}</strong></TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Employees</TableCell>
+                      <TableCell align="right">{parsedData.employeeCount}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Grid>
+
+            {/* Daily Breakdown by Shift */}
+            {parsedData.dailyBreakdown && (
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                  <strong>Daily Breakdown by Shift</strong>
+                </Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Day</strong></TableCell>
+                        <TableCell align="right"><strong>1st Shift Direct</strong></TableCell>
+                        <TableCell align="right"><strong>1st Shift Indirect</strong></TableCell>
+                        <TableCell align="right"><strong>1st Shift Total</strong></TableCell>
+                        <TableCell align="right"><strong>2nd Shift Direct</strong></TableCell>
+                        <TableCell align="right"><strong>2nd Shift Indirect</strong></TableCell>
+                        <TableCell align="right"><strong>2nd Shift Total</strong></TableCell>
+                        <TableCell align="right"><strong>Day Total</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
+                        const dayData = parsedData.dailyBreakdown[day];
+                        const dayName = day.charAt(0).toUpperCase() + day.slice(1);
+                        return (
+                          <TableRow key={day}>
+                            <TableCell><strong>{dayName}</strong></TableCell>
+                            <TableCell align="right">{dayData.shift1.direct.toFixed(2)}</TableCell>
+                            <TableCell align="right">{dayData.shift1.indirect.toFixed(2)}</TableCell>
+                            <TableCell align="right"><strong>{dayData.shift1.total.toFixed(2)}</strong></TableCell>
+                            <TableCell align="right">{dayData.shift2.direct.toFixed(2)}</TableCell>
+                            <TableCell align="right">{dayData.shift2.indirect.toFixed(2)}</TableCell>
+                            <TableCell align="right"><strong>{dayData.shift2.total.toFixed(2)}</strong></TableCell>
+                            <TableCell align="right"><strong>{dayData.total.toFixed(2)}</strong></TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableCell><strong>Week Total</strong></TableCell>
+                        <TableCell align="right"><strong>
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + day.shift1.direct, 0).toFixed(2)}
+                        </strong></TableCell>
+                        <TableCell align="right"><strong>
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + day.shift1.indirect, 0).toFixed(2)}
+                        </strong></TableCell>
+                        <TableCell align="right"><strong>
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + day.shift1.total, 0).toFixed(2)}
+                        </strong></TableCell>
+                        <TableCell align="right"><strong>
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + day.shift2.direct, 0).toFixed(2)}
+                        </strong></TableCell>
+                        <TableCell align="right"><strong>
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + day.shift2.indirect, 0).toFixed(2)}
+                        </strong></TableCell>
+                        <TableCell align="right"><strong>
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + day.shift2.total, 0).toFixed(2)}
+                        </strong></TableCell>
+                        <TableCell align="right"><strong>
+                          {parsedData.totalHours.toFixed(2)}
+                        </strong></TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+            )}
+          </>
         )}
 
         {/* Submit Button */}
