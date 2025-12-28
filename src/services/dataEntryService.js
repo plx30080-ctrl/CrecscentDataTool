@@ -138,11 +138,12 @@ export const submitBranchDaily = async (formData) => {
 
     const dataToSubmit = {
       date: Timestamp.fromDate(formData.date.toDate()),
-      shift: formData.shift,
       interviewsScheduled: parseInt(formData.interviewsScheduled) || 0,
       interviewShows: parseInt(formData.interviewShows) || 0,
-      shiftsProcessed: parseInt(formData.shiftsProcessed) || 0,
-      confirmations: parseInt(formData.confirmations) || 0,
+      shift1Processed: parseInt(formData.shift1Processed) || 0,
+      shift2Processed: parseInt(formData.shift2Processed) || 0,
+      shift2Confirmations: parseInt(formData.shift2Confirmations) || 0,
+      nextDayConfirmations: parseInt(formData.nextDayConfirmations) || 0,
       notes: formData.notes || '',
       submittedAt: serverTimestamp(),
       submittedBy: user.email,

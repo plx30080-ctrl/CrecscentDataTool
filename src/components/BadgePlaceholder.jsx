@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import { Person, CameraAlt } from '@mui/icons-material';
+import { CameraAlt } from '@mui/icons-material';
 
 const BadgePlaceholder = ({
   width = 200,
@@ -14,7 +14,6 @@ const BadgePlaceholder = ({
       sx={{
         width: width,
         height: height,
-        backgroundColor: '#e0e0e0',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -22,12 +21,18 @@ const BadgePlaceholder = ({
         borderRadius: 1,
         position: 'relative',
         cursor: onClick ? 'pointer' : 'default',
-        '&:hover': onClick ? {
-          backgroundColor: '#d0d0d0'
-        } : {}
+        overflow: 'hidden'
       }}
     >
-      <Person sx={{ fontSize: 80, color: '#9e9e9e' }} />
+      <img
+        src="/CrecscentDataTool/images/default-avatar.png"
+        alt="Default Avatar"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover'
+        }}
+      />
 
       {showAddPhotoOverlay && (
         <Box

@@ -465,7 +465,7 @@ export const getDefaultTemplate = async () => {
       data: {
         name: 'Default Template',
         isDefault: true,
-        cardSize: { width: 337.5, height: 212.5 },
+        cardSize: { width: 337.5, height: 212.5 }, // CR80 standard: 3.375" x 2.125"
         elements: {
           photo: { x: 20, y: 40, width: 100, height: 120 },
           firstName: { x: 135, y: 50, fontSize: 18, fontFamily: 'Arial, sans-serif', fontWeight: 'bold' },
@@ -473,7 +473,7 @@ export const getDefaultTemplate = async () => {
           eid: { x: 135, y: 105, fontSize: 14, fontFamily: 'Arial, sans-serif' },
           position: { x: 135, y: 125, fontSize: 12, fontFamily: 'Arial, sans-serif' },
           shift: { x: 135, y: 142, fontSize: 12, fontFamily: 'Arial, sans-serif' },
-          logo: { x: 240, y: 10, width: 80, height: 30, url: null },
+          logo: { x: 240, y: 10, width: 80, height: 30, url: '/CrecscentDataTool/images/plx-logo.png' },
           barcode: { x: 80, y: 168, width: 180, height: 35 }
         }
       }

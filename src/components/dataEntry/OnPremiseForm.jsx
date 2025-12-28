@@ -17,7 +17,7 @@ import { Upload as UploadIcon } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import { submitOnPremiseData } from '../../services/dataEntryService';
 
-const SHIFTS = ['1st', '2nd', '3rd', 'Mid'];
+const SHIFTS = ['1st', '2nd'];
 
 const OnPremiseForm = () => {
   const [formData, setFormData] = useState({

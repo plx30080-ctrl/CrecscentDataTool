@@ -81,7 +81,7 @@ const DataDebug = () => {
   };
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="xl">
       <Typography variant="h4" gutterBottom>Data Debugging Tool</Typography>
       <Typography variant="body1" color="text.secondary" gutterBottom sx={{ marginBottom: 3 }}>
         Check what data is actually stored in Firestore and find the correct date range.

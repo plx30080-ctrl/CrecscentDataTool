@@ -30,7 +30,7 @@ import {
   Avatar,
   Stack
 } from '@mui/material';
-import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search } from '@mui/icons-material';
+import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -42,7 +42,8 @@ import {
   getApplicants,
   getApplicantPipeline
 } from '../services/firestoreService';
-import { createBadge } from '../services/badgeService';
+import { createBadge, searchBadges } from '../services/badgeService';
+import BadgePrintPreview from '../components/BadgePrintPreview';
 
 const ApplicantsPage = () => {
   const { currentUser } = useAuth();
@@ -87,6 +88,10 @@ const ApplicantsPage = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+
+  // Print preview state
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const [badgeToPrint, setBadgeToPrint] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -170,15 +175,26 @@ const ApplicantsPage = () => {
   const handleOpenDialog = (applicant = null) => {
     if (applicant) {
       setEditingApplicant(applicant);
+
+      // Parse name field if firstName/lastName don't exist
+      let firstName = applicant.firstName || '';
+      let lastName = applicant.lastName || '';
+
+      if (!firstName && !lastName && applicant.name) {
+        const nameParts = applicant.name.trim().split(' ');
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ') || '';
+      }
+
       setFormData({
-        firstName: applicant.firstName || '',
-        lastName: applicant.lastName || '',
-        eid: applicant.eid || '',
+        firstName: firstName,
+        lastName: lastName,
+        eid: applicant.eid || applicant.crmNumber || '',
         email: applicant.email || '',
         phone: applicant.phoneNumber || applicant.phone || '',
         status: applicant.status || 'Applied',
         shift: applicant.shift || '1st',
-        projectedStartDate: applicant.projectedStartDate ? dayjs(applicant.projectedStartDate) : null,
+        processDate: applicant.processDate ? dayjs(applicant.processDate) : null,
         tentativeStartDate: applicant.tentativeStartDate ? dayjs(applicant.tentativeStartDate) : null,
         notes: applicant.notes || ''
       });
@@ -195,7 +211,7 @@ const ApplicantsPage = () => {
         phone: '',
         status: 'Applied',
         shift: '1st',
-        projectedStartDate: null,
+        processDate: null,
         tentativeStartDate: null,
         notes: ''
       });
@@ -265,6 +281,28 @@ const ApplicantsPage = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handlePrintBadge = async () => {
+    if (!editingApplicant || !editingApplicant.eid) {
+      setError('Cannot print badge: Employee ID is missing');
+      return;
+    }
+
+    // Search for badge by EID
+    const result = await searchBadges(editingApplicant.eid);
+    if (result.success && result.data.length > 0) {
+      // Badge exists, open print preview
+      setBadgeToPrint(result.data[0]);
+      setPrintPreviewOpen(true);
+    } else {
+      setError('No badge found for this applicant. Please create a badge first in Badge Management.');
+    }
+  };
+
+  const handlePrintSuccess = () => {
+    setSuccess('Badge printed successfully');
+    setPrintPreviewOpen(false);
+  };
+
   const handleSubmit = async () => {
     setError('');
     setSuccess('');
@@ -279,10 +317,38 @@ const ApplicantsPage = () => {
       return;
     }
 
+    // Check for duplicate EID when creating new applicant
+    if (!editingApplicant) {
+      const existingApplicant = applicants.find(a =>
+        a.eid === formData.eid || a.crmNumber === formData.eid
+      );
+      if (existingApplicant) {
+        setError(`An applicant with EID ${formData.eid} already exists. Updating existing profile instead.`);
+        // Update the existing applicant instead
+        const applicantData = {
+          ...formData,
+          phoneNumber: formData.phone,
+          processDate: formData.processDate ? formData.processDate.toDate() : null,
+          tentativeStartDate: formData.tentativeStartDate ? formData.tentativeStartDate.toDate() : null
+        };
+        delete applicantData.phone;
+
+        const result = await updateApplicant(existingApplicant.id, applicantData);
+        if (result.success) {
+          setSuccess('Existing applicant profile updated successfully');
+          loadData();
+          handleCloseDialog();
+        } else {
+          setError(result.error || 'Failed to update applicant');
+        }
+        return;
+      }
+    }
+
     const applicantData = {
       ...formData,
       phoneNumber: formData.phone, // Normalize to phoneNumber
-      projectedStartDate: formData.projectedStartDate ? formData.projectedStartDate.toDate() : null,
+      processDate: formData.processDate ? formData.processDate.toDate() : null,
       tentativeStartDate: formData.tentativeStartDate ? formData.tentativeStartDate.toDate() : null
     };
     delete applicantData.phone; // Remove phone, use phoneNumber
@@ -501,7 +567,6 @@ const ApplicantsPage = () => {
                     </TableSortLabel>
                   </TableCell>
                   <TableCell>Notes</TableCell>
-                  <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -513,9 +578,21 @@ const ApplicantsPage = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      {applicant.firstName && applicant.lastName
-                        ? `${applicant.firstName} ${applicant.lastName}`
-                        : applicant.name || 'N/A'}
+                      <Typography
+                        variant="body2"
+                        onClick={() => handleOpenDialog(applicant)}
+                        sx={{
+                          color: '#1976d2',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            textDecoration: 'underline'
+                          }
+                        }}
+                      >
+                        {applicant.firstName && applicant.lastName
+                          ? `${applicant.firstName} ${applicant.lastName}`
+                          : applicant.name || 'N/A'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       {applicant.email ? (
@@ -564,19 +641,11 @@ const ApplicantsPage = () => {
                         ) : '-'}
                       </Typography>
                     </TableCell>
-                    <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDialog(applicant)}
-                      >
-                        <Edit fontSize="small" />
-                      </IconButton>
-                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredApplicants.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Typography color="text.secondary" sx={{ padding: 4 }}>
                         {searchTerm ? 'No applicants found matching your search.' : 'No applicants yet. Click "Add Applicant" to get started.'}
                       </Typography>
@@ -591,7 +660,7 @@ const ApplicantsPage = () => {
         {/* Add/Edit Dialog */}
         <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
           <DialogTitle>
-            {editingApplicant ? 'Edit Applicant' : 'Add New Applicant'}
+            {editingApplicant ? 'Applicant Profile' : 'Add New Applicant'}
           </DialogTitle>
           <DialogContent>
             {error && <Alert severity="error" sx={{ marginBottom: 2 }}>{error}</Alert>}
@@ -743,15 +812,14 @@ const ApplicantsPage = () => {
                   >
                     <MenuItem value="1st">1st Shift</MenuItem>
                     <MenuItem value="2nd">2nd Shift</MenuItem>
-                    <MenuItem value="Mid">Mid Shift</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
               <Grid item xs={12} md={6}>
                 <DatePicker
-                  label="Projected Start Date"
-                  value={formData.projectedStartDate}
-                  onChange={(newValue) => handleChange('projectedStartDate', newValue)}
+                  label="Process Date"
+                  value={formData.processDate}
+                  onChange={(newValue) => handleChange('processDate', newValue)}
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </Grid>
@@ -778,11 +846,28 @@ const ApplicantsPage = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog}>Cancel</Button>
+            {editingApplicant && (
+              <Button
+                variant="outlined"
+                startIcon={<Print />}
+                onClick={handlePrintBadge}
+              >
+                Print Badge
+              </Button>
+            )}
             <Button variant="contained" onClick={handleSubmit}>
               {editingApplicant ? 'Update' : 'Add'}
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Print Preview Dialog */}
+        <BadgePrintPreview
+          open={printPreviewOpen}
+          onClose={() => setPrintPreviewOpen(false)}
+          badge={badgeToPrint}
+          onPrintSuccess={handlePrintSuccess}
+        />
       </Container>
     </LocalizationProvider>
   );

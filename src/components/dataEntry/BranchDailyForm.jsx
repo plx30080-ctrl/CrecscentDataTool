@@ -7,25 +7,21 @@ import {
   Typography,
   Alert,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  Divider
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { submitBranchDaily } from '../../services/dataEntryService';
 
-const SHIFTS = ['1st', '2nd', '3rd', 'Mid'];
-
 const BranchDailyForm = () => {
   const [formData, setFormData] = useState({
     date: dayjs(),
-    shift: '1st',
     interviewsScheduled: '',
     interviewShows: '',
-    shiftsProcessed: '',
-    confirmations: '',
+    shift1Processed: '',
+    shift2Processed: '',
+    shift2Confirmations: '',
+    nextDayConfirmations: '',
     notes: ''
   });
   const [loading, setLoading] = useState(false);
@@ -52,11 +48,12 @@ const BranchDailyForm = () => {
         // Reset form
         setFormData({
           date: dayjs(),
-          shift: '1st',
           interviewsScheduled: '',
           interviewShows: '',
-          shiftsProcessed: '',
-          confirmations: '',
+          shift1Processed: '',
+          shift2Processed: '',
+          shift2Confirmations: '',
+          nextDayConfirmations: '',
           notes: ''
         });
       } else {
@@ -83,8 +80,8 @@ const BranchDailyForm = () => {
       )}
 
       <Grid container spacing={3}>
-        {/* Date and Shift */}
-        <Grid item xs={12} md={6}>
+        {/* Date */}
+        <Grid item xs={12}>
           <DatePicker
             label="Date"
             value={formData.date}
@@ -92,24 +89,13 @@ const BranchDailyForm = () => {
             slotProps={{ textField: { fullWidth: true, required: true } }}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
-          <FormControl fullWidth required>
-            <InputLabel>Shift</InputLabel>
-            <Select
-              value={formData.shift}
-              label="Shift"
-              onChange={(e) => handleChange('shift', e.target.value)}
-            >
-              {SHIFTS.map((shift) => (
-                <MenuItem key={shift} value={shift}>
-                  {shift} Shift
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
 
         {/* Recruiting Metrics */}
+        <Grid item xs={12}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Interview Metrics
+          </Typography>
+        </Grid>
         <Grid item xs={12} md={6}>
           <TextField
             label="Interviews Scheduled"
@@ -135,28 +121,72 @@ const BranchDailyForm = () => {
           />
         </Grid>
 
-        {/* Processing Metrics */}
+        <Grid item xs={12}>
+          <Divider sx={{ my: 1 }} />
+        </Grid>
+
+        {/* Processing Metrics - Both Shifts */}
+        <Grid item xs={12}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Processing Metrics
+          </Typography>
+        </Grid>
         <Grid item xs={12} md={6}>
           <TextField
-            label="Shifts Processed"
+            label="1st Shift Processed"
             type="number"
             fullWidth
             required
-            value={formData.shiftsProcessed}
-            onChange={(e) => handleChange('shiftsProcessed', e.target.value)}
-            placeholder="Number of shifts processed"
+            value={formData.shift1Processed}
+            onChange={(e) => handleChange('shift1Processed', e.target.value)}
+            placeholder="Number processed in 1st shift"
             inputProps={{ min: 0 }}
           />
         </Grid>
         <Grid item xs={12} md={6}>
           <TextField
-            label="Confirmations"
+            label="2nd Shift Processed"
             type="number"
             fullWidth
             required
-            value={formData.confirmations}
-            onChange={(e) => handleChange('confirmations', e.target.value)}
-            placeholder="Number of confirmations"
+            value={formData.shift2Processed}
+            onChange={(e) => handleChange('shift2Processed', e.target.value)}
+            placeholder="Number processed in 2nd shift"
+            inputProps={{ min: 0 }}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <Divider sx={{ my: 1 }} />
+        </Grid>
+
+        {/* Confirmations */}
+        <Grid item xs={12}>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Confirmations
+          </Typography>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="2nd Shift Confirmations"
+            type="number"
+            fullWidth
+            required
+            value={formData.shift2Confirmations}
+            onChange={(e) => handleChange('shift2Confirmations', e.target.value)}
+            placeholder="Confirmations for 2nd shift"
+            inputProps={{ min: 0 }}
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="Next Day Confirmations"
+            type="number"
+            fullWidth
+            required
+            value={formData.nextDayConfirmations}
+            onChange={(e) => handleChange('nextDayConfirmations', e.target.value)}
+            placeholder="Confirmations for next day"
             inputProps={{ min: 0 }}
           />
         </Grid>

@@ -681,6 +681,16 @@ const BadgeManagement = () => {
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
+              <Button
+                variant="outlined"
+                startIcon={<Print />}
+                onClick={() => {
+                  setDetailsDialogOpen(false);
+                  handleAddToPrintQueue(selectedBadge);
+                }}
+              >
+                Print Badge
+              </Button>
               {selectedBadge.status !== 'Cleared' && (
                 <Button
                   color="success"
