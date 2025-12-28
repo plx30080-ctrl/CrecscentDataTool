@@ -30,7 +30,7 @@ import {
   Avatar,
   Stack
 } from '@mui/material';
-import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print, Download } from '@mui/icons-material';
+import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print, Download, Sync } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -42,7 +42,7 @@ import {
   getApplicants,
   getApplicantPipeline
 } from '../services/firestoreService';
-import { createBadge, searchBadges } from '../services/badgeService';
+import { createBadge, searchBadges, createOrUpdateBadgeFromApplicant, getBadgeByEID } from '../services/badgeService';
 import BadgePrintPreview from '../components/BadgePrintPreview';
 
 const ApplicantsPage = () => {
@@ -290,14 +290,71 @@ const ApplicantsPage = () => {
       return;
     }
 
-    // Search for badge by EID
-    const result = await searchBadges(employeeId);
-    if (result.success && result.data.length > 0) {
-      // Badge exists, open print preview
-      setBadgeToPrint(result.data[0]);
-      setPrintPreviewOpen(true);
-    } else {
-      setError('No badge found for this applicant. Please create a badge first in Badge Management.');
+    try {
+      setLoading(true);
+
+      // Check if badge exists
+      const existingBadge = await getBadgeByEID(employeeId);
+
+      if (existingBadge.success && existingBadge.data) {
+        // Badge exists - use it directly
+        setBadgeToPrint(existingBadge.data);
+        setPrintPreviewOpen(true);
+      } else {
+        // No badge yet - create one from applicant data
+        const result = await createOrUpdateBadgeFromApplicant(
+          editingApplicant,
+          photoFile || (editingApplicant.photoURL ? null : null), // Use existing photo if available
+          currentUser.uid
+        );
+
+        if (result.success) {
+          // Fetch the newly created badge
+          const newBadge = await getBadgeByEID(employeeId);
+          if (newBadge.success && newBadge.data) {
+            setBadgeToPrint(newBadge.data);
+            setPrintPreviewOpen(true);
+            setSuccess('Badge created from applicant data');
+          }
+        } else {
+          setError(result.error || 'Failed to create badge');
+        }
+      }
+    } catch (err) {
+      setError('Error preparing badge: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSyncToBadge = async () => {
+    const employeeId = editingApplicant?.eid || editingApplicant?.crmNumber;
+
+    if (!employeeId) {
+      setError('Cannot sync: Employee ID is missing');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await createOrUpdateBadgeFromApplicant(
+        editingApplicant,
+        photoFile,
+        currentUser.uid
+      );
+
+      if (result.success) {
+        setSuccess(result.isNew === false
+          ? 'Badge updated with applicant data'
+          : `Badge created successfully! ID: ${result.badgeId}`
+        );
+      } else {
+        setError(result.error || 'Failed to sync badge');
+      }
+    } catch (err) {
+      setError('Error syncing badge: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -893,15 +950,26 @@ const ApplicantsPage = () => {
           <DialogActions>
             <Button onClick={handleCloseDialog}>Cancel</Button>
             {editingApplicant && (
-              <Button
-                variant="outlined"
-                startIcon={<Print />}
-                onClick={handlePrintBadge}
-              >
-                Print Badge
-              </Button>
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<Sync />}
+                  onClick={handleSyncToBadge}
+                  disabled={loading}
+                >
+                  Sync to Badge
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<Print />}
+                  onClick={handlePrintBadge}
+                  disabled={loading}
+                >
+                  Print Badge
+                </Button>
+              </>
             )}
-            <Button variant="contained" onClick={handleSubmit}>
+            <Button variant="contained" onClick={handleSubmit} disabled={loading}>
               {editingApplicant ? 'Update' : 'Add'}
             </Button>
           </DialogActions>

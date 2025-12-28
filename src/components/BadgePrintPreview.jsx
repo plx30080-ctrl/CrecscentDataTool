@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { Print as PrintIcon } from '@mui/icons-material';
 import BadgePreview from './BadgePreview';
-import { getDefaultTemplate } from '../services/badgeService';
+import { getDefaultTemplate, generateBadgeId } from '../services/badgeService';
 import { sendToPrinter } from '../services/printService';
 
 const BadgePrintPreview = ({ open, onClose, badge, onPrintSuccess }) => {
@@ -41,11 +41,17 @@ const BadgePrintPreview = ({ open, onClose, badge, onPrintSuccess }) => {
     setPrinting(true);
 
     try {
-      const result = await sendToPrinter(badge, template);
+      // Ensure badge has a badgeId before printing
+      const badgeWithId = {
+        ...badge,
+        badgeId: badge.badgeId || generateBadgeId(badge.eid, badge.lastName)
+      };
+
+      const result = await sendToPrinter(badgeWithId, template);
 
       if (result.success) {
         if (onPrintSuccess) {
-          onPrintSuccess(badge);
+          onPrintSuccess(badgeWithId);
         }
         onClose();
       } else {
@@ -88,7 +94,14 @@ const BadgePrintPreview = ({ open, onClose, badge, onPrintSuccess }) => {
                 borderRadius: 1
               }}
             >
-              <BadgePreview badge={badge} template={template} scale={1.5} />
+              <BadgePreview
+                badge={{
+                  ...badge,
+                  badgeId: badge?.badgeId || (badge?.eid && badge?.lastName ? generateBadgeId(badge.eid, badge.lastName) : 'PLX-00000000-ABC')
+                }}
+                template={template}
+                scale={1.5}
+              />
             </Box>
 
             <Box sx={{ mt: 2 }}>
@@ -99,7 +112,7 @@ const BadgePrintPreview = ({ open, onClose, badge, onPrintSuccess }) => {
                 <strong>EID:</strong> {badge?.eid}
               </Typography>
               <Typography variant="caption" display="block">
-                <strong>Badge ID:</strong> {badge?.badgeId || 'N/A'}
+                <strong>Badge ID:</strong> {badge?.badgeId || (badge?.eid && badge?.lastName ? generateBadgeId(badge.eid, badge.lastName) : 'N/A')}
               </Typography>
               <Typography variant="caption" display="block">
                 <strong>Position:</strong> {badge?.position || 'N/A'}

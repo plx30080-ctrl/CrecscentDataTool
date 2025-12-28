@@ -18,13 +18,13 @@ import { db, storage } from '../firebase';
 // ============ BADGE MANAGEMENT ============
 
 /**
- * Generate badge ID in format PLX-########-ABC
- * where ######## is the EID and ABC are first 3 letters of last name
+ * Generate badge ID in format PLX-XXXXXX-ABC
+ * where XXXXXX is the EID (6-8 digits, no padding) and ABC are first 3 letters of last name
  */
 export const generateBadgeId = (eid, lastName) => {
   const lastNamePrefix = lastName.toUpperCase().substring(0, 3).padEnd(3, 'X');
-  const paddedEid = eid.toString().padStart(8, '0');
-  return `PLX-${paddedEid}-${lastNamePrefix}`;
+  const eidStr = eid.toString();
+  return `PLX-${eidStr}-${lastNamePrefix}`;
 };
 
 /**
@@ -59,6 +59,82 @@ export const createBadge = async (badgeData, photoFile, userId) => {
     return { success: true, id: docRef.id, photoURL, badgeId };
   } catch (error) {
     console.error('Error creating badge:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Create or update badge from applicant data
+ * This syncs applicant info to badge system
+ */
+export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, userId) => {
+  try {
+    // Extract EID from applicant (handles both eid and crmNumber fields)
+    const eid = applicant.eid || applicant.crmNumber;
+
+    if (!eid) {
+      return { success: false, error: 'Applicant must have an EID' };
+    }
+
+    // Parse name from applicant
+    let firstName, lastName;
+    if (applicant.firstName && applicant.lastName) {
+      firstName = applicant.firstName.toUpperCase();
+      lastName = applicant.lastName.toUpperCase();
+    } else if (applicant.name) {
+      const nameParts = applicant.name.trim().split(/\s+/);
+      firstName = nameParts[0]?.toUpperCase() || '';
+      lastName = nameParts.slice(1).join(' ')?.toUpperCase() || '';
+    } else {
+      return { success: false, error: 'Applicant must have a name' };
+    }
+
+    // Check if badge already exists for this EID
+    const existingBadge = await getBadgeByEID(eid);
+
+    if (existingBadge.success && existingBadge.data) {
+      // Update existing badge
+      const updates = {
+        firstName,
+        lastName,
+        position: applicant.position || existingBadge.data.position || '',
+        shift: applicant.shift || existingBadge.data.shift || '1st',
+        status: applicant.status === 'Started' ? 'Cleared' : 'Pending',
+        updatedAt: serverTimestamp()
+      };
+
+      // Update photo if provided
+      if (photoFile) {
+        const storageRef = ref(storage, `badges/${eid}_${Date.now()}.jpg`);
+        await uploadBytes(storageRef, photoFile);
+        const photoURL = await getDownloadURL(storageRef);
+        updates.photoURL = photoURL;
+      }
+
+      await updateDoc(doc(db, 'badges', existingBadge.data.id), updates);
+
+      return {
+        success: true,
+        id: existingBadge.data.id,
+        badgeId: existingBadge.data.badgeId,
+        isNew: false
+      };
+    } else {
+      // Create new badge
+      const badgeData = {
+        firstName,
+        lastName,
+        eid,
+        position: applicant.position || '',
+        shift: applicant.shift || '1st',
+        status: applicant.status === 'Started' ? 'Cleared' : 'Pending',
+        notes: applicant.notes || ''
+      };
+
+      return await createBadge(badgeData, photoFile, userId);
+    }
+  } catch (error) {
+    console.error('Error creating/updating badge from applicant:', error);
     return { success: false, error: error.message };
   }
 };
@@ -278,12 +354,15 @@ export const getAllBadges = async (statusFilter = null) => {
  */
 export const addToPrintQueue = async (badgeId, badgeData, userId, priority = 'Normal') => {
   try {
+    // Generate badge ID if it doesn't exist
+    const badgeIdValue = badgeData.badgeId || generateBadgeId(badgeData.eid, badgeData.lastName);
+
     const docRef = await addDoc(collection(db, 'badgePrintQueue'), {
       badgeDocId: badgeId,
       eid: badgeData.eid,
       firstName: badgeData.firstName,
       lastName: badgeData.lastName,
-      badgeId: badgeData.badgeId,
+      badgeId: badgeIdValue,
       priority,
       status: 'Queued',
       printerName: 'Fargo DTC1250e',
