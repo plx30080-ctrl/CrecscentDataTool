@@ -282,13 +282,16 @@ const ApplicantsPage = () => {
   };
 
   const handlePrintBadge = async () => {
-    if (!editingApplicant || !editingApplicant.eid) {
+    // Check both eid and crmNumber fields (bulk uploads use crmNumber)
+    const employeeId = editingApplicant?.eid || editingApplicant?.crmNumber;
+
+    if (!editingApplicant || !employeeId) {
       setError('Cannot print badge: Employee ID is missing');
       return;
     }
 
     // Search for badge by EID
-    const result = await searchBadges(editingApplicant.eid);
+    const result = await searchBadges(employeeId);
     if (result.success && result.data.length > 0) {
       // Badge exists, open print preview
       setBadgeToPrint(result.data[0]);

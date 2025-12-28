@@ -279,7 +279,7 @@ export const getAllBadges = async (statusFilter = null) => {
 export const addToPrintQueue = async (badgeId, badgeData, userId, priority = 'Normal') => {
   try {
     const docRef = await addDoc(collection(db, 'badgePrintQueue'), {
-      badgeId,
+      badgeDocId: badgeId,
       eid: badgeData.eid,
       firstName: badgeData.firstName,
       lastName: badgeData.lastName,
