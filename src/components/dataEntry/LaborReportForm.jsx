@@ -91,6 +91,20 @@ const LaborReportForm = () => {
     let employeeCount = 0;
     const employeeIds = []; // Track all EIDs for applicant status sync
 
+    // Daily breakdown structure
+    const dailyBreakdown = {
+      monday: { direct: 0, indirect: 0, total: 0 },
+      tuesday: { direct: 0, indirect: 0, total: 0 },
+      wednesday: { direct: 0, indirect: 0, total: 0 },
+      thursday: { direct: 0, indirect: 0, total: 0 },
+      friday: { direct: 0, indirect: 0, total: 0 },
+      saturday: { direct: 0, indirect: 0, total: 0 },
+      sunday: { direct: 0, indirect: 0, total: 0 }
+    };
+
+    // Employee details for granular tracking
+    const employeeDetails = [];
+
     // Try multiple strategies to find the data start
 
     // Strategy 1: Look for "regular" in any cell
@@ -142,50 +156,117 @@ const LaborReportForm = () => {
         continue;
       }
 
+      // Skip "Total" rows (shift totals, dept totals, grand totals)
+      const deptCode = row[0] ? String(row[0]).trim() : '';
+      const nameCell = row[2] ? String(row[2]).trim().toUpperCase() : '';
+
+      if (nameCell.includes('TOTAL') || nameCell.includes('GRAND')) {
+        console.log(`Skipping total row ${i}: ${deptCode} ${nameCell}`);
+        continue;
+      }
+
       employeeCount++;
       console.log(`Processing employee row ${i}:`, row);
 
-      // Extract EID - try columns 0-2 (File/EID column varies)
+      // Extract EID from column 1 (File/EID column)
       let eid = null;
-      for (let col = 0; col <= 2; col++) {
-        const potential = row[col] ? String(row[col]).trim() : null;
-        if (potential && !isNaN(potential) && potential.length >= 5 && potential.length <= 8) {
-          eid = potential;
-          break;
-        }
-      }
-
-      if (eid) {
+      const potential = row[1] ? String(row[1]).trim() : null;
+      if (potential && !isNaN(potential) && potential.length >= 5 && potential.length <= 8) {
+        eid = potential;
         employeeIds.push(eid);
       }
 
-      // Find all numeric columns (likely hours)
-      const numericValues = row
-        .map((cell, idx) => ({ value: parseFloat(cell), idx }))
-        .filter(({ value }) => !isNaN(value) && value > 0);
+      // Determine if Direct or Indirect based on dept code
+      const isDirect = deptCode.startsWith('004');
+      const isIndirect = deptCode.startsWith('005');
+      const laborType = isDirect ? 'direct' : (isIndirect ? 'indirect' : 'direct');
 
-      console.log(`  Numeric values found:`, numericValues);
+      // Extract daily hours (each day has 6 columns: Reg Hrs, Reg $, OT Hrs, OT $, DT Hrs, DT $)
+      // We only need the hour columns (skip $ columns)
+      const extractDayHours = (startCol) => {
+        const regHrs = parseFloat(row[startCol]) || 0;     // Reg Hrs
+        const otHrs = parseFloat(row[startCol + 2]) || 0;   // OT Hrs (skip Reg $)
+        const dtHrs = parseFloat(row[startCol + 4]) || 0;   // DT Hrs (skip OT $)
+        return { regHrs, otHrs, dtHrs, total: regHrs + otHrs + dtHrs };
+      };
 
-      // Sum all hours (conservative approach - sum all numeric columns)
-      const employeeTotalHours = numericValues.reduce((sum, { value }) => sum + value, 0);
-      totalHours += employeeTotalHours;
+      const monday = extractDayHours(4);
+      const tuesday = extractDayHours(10);
+      const wednesday = extractDayHours(16);
+      const thursday = extractDayHours(22);
+      const friday = extractDayHours(28);
+      const saturday = extractDayHours(34);
+      const sunday = extractDayHours(40);
 
-      // Assume 80/20 direct/indirect split
-      directHours += employeeTotalHours * 0.8;
-      indirectHours += employeeTotalHours * 0.2;
+      // Weekly totals from columns 46-48
+      const weeklyRegHrs = parseFloat(row[46]) || 0;
+      const weeklyOtHrs = parseFloat(row[47]) || 0;
+      const weeklyDtHrs = parseFloat(row[48]) || 0;
+      const employeeWeeklyTotal = weeklyRegHrs + weeklyOtHrs + weeklyDtHrs;
+
+      // Update daily breakdowns
+      dailyBreakdown.monday[laborType] += monday.total;
+      dailyBreakdown.monday.total += monday.total;
+      dailyBreakdown.tuesday[laborType] += tuesday.total;
+      dailyBreakdown.tuesday.total += tuesday.total;
+      dailyBreakdown.wednesday[laborType] += wednesday.total;
+      dailyBreakdown.wednesday.total += wednesday.total;
+      dailyBreakdown.thursday[laborType] += thursday.total;
+      dailyBreakdown.thursday.total += thursday.total;
+      dailyBreakdown.friday[laborType] += friday.total;
+      dailyBreakdown.friday.total += friday.total;
+      dailyBreakdown.saturday[laborType] += saturday.total;
+      dailyBreakdown.saturday.total += saturday.total;
+      dailyBreakdown.sunday[laborType] += sunday.total;
+      dailyBreakdown.sunday.total += sunday.total;
+
+      // Store employee details
+      employeeDetails.push({
+        eid,
+        name: nameCell,
+        deptCode,
+        laborType,
+        daily: { monday, tuesday, wednesday, thursday, friday, saturday, sunday },
+        weeklyTotal: employeeWeeklyTotal
+      });
+
+      console.log(`  EID: ${eid}, Dept: ${deptCode}, Type: ${laborType}, Weekly Total: ${employeeWeeklyTotal}h`);
+      console.log(`    Mon: ${monday.total}h, Tue: ${tuesday.total}h, Wed: ${wednesday.total}h, Thu: ${thursday.total}h, Fri: ${friday.total}h, Sat: ${saturday.total}h, Sun: ${sunday.total}h`);
+
+      // Update totals
+      totalHours += employeeWeeklyTotal;
+      if (isDirect) {
+        directHours += employeeWeeklyTotal;
+      } else if (isIndirect) {
+        indirectHours += employeeWeeklyTotal;
+      } else {
+        directHours += employeeWeeklyTotal;
+      }
     }
 
     console.log('\n=== Parse Results ===');
     console.log('Employees found:', employeeCount);
     console.log('Total hours:', totalHours);
+    console.log('Direct hours:', directHours);
+    console.log('Indirect hours:', indirectHours);
     console.log('Employee IDs:', employeeIds);
+    console.log('\n=== Daily Breakdown ===');
+    console.log('Monday:', dailyBreakdown.monday);
+    console.log('Tuesday:', dailyBreakdown.tuesday);
+    console.log('Wednesday:', dailyBreakdown.wednesday);
+    console.log('Thursday:', dailyBreakdown.thursday);
+    console.log('Friday:', dailyBreakdown.friday);
+    console.log('Saturday:', dailyBreakdown.saturday);
+    console.log('Sunday:', dailyBreakdown.sunday);
 
     return {
       directHours: Math.round(directHours * 100) / 100,
       indirectHours: Math.round(indirectHours * 100) / 100,
       totalHours: Math.round(totalHours * 100) / 100,
       employeeCount,
-      employeeIds: [...new Set(employeeIds)] // Remove duplicates
+      employeeIds: [...new Set(employeeIds)], // Remove duplicates
+      dailyBreakdown,
+      employeeDetails
     };
   };
 
