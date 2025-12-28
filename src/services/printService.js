@@ -11,6 +11,8 @@
  * 3. Implement WebUSB or similar technology for direct browser communication
  */
 
+import { DEFAULT_BADGE_TEMPLATE } from '../config/badgeTemplate';
+
 /**
  * Send badge to HID printer
  * @param {Object} badge - Badge data
@@ -61,21 +63,7 @@ export const sendToPrinter = async (badge, template) => {
  * @returns {string} HTML content
  */
 const buildPrintHTML = (badge, template) => {
-  const defaultTemplate = {
-    cardSize: { width: 337.5, height: 212.5 },
-    elements: {
-      photo: { x: 20, y: 40, width: 100, height: 120 },
-      firstName: { x: 135, y: 50, fontSize: 18 },
-      lastName: { x: 135, y: 75, fontSize: 18 },
-      eid: { x: 135, y: 105, fontSize: 14 },
-      position: { x: 135, y: 125, fontSize: 12 },
-      shift: { x: 135, y: 142, fontSize: 12 },
-      logo: { x: 240, y: 10, width: 80, height: 30, url: '/CrecscentDataTool/images/plx-logo.png' },
-      barcode: { x: 80, y: 168 }
-    }
-  };
-
-  const t = template || defaultTemplate;
+  const t = template || DEFAULT_BADGE_TEMPLATE;
 
   return `
     <!DOCTYPE html>

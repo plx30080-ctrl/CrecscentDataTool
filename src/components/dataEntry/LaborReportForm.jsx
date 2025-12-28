@@ -76,49 +76,106 @@ const LaborReportForm = () => {
   };
 
   const calculateHours = (data) => {
-    // Skip header rows and process employee data
+    console.log('=== Labor Report Parser Debug ===');
+    console.log('Total rows in file:', data.length);
+
+    // Log first 10 rows for debugging
+    console.log('\nFirst 10 rows:');
+    data.slice(0, 10).forEach((row, i) => {
+      console.log(`Row ${i}:`, row);
+    });
+
     let directHours = 0;
     let indirectHours = 0;
     let totalHours = 0;
     let employeeCount = 0;
     const employeeIds = []; // Track all EIDs for applicant status sync
 
-    // Find the data rows (skip headers)
-    const startRow = data.findIndex(row =>
+    // Try multiple strategies to find the data start
+
+    // Strategy 1: Look for "regular" in any cell
+    let startRow = data.findIndex(row =>
       row.some(cell => typeof cell === 'string' && cell.toLowerCase().includes('regular'))
     );
 
+    // Strategy 2: Look for "dept" or "department" (common header)
     if (startRow === -1) {
+      startRow = data.findIndex(row =>
+        row.some(cell => typeof cell === 'string' && (
+          cell.toLowerCase().includes('dept') ||
+          cell.toLowerCase().includes('name') && row.some(c => typeof c === 'string' && c.toLowerCase().includes('hours'))
+        ))
+      );
+    }
+
+    // Strategy 3: Look for first row with numbers in multiple columns (likely employee data)
+    if (startRow === -1) {
+      startRow = data.findIndex((row, idx) => {
+        if (idx < 5) return false; // Skip first 5 rows (likely headers/title)
+        const numberCount = row.filter(cell => !isNaN(parseFloat(cell)) && cell !== '').length;
+        return numberCount >= 3; // At least 3 numeric cells
+      });
+      if (startRow !== -1) startRow--; // Go back one row to include the header
+    }
+
+    console.log('\nData start row:', startRow);
+
+    if (startRow === -1) {
+      console.warn('Could not find data start row!');
       return { directHours: 0, indirectHours: 0, totalHours: 0, employeeCount: 0, employeeIds: [] };
     }
 
     // Process each employee row
     for (let i = startRow + 1; i < data.length; i++) {
       const row = data[i];
-      if (!row || row.length === 0 || !row[0]) break; // End of data
+
+      // Stop if row is empty or doesn't have enough data
+      if (!row || row.length === 0) break;
+
+      // Skip rows that don't look like employee data (no numbers)
+      const hasNumbers = row.some(cell => !isNaN(parseFloat(cell)) && cell !== '');
+      if (!hasNumbers) {
+        console.log(`Skipping row ${i} (no numbers):`, row);
+        continue;
+      }
 
       employeeCount++;
+      console.log(`Processing employee row ${i}:`, row);
 
-      // Extract EID (typically in column 0 or 1 - "File" column)
-      const eid = row[1] ? String(row[1]).trim() : null;
-      if (eid && eid !== '' && !isNaN(eid)) {
+      // Extract EID - try columns 0-2 (File/EID column varies)
+      let eid = null;
+      for (let col = 0; col <= 2; col++) {
+        const potential = row[col] ? String(row[col]).trim() : null;
+        if (potential && !isNaN(potential) && potential.length >= 5 && potential.length <= 8) {
+          eid = potential;
+          break;
+        }
+      }
+
+      if (eid) {
         employeeIds.push(eid);
       }
 
-      // Sum regular hours (columns might vary, this is a general approach)
-      // Adjust column indexes based on actual file structure
-      const regularHours = parseFloat(row[2]) || 0;
-      const overtimeHours = parseFloat(row[3]) || 0;
-      const doubleTimeHours = parseFloat(row[4]) || 0;
+      // Find all numeric columns (likely hours)
+      const numericValues = row
+        .map((cell, idx) => ({ value: parseFloat(cell), idx }))
+        .filter(({ value }) => !isNaN(value) && value > 0);
 
-      const employeeTotalHours = regularHours + overtimeHours + doubleTimeHours;
+      console.log(`  Numeric values found:`, numericValues);
+
+      // Sum all hours (conservative approach - sum all numeric columns)
+      const employeeTotalHours = numericValues.reduce((sum, { value }) => sum + value, 0);
       totalHours += employeeTotalHours;
 
-      // For now, assume 80/20 split between direct/indirect
-      // This should be refined based on actual data structure
+      // Assume 80/20 direct/indirect split
       directHours += employeeTotalHours * 0.8;
       indirectHours += employeeTotalHours * 0.2;
     }
+
+    console.log('\n=== Parse Results ===');
+    console.log('Employees found:', employeeCount);
+    console.log('Total hours:', totalHours);
+    console.log('Employee IDs:', employeeIds);
 
     return {
       directHours: Math.round(directHours * 100) / 100,

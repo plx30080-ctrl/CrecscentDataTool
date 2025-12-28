@@ -10,10 +10,12 @@ import {
   where,
   orderBy,
   Timestamp,
-  serverTimestamp
+  serverTimestamp,
+  runTransaction
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
+import { DEFAULT_BADGE_TEMPLATE } from '../config/badgeTemplate';
 
 // ============ BADGE MANAGEMENT ============
 
@@ -66,6 +68,7 @@ export const createBadge = async (badgeData, photoFile, userId) => {
 /**
  * Create or update badge from applicant data
  * This syncs applicant info to badge system
+ * CONCURRENCY SAFE: Uses double-check to prevent duplicate badge creation
  */
 export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, userId) => {
   try {
@@ -89,6 +92,14 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
       return { success: false, error: 'Applicant must have a name' };
     }
 
+    // Upload photo first if provided (before any database operations)
+    let photoURL = '';
+    if (photoFile) {
+      const storageRef = ref(storage, `badges/${eid}_${Date.now()}.jpg`);
+      await uploadBytes(storageRef, photoFile);
+      photoURL = await getDownloadURL(storageRef);
+    }
+
     // Check if badge already exists for this EID
     const existingBadge = await getBadgeByEID(eid);
 
@@ -103,11 +114,7 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
         updatedAt: serverTimestamp()
       };
 
-      // Update photo if provided
-      if (photoFile) {
-        const storageRef = ref(storage, `badges/${eid}_${Date.now()}.jpg`);
-        await uploadBytes(storageRef, photoFile);
-        const photoURL = await getDownloadURL(storageRef);
+      if (photoURL) {
         updates.photoURL = photoURL;
       }
 
@@ -120,18 +127,43 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
         isNew: false
       };
     } else {
-      // Create new badge
+      // Create new badge with double-check to prevent race condition
+      const badgeId = generateBadgeId(eid, lastName);
+
+      // Double-check: Query again right before creating (race condition protection)
+      const doubleCheck = await getBadgeByEID(eid);
+      if (doubleCheck.success && doubleCheck.data) {
+        console.log(`Race condition avoided: Badge for EID ${eid} was created by another user`);
+        return {
+          success: true,
+          id: doubleCheck.data.id,
+          badgeId: doubleCheck.data.badgeId,
+          isNew: false
+        };
+      }
+
+      // Safe to create
       const badgeData = {
         firstName,
         lastName,
         eid,
+        badgeId,
+        photoURL,
         position: applicant.position || '',
         shift: applicant.shift || '1st',
         status: applicant.status === 'Started' ? 'Cleared' : 'Pending',
-        notes: applicant.notes || ''
+        notes: applicant.notes || '',
+        createdAt: serverTimestamp(),
+        createdBy: userId,
+        printedAt: null,
+        printedBy: null,
+        issuedAt: null,
+        issuedBy: null
       };
 
-      return await createBadge(badgeData, photoFile, userId);
+      const docRef = await addDoc(collection(db, 'badges'), badgeData);
+
+      return { success: true, id: docRef.id, badgeId, photoURL, isNew: true };
     }
   } catch (error) {
     console.error('Error creating/updating badge from applicant:', error);
@@ -538,24 +570,10 @@ export const getDefaultTemplate = async () => {
       };
     }
 
-    // Return hardcoded default if none in database
+    // Return centralized default template if none in database
     return {
       success: true,
-      data: {
-        name: 'Default Template',
-        isDefault: true,
-        cardSize: { width: 337.5, height: 212.5 }, // CR80 standard: 3.375" x 2.125"
-        elements: {
-          photo: { x: 20, y: 40, width: 100, height: 120 },
-          firstName: { x: 135, y: 50, fontSize: 18, fontFamily: 'Arial, sans-serif', fontWeight: 'bold' },
-          lastName: { x: 135, y: 75, fontSize: 18, fontFamily: 'Arial, sans-serif', fontWeight: 'bold' },
-          eid: { x: 135, y: 105, fontSize: 14, fontFamily: 'Arial, sans-serif' },
-          position: { x: 135, y: 125, fontSize: 12, fontFamily: 'Arial, sans-serif' },
-          shift: { x: 135, y: 142, fontSize: 12, fontFamily: 'Arial, sans-serif' },
-          logo: { x: 240, y: 10, width: 80, height: 30, url: '/CrecscentDataTool/images/plx-logo.png' },
-          barcode: { x: 80, y: 168, width: 180, height: 35 }
-        }
-      }
+      data: DEFAULT_BADGE_TEMPLATE
     };
   } catch (error) {
     console.error('Error getting default template:', error);
