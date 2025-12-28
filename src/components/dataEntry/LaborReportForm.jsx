@@ -91,15 +91,43 @@ const LaborReportForm = () => {
     let employeeCount = 0;
     const employeeIds = []; // Track all EIDs for applicant status sync
 
-    // Daily breakdown structure
+    // Daily breakdown structure with shift-level granularity
     const dailyBreakdown = {
-      monday: { direct: 0, indirect: 0, total: 0 },
-      tuesday: { direct: 0, indirect: 0, total: 0 },
-      wednesday: { direct: 0, indirect: 0, total: 0 },
-      thursday: { direct: 0, indirect: 0, total: 0 },
-      friday: { direct: 0, indirect: 0, total: 0 },
-      saturday: { direct: 0, indirect: 0, total: 0 },
-      sunday: { direct: 0, indirect: 0, total: 0 }
+      monday: {
+        shift1: { direct: 0, indirect: 0, total: 0 },
+        shift2: { direct: 0, indirect: 0, total: 0 },
+        direct: 0, indirect: 0, total: 0
+      },
+      tuesday: {
+        shift1: { direct: 0, indirect: 0, total: 0 },
+        shift2: { direct: 0, indirect: 0, total: 0 },
+        direct: 0, indirect: 0, total: 0
+      },
+      wednesday: {
+        shift1: { direct: 0, indirect: 0, total: 0 },
+        shift2: { direct: 0, indirect: 0, total: 0 },
+        direct: 0, indirect: 0, total: 0
+      },
+      thursday: {
+        shift1: { direct: 0, indirect: 0, total: 0 },
+        shift2: { direct: 0, indirect: 0, total: 0 },
+        direct: 0, indirect: 0, total: 0
+      },
+      friday: {
+        shift1: { direct: 0, indirect: 0, total: 0 },
+        shift2: { direct: 0, indirect: 0, total: 0 },
+        direct: 0, indirect: 0, total: 0
+      },
+      saturday: {
+        shift1: { direct: 0, indirect: 0, total: 0 },
+        shift2: { direct: 0, indirect: 0, total: 0 },
+        direct: 0, indirect: 0, total: 0
+      },
+      sunday: {
+        shift1: { direct: 0, indirect: 0, total: 0 },
+        shift2: { direct: 0, indirect: 0, total: 0 },
+        direct: 0, indirect: 0, total: 0
+      }
     };
 
     // Employee details for granular tracking
@@ -176,6 +204,17 @@ const LaborReportForm = () => {
         employeeIds.push(eid);
       }
 
+      // Determine shift based on row position
+      // Based on user's description:
+      // 1st shift: rows 7-97 (direct: 7-92, indirect: 94-97)
+      // 2nd shift: rows 101-194 (direct: 101-188, indirect: 190-194)
+      // Adjust for 0-based vs 1-based indexing if needed
+      let shift = 1; // default to 1st shift
+      if (i >= 100) {
+        shift = 2; // 2nd shift starts around row 100+
+      }
+      const shiftKey = shift === 1 ? 'shift1' : 'shift2';
+
       // Determine if Direct or Indirect based on dept code
       const isDirect = deptCode.startsWith('004');
       const isIndirect = deptCode.startsWith('005');
@@ -204,19 +243,39 @@ const LaborReportForm = () => {
       const weeklyDtHrs = parseFloat(row[48]) || 0;
       const employeeWeeklyTotal = weeklyRegHrs + weeklyOtHrs + weeklyDtHrs;
 
-      // Update daily breakdowns
+      // Update daily breakdowns (shift-level + totals)
+      dailyBreakdown.monday[shiftKey][laborType] += monday.total;
+      dailyBreakdown.monday[shiftKey].total += monday.total;
       dailyBreakdown.monday[laborType] += monday.total;
       dailyBreakdown.monday.total += monday.total;
+
+      dailyBreakdown.tuesday[shiftKey][laborType] += tuesday.total;
+      dailyBreakdown.tuesday[shiftKey].total += tuesday.total;
       dailyBreakdown.tuesday[laborType] += tuesday.total;
       dailyBreakdown.tuesday.total += tuesday.total;
+
+      dailyBreakdown.wednesday[shiftKey][laborType] += wednesday.total;
+      dailyBreakdown.wednesday[shiftKey].total += wednesday.total;
       dailyBreakdown.wednesday[laborType] += wednesday.total;
       dailyBreakdown.wednesday.total += wednesday.total;
+
+      dailyBreakdown.thursday[shiftKey][laborType] += thursday.total;
+      dailyBreakdown.thursday[shiftKey].total += thursday.total;
       dailyBreakdown.thursday[laborType] += thursday.total;
       dailyBreakdown.thursday.total += thursday.total;
+
+      dailyBreakdown.friday[shiftKey][laborType] += friday.total;
+      dailyBreakdown.friday[shiftKey].total += friday.total;
       dailyBreakdown.friday[laborType] += friday.total;
       dailyBreakdown.friday.total += friday.total;
+
+      dailyBreakdown.saturday[shiftKey][laborType] += saturday.total;
+      dailyBreakdown.saturday[shiftKey].total += saturday.total;
       dailyBreakdown.saturday[laborType] += saturday.total;
       dailyBreakdown.saturday.total += saturday.total;
+
+      dailyBreakdown.sunday[shiftKey][laborType] += sunday.total;
+      dailyBreakdown.sunday[shiftKey].total += sunday.total;
       dailyBreakdown.sunday[laborType] += sunday.total;
       dailyBreakdown.sunday.total += sunday.total;
 
@@ -226,11 +285,12 @@ const LaborReportForm = () => {
         name: nameCell,
         deptCode,
         laborType,
+        shift,
         daily: { monday, tuesday, wednesday, thursday, friday, saturday, sunday },
         weeklyTotal: employeeWeeklyTotal
       });
 
-      console.log(`  EID: ${eid}, Dept: ${deptCode}, Type: ${laborType}, Weekly Total: ${employeeWeeklyTotal}h`);
+      console.log(`  Row ${i} | EID: ${eid}, Dept: ${deptCode}, Shift: ${shift}, Type: ${laborType}, Weekly Total: ${employeeWeeklyTotal}h`);
       console.log(`    Mon: ${monday.total}h, Tue: ${tuesday.total}h, Wed: ${wednesday.total}h, Thu: ${thursday.total}h, Fri: ${friday.total}h, Sat: ${saturday.total}h, Sun: ${sunday.total}h`);
 
       // Update totals
@@ -250,7 +310,8 @@ const LaborReportForm = () => {
     console.log('Direct hours:', directHours);
     console.log('Indirect hours:', indirectHours);
     console.log('Employee IDs:', employeeIds);
-    console.log('\n=== Daily Breakdown ===');
+
+    console.log('\n=== Daily Breakdown (All Days) ===');
     console.log('Monday:', dailyBreakdown.monday);
     console.log('Tuesday:', dailyBreakdown.tuesday);
     console.log('Wednesday:', dailyBreakdown.wednesday);
@@ -258,6 +319,21 @@ const LaborReportForm = () => {
     console.log('Friday:', dailyBreakdown.friday);
     console.log('Saturday:', dailyBreakdown.saturday);
     console.log('Sunday:', dailyBreakdown.sunday);
+
+    console.log('\n=== Per-Shift Daily Breakdown ===');
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    days.forEach(day => {
+      const dayData = dailyBreakdown[day];
+      const dayName = day.charAt(0).toUpperCase() + day.slice(1);
+      console.log(`\n${dayName}:`);
+      console.log(`  1st Shift Direct:   ${dayData.shift1.direct.toFixed(2)}h`);
+      console.log(`  1st Shift Indirect: ${dayData.shift1.indirect.toFixed(2)}h`);
+      console.log(`  1st Shift Total:    ${dayData.shift1.total.toFixed(2)}h`);
+      console.log(`  2nd Shift Direct:   ${dayData.shift2.direct.toFixed(2)}h`);
+      console.log(`  2nd Shift Indirect: ${dayData.shift2.indirect.toFixed(2)}h`);
+      console.log(`  2nd Shift Total:    ${dayData.shift2.total.toFixed(2)}h`);
+      console.log(`  Day Total:          ${dayData.total.toFixed(2)}h (Direct: ${dayData.direct.toFixed(2)}h, Indirect: ${dayData.indirect.toFixed(2)}h)`);
+    });
 
     return {
       directHours: Math.round(directHours * 100) / 100,
