@@ -330,6 +330,7 @@ export const getApplicants = async (status = null) => {
       interviewDate: doc.data().interviewDate?.toDate(),
       processedDate: doc.data().processedDate?.toDate(),
       projectedStartDate: doc.data().projectedStartDate?.toDate(),
+      tentativeStartDate: doc.data().tentativeStartDate?.toDate(),
       actualStartDate: doc.data().actualStartDate?.toDate()
     }));
     return { success: true, data };

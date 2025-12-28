@@ -7,7 +7,7 @@ import Layout from './components/Layout';
 import Home from './pages/EnhancedHome';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import DataEntry from './pages/EnhancedDataEntry';
+import DataEntry from './pages/DataEntry';
 import Dashboard from './pages/EnhancedDashboard';
 import Upload from './pages/EnhancedUpload';
 import ProfilePage from './pages/EnhancedProfile';

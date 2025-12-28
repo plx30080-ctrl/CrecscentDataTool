@@ -53,6 +53,16 @@ const ApplicantsPage = () => {
   const [sortDirection, setSortDirection] = useState('desc');
   const [pipeline, setPipeline] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Phone formatter utility
+  const formatPhone = (phone) => {
+    if (!phone) return '';
+    const cleaned = phone.toString().replace(/\D/g, '');
+    if (cleaned.length === 10) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+    }
+    return phone;
+  };
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingApplicant, setEditingApplicant] = useState(null);
   const [formData, setFormData] = useState({
@@ -61,11 +71,10 @@ const ApplicantsPage = () => {
     eid: '',
     email: '',
     phone: '',
-    source: 'Indeed',
     status: 'Applied',
-    position: '',
     shift: '1st',
     projectedStartDate: null,
+    tentativeStartDate: null,
     notes: ''
   });
   const [success, setSuccess] = useState('');
@@ -130,7 +139,7 @@ const ApplicantsPage = () => {
       if (!bVal) return -1;
 
       // Handle dates
-      if (sortField === 'processDate' || sortField === 'projectedStartDate') {
+      if (sortField === 'processDate' || sortField === 'projectedStartDate' || sortField === 'tentativeStartDate') {
         aVal = aVal instanceof Date ? aVal.getTime() : 0;
         bVal = bVal instanceof Date ? bVal.getTime() : 0;
       }
@@ -166,12 +175,11 @@ const ApplicantsPage = () => {
         lastName: applicant.lastName || '',
         eid: applicant.eid || '',
         email: applicant.email || '',
-        phone: applicant.phone || '',
-        source: applicant.source || 'Indeed',
+        phone: applicant.phoneNumber || applicant.phone || '',
         status: applicant.status || 'Applied',
-        position: applicant.position || '',
         shift: applicant.shift || '1st',
         projectedStartDate: applicant.projectedStartDate ? dayjs(applicant.projectedStartDate) : null,
+        tentativeStartDate: applicant.tentativeStartDate ? dayjs(applicant.tentativeStartDate) : null,
         notes: applicant.notes || ''
       });
       if (applicant.photoURL) {
@@ -185,11 +193,10 @@ const ApplicantsPage = () => {
         eid: '',
         email: '',
         phone: '',
-        source: 'Indeed',
         status: 'Applied',
-        position: '',
         shift: '1st',
         projectedStartDate: null,
+        tentativeStartDate: null,
         notes: ''
       });
       setPhotoFile(null);
@@ -274,8 +281,11 @@ const ApplicantsPage = () => {
 
     const applicantData = {
       ...formData,
-      projectedStartDate: formData.projectedStartDate ? formData.projectedStartDate.toDate() : null
+      phoneNumber: formData.phone, // Normalize to phoneNumber
+      projectedStartDate: formData.projectedStartDate ? formData.projectedStartDate.toDate() : null,
+      tentativeStartDate: formData.tentativeStartDate ? formData.tentativeStartDate.toDate() : null
     };
+    delete applicantData.phone; // Remove phone, use phoneNumber
 
     let result;
     if (editingApplicant) {
@@ -445,6 +455,15 @@ const ApplicantsPage = () => {
                 <TableRow>
                   <TableCell>
                     <TableSortLabel
+                      active={sortField === 'eid'}
+                      direction={sortField === 'eid' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('eid')}
+                    >
+                      EID
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
                       active={sortField === 'name'}
                       direction={sortField === 'name' ? sortDirection : 'asc'}
                       onClick={() => handleSort('name')}
@@ -452,16 +471,8 @@ const ApplicantsPage = () => {
                       Name
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>Contact</TableCell>
-                  <TableCell>
-                    <TableSortLabel
-                      active={sortField === 'source'}
-                      direction={sortField === 'source' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('source')}
-                    >
-                      Source
-                    </TableSortLabel>
-                  </TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Phone</TableCell>
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'status'}
@@ -471,7 +482,6 @@ const ApplicantsPage = () => {
                       Status
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>Position</TableCell>
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'shift'}
@@ -483,13 +493,14 @@ const ApplicantsPage = () => {
                   </TableCell>
                   <TableCell>
                     <TableSortLabel
-                      active={sortField === 'processDate'}
-                      direction={sortField === 'processDate' ? sortDirection : 'asc'}
-                      onClick={() => handleSort('processDate')}
+                      active={sortField === 'tentativeStartDate'}
+                      direction={sortField === 'tentativeStartDate' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('tentativeStartDate')}
                     >
-                      Process Date
+                      Tentative Start
                     </TableSortLabel>
                   </TableCell>
+                  <TableCell>Notes</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -497,20 +508,30 @@ const ApplicantsPage = () => {
                 {filteredApplicants.map((applicant) => (
                   <TableRow key={applicant.id}>
                     <TableCell>
-                      {applicant.firstName && applicant.lastName
-                        ? `${applicant.firstName} ${applicant.lastName}`
-                        : applicant.name || 'N/A'}
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        EID: {applicant.eid || applicant.crmNumber || 'N/A'}
+                      <Typography variant="body2" fontWeight="medium">
+                        {applicant.eid || applicant.crmNumber || 'N/A'}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">{applicant.email}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {applicant.phoneNumber || applicant.phone}
-                      </Typography>
+                      {applicant.firstName && applicant.lastName
+                        ? `${applicant.firstName} ${applicant.lastName}`
+                        : applicant.name || 'N/A'}
                     </TableCell>
-                    <TableCell>{applicant.source}</TableCell>
+                    <TableCell>
+                      {applicant.email ? (
+                        <a
+                          href={`mailto:${applicant.email}`}
+                          style={{ color: '#1976d2', textDecoration: 'none' }}
+                          onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+                          onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                        >
+                          {applicant.email}
+                        </a>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {formatPhone(applicant.phoneNumber || applicant.phone) || '-'}
+                    </TableCell>
                     <TableCell>
                       <FormControl size="small" fullWidth>
                         <Select
@@ -526,14 +547,22 @@ const ApplicantsPage = () => {
                         </Select>
                       </FormControl>
                     </TableCell>
-                    <TableCell>{applicant.position}</TableCell>
-                    <TableCell>{applicant.shift}</TableCell>
+                    <TableCell>{applicant.shift || '-'}</TableCell>
                     <TableCell>
-                      {applicant.projectedStartDate
+                      {applicant.tentativeStartDate
+                        ? dayjs(applicant.tentativeStartDate).format('MMM D, YYYY')
+                        : applicant.projectedStartDate
                         ? dayjs(applicant.projectedStartDate).format('MMM D, YYYY')
-                        : applicant.processDate
-                        ? dayjs(applicant.processDate).format('MMM D, YYYY')
                         : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap sx={{ maxWidth: 150 }}>
+                        {applicant.notes ? (
+                          applicant.notes.length > 30
+                            ? `${applicant.notes.substring(0, 30)}...`
+                            : applicant.notes
+                        ) : '-'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <IconButton
@@ -547,7 +576,7 @@ const ApplicantsPage = () => {
                 ))}
                 {filteredApplicants.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography color="text.secondary" sx={{ padding: 4 }}>
                         {searchTerm ? 'No applicants found matching your search.' : 'No applicants yet. Click "Add Applicant" to get started.'}
                       </Typography>
@@ -687,23 +716,8 @@ const ApplicantsPage = () => {
                   fullWidth
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
+                  placeholder="(555) 123-4567"
                 />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Source</InputLabel>
-                  <Select
-                    value={formData.source}
-                    label="Source"
-                    onChange={(e) => handleChange('source', e.target.value)}
-                  >
-                    <MenuItem value="Indeed">Indeed</MenuItem>
-                    <MenuItem value="Referral">Referral</MenuItem>
-                    <MenuItem value="Walk-in">Walk-in</MenuItem>
-                    <MenuItem value="LinkedIn">LinkedIn</MenuItem>
-                    <MenuItem value="Other">Other</MenuItem>
-                  </Select>
-                </FormControl>
               </Grid>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
@@ -713,22 +727,11 @@ const ApplicantsPage = () => {
                     label="Status"
                     onChange={(e) => handleChange('status', e.target.value)}
                   >
-                    <MenuItem value="Applied">Applied</MenuItem>
-                    <MenuItem value="Interviewed">Interviewed</MenuItem>
-                    <MenuItem value="Processed">Processed</MenuItem>
-                    <MenuItem value="Hired">Hired</MenuItem>
-                    <MenuItem value="Started">Started</MenuItem>
-                    <MenuItem value="Rejected">Rejected</MenuItem>
+                    {ALL_STATUSES.map(status => (
+                      <MenuItem key={status} value={status}>{status}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  label="Position"
-                  fullWidth
-                  value={formData.position}
-                  onChange={(e) => handleChange('position', e.target.value)}
-                />
               </Grid>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
@@ -740,6 +743,7 @@ const ApplicantsPage = () => {
                   >
                     <MenuItem value="1st">1st Shift</MenuItem>
                     <MenuItem value="2nd">2nd Shift</MenuItem>
+                    <MenuItem value="Mid">Mid Shift</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -751,14 +755,23 @@ const ApplicantsPage = () => {
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </Grid>
+              <Grid item xs={12} md={6}>
+                <DatePicker
+                  label="Tentative Start Date"
+                  value={formData.tentativeStartDate}
+                  onChange={(newValue) => handleChange('tentativeStartDate', newValue)}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </Grid>
               <Grid item xs={12}>
                 <TextField
                   label="Notes"
                   fullWidth
                   multiline
-                  rows={3}
+                  rows={4}
                   value={formData.notes}
                   onChange={(e) => handleChange('notes', e.target.value)}
+                  placeholder="Add any additional notes about this applicant..."
                 />
               </Grid>
             </Grid>

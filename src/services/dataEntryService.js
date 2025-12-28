@@ -1,0 +1,191 @@
+import { db } from '../firebase';
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  Timestamp
+} from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import * as XLSX from 'xlsx';
+
+/**
+ * Submit On Premise data
+ */
+export const submitOnPremiseData = async (formData, file) => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const dataToSubmit = {
+      date: Timestamp.fromDate(formData.date.toDate()),
+      shift: formData.shift,
+      requested: parseInt(formData.requested) || 0,
+      required: parseInt(formData.required) || 0,
+      working: parseInt(formData.working) || 0,
+      newStarts: parseInt(formData.newStarts) || 0,
+      sendHomes: parseInt(formData.sendHomes) || 0,
+      lineCuts: parseInt(formData.lineCuts) || 0,
+      notes: formData.notes || '',
+      submittedAt: serverTimestamp(),
+      submittedBy: user.email,
+      submittedByUid: user.uid
+    };
+
+    // If file is provided, parse employee data
+    let employeeData = null;
+    if (file) {
+      employeeData = await parseOnPremiseFile(file);
+      dataToSubmit.employeeData = employeeData;
+      dataToSubmit.fileName = file.name;
+    }
+
+    const docRef = await addDoc(collection(db, 'onPremiseData'), dataToSubmit);
+
+    return {
+      success: true,
+      id: docRef.id,
+      employeesProcessed: employeeData ? employeeData.length : 0
+    };
+  } catch (error) {
+    console.error('Error submitting on premise data:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Parse On Premise Excel file
+ */
+const parseOnPremiseFile = async (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+        // Map employee data
+        const employees = jsonData.map(row => ({
+          employeeId: row['Employee ID'] || row['EID'] || row['ID'] || '',
+          name: row['Name'] || row['Employee Name'] || '',
+          department: row['Department'] || row['Dept'] || '',
+          shift: row['Shift'] || '',
+          inTime: row['In Time'] || row['Clock In'] || '',
+          outTime: row['Out Time'] || row['Clock Out'] || ''
+        }));
+
+        resolve(employees);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    reader.onerror = (error) => reject(error);
+    reader.readAsArrayBuffer(file);
+  });
+};
+
+/**
+ * Submit Labor Report
+ */
+export const submitLaborReport = async (data) => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const dataToSubmit = {
+      weekEnding: Timestamp.fromDate(data.weekEnding.toDate()),
+      directHours: parseFloat(data.directHours) || 0,
+      indirectHours: parseFloat(data.indirectHours) || 0,
+      totalHours: parseFloat(data.totalHours) || 0,
+      employeeCount: parseInt(data.employeeCount) || 0,
+      fileName: data.fileName || '',
+      submittedAt: serverTimestamp(),
+      submittedBy: user.email,
+      submittedByUid: user.uid
+    };
+
+    const docRef = await addDoc(collection(db, 'laborReports'), dataToSubmit);
+
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('Error submitting labor report:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Submit Branch Daily metrics
+ */
+export const submitBranchDaily = async (formData) => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const dataToSubmit = {
+      date: Timestamp.fromDate(formData.date.toDate()),
+      shift: formData.shift,
+      interviewsScheduled: parseInt(formData.interviewsScheduled) || 0,
+      interviewShows: parseInt(formData.interviewShows) || 0,
+      shiftsProcessed: parseInt(formData.shiftsProcessed) || 0,
+      confirmations: parseInt(formData.confirmations) || 0,
+      notes: formData.notes || '',
+      submittedAt: serverTimestamp(),
+      submittedBy: user.email,
+      submittedByUid: user.uid
+    };
+
+    const docRef = await addDoc(collection(db, 'branchDaily'), dataToSubmit);
+
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('Error submitting branch daily:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Submit Branch Weekly metrics
+ */
+export const submitBranchWeekly = async (formData) => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const dataToSubmit = {
+      weekEnding: Timestamp.fromDate(formData.weekEnding.toDate()),
+      totalApplicants: parseInt(formData.totalApplicants) || 0,
+      totalProcessed: parseInt(formData.totalProcessed) || 0,
+      totalHeadcount: parseInt(formData.totalHeadcount) || 0,
+      notes: formData.notes || '',
+      submittedAt: serverTimestamp(),
+      submittedBy: user.email,
+      submittedByUid: user.uid
+    };
+
+    const docRef = await addDoc(collection(db, 'branchWeekly'), dataToSubmit);
+
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('Error submitting branch weekly:', error);
+    return { success: false, error: error.message };
+  }
+};
