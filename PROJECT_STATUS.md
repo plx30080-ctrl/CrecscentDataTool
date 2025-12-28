@@ -48,6 +48,18 @@ The Crescent Data Tool is a comprehensive workforce management platform for Mid-
 - ✅ Excel file parsing service
 - ✅ Only 1st and 2nd shift options (removed 3rd/Mid)
 
+### Phase 4: Early Leaves & DNR System
+- ✅ Early Leaves management page
+- ✅ Add/Edit/Delete early leave records
+- ✅ Corrective action tracking (None, Warning, Suspension, DNR)
+- ✅ 14/30/90 day occurrence tracking
+- ✅ DNR database management
+- ✅ Auto-population from Early Leaves
+- ✅ Manual DNR entry
+- ✅ DNR removal with audit trail
+- ✅ Search and filter capabilities
+- ✅ Statistics dashboard
+
 ---
 
 ## 🗂️ File Structure
@@ -56,6 +68,8 @@ The Crescent Data Tool is a comprehensive workforce management platform for Mid-
 - `ApplicantsPage.jsx` - Applicant management
 - `BadgeManagement.jsx` - Badge creation and printing
 - `DataEntry.jsx` - Unified data entry
+- `EarlyLeavesPage.jsx` - Early leaves tracking
+- `DNRManagement.jsx` - Do Not Return database
 - `EnhancedHome.jsx` - Dashboard home
 - `EnhancedDashboard.jsx` - Analytics dashboard
 - `EnhancedProfile.jsx` - User profile
@@ -89,6 +103,7 @@ The Crescent Data Tool is a comprehensive workforce management platform for Mid-
 - `badgeService.js` - Badge operations + template management
 - `dataEntryService.js` - Data entry submissions
 - `printService.js` - HID printer integration
+- `earlyLeaveService.js` - Early leaves & DNR management
 
 ---
 
@@ -110,6 +125,7 @@ The Crescent Data Tool is a comprehensive workforce management platform for Mid-
 - `shiftData` - Legacy shift data
 - `hoursData` - Legacy hours data
 - `earlyLeaves` - Early leave tracking
+- `dnrDatabase` - Do Not Return list
 - `uploadHistory` - Bulk upload tracking
 - `auditLog` - System audit trail
 - `admin` - Admin settings
@@ -139,6 +155,15 @@ The Crescent Data Tool is a comprehensive workforce management platform for Mid-
 - **Branch Daily:** Both shifts in one form (no selector needed)
 - **Auto-Parsing:** Labor Report Excel files auto-calculate hours
 - **File Upload:** On Premise employee roster upload
+
+### Early Leaves & DNR
+- **Early Leave Tracking:** Full CRUD for early leave records
+- **Corrective Actions:** None, Warning, 5 Day Suspension, DNR
+- **Occurrence Tracking:** 14/30/90 day counters
+- **DNR Database:** Permanent Do Not Return list
+- **Auto-Population:** DNR entries auto-created from early leaves
+- **Name Matching:** Levenshtein distance algorithm for fuzzy matching
+- **Audit Trail:** Track who added/removed DNR entries and when
 
 ---
 

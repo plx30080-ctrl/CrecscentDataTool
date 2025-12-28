@@ -16,6 +16,8 @@ import ScorecardPage from './pages/ScorecardPage';
 import BadgeManagement from './pages/BadgeManagement';
 import AdminPanel from './pages/AdminPanel';
 import DataDebug from './pages/DataDebug';
+import EarlyLeavesPage from './pages/EarlyLeavesPage';
+import DNRManagement from './pages/DNRManagement';
 
 function App() {
   return (
@@ -42,6 +44,8 @@ function App() {
             <Route path="scorecard" element={<ScorecardPage />} />
             <Route path="applicants" element={<ApplicantsPage />} />
             <Route path="badges" element={<BadgeManagement />} />
+            <Route path="early-leaves" element={<EarlyLeavesPage />} />
+            <Route path="dnr" element={<DNRManagement />} />
             <Route path="admin" element={<AdminPanel />} />
             <Route path="upload" element={<Upload />} />
             <Route path="debug" element={<DataDebug />} />

@@ -30,7 +30,7 @@ import {
   Avatar,
   Stack
 } from '@mui/material';
-import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print } from '@mui/icons-material';
+import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print, Download } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -303,6 +303,40 @@ const ApplicantsPage = () => {
     setPrintPreviewOpen(false);
   };
 
+  const handleExportPhoneList = () => {
+    // Export phone numbers of filtered applicants
+    const phonesWithNames = filteredApplicants
+      .filter(app => app.phoneNumber || app.phone)
+      .map(app => {
+        const phone = app.phoneNumber || app.phone;
+        const name = app.firstName && app.lastName
+          ? `${app.firstName} ${app.lastName}`
+          : app.name || 'Unknown';
+        const status = app.status || 'N/A';
+        return `${name}\t${phone}\t${status}`;
+      });
+
+    if (phonesWithNames.length === 0) {
+      setError('No phone numbers found in current filter');
+      return;
+    }
+
+    // Create downloadable file
+    const header = 'Name\tPhone Number\tStatus';
+    const content = [header, ...phonesWithNames].join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `phone-list-${dayjs().format('YYYY-MM-DD')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setSuccess(`Exported ${phonesWithNames.length} phone number(s)`);
+  };
+
   const handleSubmit = async () => {
     setError('');
     setSuccess('');
@@ -451,13 +485,22 @@ const ApplicantsPage = () => {
           <Typography variant="h4">
             Applicant Tracking System
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenDialog()}
-          >
-            Add Applicant
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleExportPhoneList}
+            >
+              Export Phone List
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => handleOpenDialog()}
+            >
+              Add Applicant
+            </Button>
+          </Box>
         </Box>
 
         {success && (

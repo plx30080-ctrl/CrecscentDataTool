@@ -3,10 +3,73 @@ import {
   collection,
   addDoc,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import * as XLSX from 'xlsx';
+
+/**
+ * Sync applicant statuses to "Started" when they appear in labor reports
+ */
+const syncApplicantStatuses = async (employeeIds) => {
+  try {
+    let updatedCount = 0;
+
+    for (const eid of employeeIds) {
+      // Find applicant by EID or crmNumber
+      const q = query(
+        collection(db, 'applicants'),
+        where('eid', '==', eid)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      // Also check crmNumber field for bulk uploads
+      if (querySnapshot.empty) {
+        const q2 = query(
+          collection(db, 'applicants'),
+          where('crmNumber', '==', eid)
+        );
+        const querySnapshot2 = await getDocs(q2);
+
+        querySnapshot2.forEach(async (document) => {
+          const currentStatus = document.data().status;
+          // Only update if not already "Started"
+          if (currentStatus !== 'Started') {
+            await updateDoc(doc(db, 'applicants', document.id), {
+              status: 'Started',
+              lastModified: serverTimestamp()
+            });
+            updatedCount++;
+          }
+        });
+      } else {
+        querySnapshot.forEach(async (document) => {
+          const currentStatus = document.data().status;
+          // Only update if not already "Started"
+          if (currentStatus !== 'Started') {
+            await updateDoc(doc(db, 'applicants', document.id), {
+              status: 'Started',
+              lastModified: serverTimestamp()
+            });
+            updatedCount++;
+          }
+        });
+      }
+    }
+
+    console.log(`Updated ${updatedCount} applicant statuses to "Started"`);
+    return { success: true, updatedCount };
+  } catch (error) {
+    console.error('Error syncing applicant statuses:', error);
+    return { success: false, error: error.message };
+  }
+};
 
 /**
  * Submit On Premise data
@@ -109,6 +172,7 @@ export const submitLaborReport = async (data) => {
       indirectHours: parseFloat(data.indirectHours) || 0,
       totalHours: parseFloat(data.totalHours) || 0,
       employeeCount: parseInt(data.employeeCount) || 0,
+      employeeIds: data.employeeIds || [],
       fileName: data.fileName || '',
       submittedAt: serverTimestamp(),
       submittedBy: user.email,
@@ -117,7 +181,12 @@ export const submitLaborReport = async (data) => {
 
     const docRef = await addDoc(collection(db, 'laborReports'), dataToSubmit);
 
-    return { success: true, id: docRef.id };
+    // Auto-update applicant statuses to "Started" for EIDs in labor report
+    if (data.employeeIds && data.employeeIds.length > 0) {
+      await syncApplicantStatuses(data.employeeIds);
+    }
+
+    return { success: true, id: docRef.id, statusesUpdated: data.employeeIds?.length || 0 };
   } catch (error) {
     console.error('Error submitting labor report:', error);
     return { success: false, error: error.message };

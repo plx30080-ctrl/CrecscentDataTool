@@ -596,7 +596,11 @@ const AdminPanel = () => {
                         color={getActionColor(log.action)}
                       />
                       <Typography variant="body2">
-                        {users.find(u => u.id === log.performedBy)?.email || 'Unknown User'}
+                        {log.performedBy
+                          ? (users.find(u => u.id === log.performedBy)?.email ||
+                             users.find(u => u.uid === log.performedBy)?.email ||
+                             log.performedBy)
+                          : 'System'}
                       </Typography>
                     </Box>
                   }

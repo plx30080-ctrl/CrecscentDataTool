@@ -81,6 +81,7 @@ const LaborReportForm = () => {
     let indirectHours = 0;
     let totalHours = 0;
     let employeeCount = 0;
+    const employeeIds = []; // Track all EIDs for applicant status sync
 
     // Find the data rows (skip headers)
     const startRow = data.findIndex(row =>
@@ -88,7 +89,7 @@ const LaborReportForm = () => {
     );
 
     if (startRow === -1) {
-      return { directHours: 0, indirectHours: 0, totalHours: 0, employeeCount: 0 };
+      return { directHours: 0, indirectHours: 0, totalHours: 0, employeeCount: 0, employeeIds: [] };
     }
 
     // Process each employee row
@@ -97,6 +98,12 @@ const LaborReportForm = () => {
       if (!row || row.length === 0 || !row[0]) break; // End of data
 
       employeeCount++;
+
+      // Extract EID (typically in column 0 or 1 - "File" column)
+      const eid = row[1] ? String(row[1]).trim() : null;
+      if (eid && eid !== '' && !isNaN(eid)) {
+        employeeIds.push(eid);
+      }
 
       // Sum regular hours (columns might vary, this is a general approach)
       // Adjust column indexes based on actual file structure
@@ -117,7 +124,8 @@ const LaborReportForm = () => {
       directHours: Math.round(directHours * 100) / 100,
       indirectHours: Math.round(indirectHours * 100) / 100,
       totalHours: Math.round(totalHours * 100) / 100,
-      employeeCount
+      employeeCount,
+      employeeIds: [...new Set(employeeIds)] // Remove duplicates
     };
   };
 
@@ -140,9 +148,13 @@ const LaborReportForm = () => {
       });
 
       if (result.success) {
+        const statusMessage = result.statusesUpdated > 0
+          ? `Labor report submitted successfully! ${result.statusesUpdated} applicant(s) marked as "Started".`
+          : 'Labor report submitted successfully!';
+
         setMessage({
           type: 'success',
-          text: 'Labor report submitted successfully!'
+          text: statusMessage
         });
 
         // Reset form

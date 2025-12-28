@@ -26,11 +26,12 @@ import {
   Card,
   CardContent
 } from '@mui/material';
-import { CloudUpload, CheckCircle, Warning, Info } from '@mui/icons-material';
+import { CloudUpload, CheckCircle, Warning, Info, Block } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { parseISO, isValid, format } from 'date-fns';
 import { useAuth } from '../contexts/AuthProvider';
 import { bulkUploadApplicants, checkDuplicateApplicants } from '../services/firestoreService';
+import { checkDNR } from '../services/earlyLeaveService';
 
 const ApplicantBulkUpload = () => {
   const { currentUser } = useAuth();
@@ -41,7 +42,9 @@ const ApplicantBulkUpload = () => {
   const [replaceAll, setReplaceAll] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
   const [duplicates, setDuplicates] = useState([]);
+  const [dnrWarnings, setDnrWarnings] = useState([]);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [showDnrDialog, setShowDnrDialog] = useState(false);
   const [statusBreakdown, setStatusBreakdown] = useState({});
 
   // Valid status values (case-insensitive matching)
@@ -325,15 +328,50 @@ const ApplicantBulkUpload = () => {
     console.log(`Starting bulk upload of ${data.length} applicants...`);
     console.log(`Operation: ${replaceAll ? 'Replace All' : 'Append'}`);
 
+    // Check for DNR matches first
+    const dnrMatches = [];
+    for (const applicant of data) {
+      const eid = applicant.crmNumber || applicant.eid;
+      const name = applicant.name;
+
+      if (eid || name) {
+        const dnrCheck = await checkDNR(eid, name);
+        if (dnrCheck.isDNR && dnrCheck.matches.length > 0) {
+          dnrMatches.push({
+            applicant,
+            matches: dnrCheck.matches
+          });
+        }
+      }
+    }
+
+    // If DNR matches found, show warning dialog
+    if (dnrMatches.length > 0) {
+      setDnrWarnings(dnrMatches);
+      setShowDnrDialog(true);
+      setUploading(false);
+      return;
+    }
+
+    // Proceed with upload
+    await proceedWithUpload();
+  };
+
+  const proceedWithUpload = async () => {
+    setUploading(true);
+
     try {
       const result = await bulkUploadApplicants(data, currentUser.uid, replaceAll);
 
       if (result.success) {
-        const message = `✅ Successfully uploaded ${result.count} applicants!`;
+        const message = dnrWarnings.length > 0
+          ? `✅ Successfully uploaded ${result.count} applicants! (${dnrWarnings.length} DNR warning(s) overridden)`
+          : `✅ Successfully uploaded ${result.count} applicants!`;
         setSuccess(message);
         setData([]);
         setStatusBreakdown({});
         setDuplicates([]);
+        setDnrWarnings([]);
         console.log('Upload complete:', result);
       } else {
         setError(`❌ Failed to upload applicants: ${result.error}`);
@@ -344,6 +382,18 @@ const ApplicantBulkUpload = () => {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleUploadWithDnrOverride = () => {
+    setShowDnrDialog(false);
+    proceedWithUpload();
+  };
+
+  const handleCancelDnrUpload = () => {
+    setShowDnrDialog(false);
+    setUploading(false);
+    setDnrWarnings([]);
+    setError('Upload cancelled due to DNR matches. Please review and remove flagged applicants.');
   };
 
   const downloadErrorReport = () => {
@@ -555,6 +605,81 @@ const ApplicantBulkUpload = () => {
         <DialogActions>
           <Button onClick={downloadErrorReport}>Download Error Report</Button>
           <Button onClick={() => setShowErrorDialog(false)} variant="contained">Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* DNR Warning Dialog */}
+      <Dialog open={showDnrDialog} onClose={handleCancelDnrUpload} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Block color="error" />
+          DNR (Do Not Return) Warning
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ marginBottom: 2 }}>
+            <strong>WARNING:</strong> {dnrWarnings.length} applicant(s) match entries in the DNR database.
+            These individuals are flagged as "Do Not Return" and should not be re-hired.
+          </Alert>
+
+          <Typography variant="body2" sx={{ marginBottom: 2 }}>
+            Review the matches below carefully before proceeding:
+          </Typography>
+
+          <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+            {dnrWarnings.map((warning, idx) => (
+              <Paper key={idx} sx={{ padding: 2, marginBottom: 2, backgroundColor: '#ffebee' }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="error">
+                      Applicant:
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>{warning.applicant.name}</strong>
+                    </Typography>
+                    <Typography variant="body2">
+                      EID: {warning.applicant.crmNumber || warning.applicant.eid || 'N/A'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="error">
+                      DNR Match:
+                    </Typography>
+                    {warning.matches.map((match, midx) => (
+                      <Box key={midx} sx={{ marginBottom: 1 }}>
+                        <Typography variant="body2">
+                          <strong>{match.associateName}</strong>
+                        </Typography>
+                        <Typography variant="caption" display="block">
+                          EID: {match.eid}
+                        </Typography>
+                        <Typography variant="caption" display="block">
+                          Match: {match.matchType} ({match.matchScore}% confidence)
+                        </Typography>
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          Reason: {match.reason}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Grid>
+                </Grid>
+              </Paper>
+            ))}
+          </Box>
+
+          <Alert severity="warning" sx={{ marginTop: 2 }}>
+            <strong>Options:</strong>
+            <ul>
+              <li><strong>Cancel Upload:</strong> Review DNR list and remove flagged applicants from your file</li>
+              <li><strong>Override & Proceed:</strong> Upload anyway (requires manager approval)</li>
+            </ul>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDnrUpload} variant="outlined">
+            Cancel Upload
+          </Button>
+          <Button onClick={handleUploadWithDnrOverride} variant="contained" color="error">
+            Override & Proceed Anyway
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

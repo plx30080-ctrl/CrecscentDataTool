@@ -31,16 +31,16 @@ const BadgePreview = ({
     <Paper
       elevation={3}
       sx={{
-        width: cardSize.width * scale,
-        height: cardSize.height * scale,
+        width: cardSize.width,
+        height: cardSize.height,
         position: 'relative',
         backgroundColor: '#ffffff',
         overflow: 'hidden',
-        transform: `scale(${scale})`,
-        transformOrigin: 'top left',
         border: '1px solid #ccc',
         backgroundImage: showGrid ? 'linear-gradient(#eee 1px, transparent 1px), linear-gradient(90deg, #eee 1px, transparent 1px)' : 'none',
-        backgroundSize: showGrid ? '20px 20px' : 'auto'
+        backgroundSize: showGrid ? '20px 20px' : 'auto',
+        transform: scale !== 1 ? `scale(${scale})` : 'none',
+        transformOrigin: 'center'
       }}
     >
       {/* Photo */}
@@ -192,7 +192,7 @@ const BadgePreview = ({
         }}
       >
         <BarcodeGenerator
-          value={badge?.badgeId || badge?.eid || 'PLX-00000000-ABC'}
+          value={badge?.badgeId || 'PLX-00000000-ABC'}
           width={1.5}
           height={elements.barcode.height}
           displayValue={true}

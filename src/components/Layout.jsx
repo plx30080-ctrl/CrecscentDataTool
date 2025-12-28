@@ -46,6 +46,8 @@ const Layout = () => {
           <Button color="inherit" component={Link} to="/dashboard">Dashboard</Button>
           <Button color="inherit" component={Link} to="/applicants">Applicants</Button>
           <Button color="inherit" component={Link} to="/badges">Badges</Button>
+          <Button color="inherit" component={Link} to="/early-leaves">Early Leaves</Button>
+          <Button color="inherit" component={Link} to="/dnr">DNR</Button>
           {userProfile && (userProfile.role === 'Market Manager' || userProfile.role === 'admin') && (
             <Button color="inherit" component={Link} to="/admin">Admin</Button>
           )}

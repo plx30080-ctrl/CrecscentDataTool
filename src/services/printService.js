@@ -70,6 +70,7 @@ const buildPrintHTML = (badge, template) => {
       eid: { x: 135, y: 105, fontSize: 14 },
       position: { x: 135, y: 125, fontSize: 12 },
       shift: { x: 135, y: 142, fontSize: 12 },
+      logo: { x: 240, y: 10, width: 80, height: 30, url: '/CrecscentDataTool/images/plx-logo.png' },
       barcode: { x: 80, y: 168 }
     }
   };
@@ -155,6 +156,18 @@ const buildPrintHTML = (badge, template) => {
           top: ${t.elements.shift.y}px;
           font-size: ${t.elements.shift.fontSize}px;
         }
+        .logo {
+          position: absolute;
+          left: ${t.elements.logo?.x || 240}px;
+          top: ${t.elements.logo?.y || 10}px;
+          width: ${t.elements.logo?.width || 80}px;
+          height: ${t.elements.logo?.height || 30}px;
+        }
+        .logo img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
         .barcode {
           position: absolute;
           left: ${t.elements.barcode.x}px;
@@ -170,6 +183,11 @@ const buildPrintHTML = (badge, template) => {
     </head>
     <body>
       <div class="badge-card">
+        ${t.elements.logo?.url ? `
+        <div class="logo">
+          <img src="${window.location.origin}${t.elements.logo.url}" alt="Company Logo" />
+        </div>
+        ` : ''}
         <div class="photo">
           ${badge.photoURL
             ? `<img src="${badge.photoURL}" alt="${badge.firstName} ${badge.lastName}" />`
@@ -187,7 +205,7 @@ const buildPrintHTML = (badge, template) => {
       </div>
       <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
       <script>
-        JsBarcode("#barcode", "${badge.badgeId || badge.eid || 'PLX-00000000-ABC'}", {
+        JsBarcode("#barcode", "${badge.badgeId || 'PLX-00000000-ABC'}", {
           format: "CODE128",
           width: 1.5,
           height: 35,
