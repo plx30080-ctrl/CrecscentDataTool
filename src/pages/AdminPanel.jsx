@@ -23,22 +23,13 @@ import {
   MenuItem,
   Alert,
   Chip,
-  Grid,
-  Card,
-  CardContent,
-  TextField,
-  Slider,
-  Switch,
-  FormControlLabel,
   List,
   ListItem,
-  ListItemText,
-  IconButton
+  ListItemText
 } from '@mui/material';
 import {
   AdminPanelSettings,
   People,
-  Badge as BadgeIcon,
   Assessment,
   Edit,
   Refresh
@@ -47,10 +38,7 @@ import { useAuth } from '../contexts/AuthProvider';
 import {
   getAllUsers,
   updateUserRole,
-  saveBadgeTemplate,
-  getActiveBadgeTemplate,
-  getAuditLogs,
-  getUserActivitySummary
+  getAuditLogs
 } from '../services/adminService';
 import dayjs from 'dayjs';
 
@@ -63,22 +51,6 @@ const AdminPanel = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [newRole, setNewRole] = useState('');
-
-  // Badge Template State
-  const [template, setTemplate] = useState({
-    companyLogo: true,
-    showPhoto: true,
-    showBadgeId: true,
-    showName: true,
-    showPosition: true,
-    showShift: true,
-    backgroundColor: '#FFFFFF',
-    textColor: '#000000',
-    fontSize: 12,
-    photoSize: 'medium',
-    layout: 'standard'
-  });
-  const [activeTemplate, setActiveTemplate] = useState(null);
 
   // Audit Log State
   const [auditLogs, setAuditLogs] = useState([]);
@@ -95,7 +67,6 @@ const AdminPanel = () => {
   useEffect(() => {
     if (isAuthorized) {
       loadUsers();
-      loadActiveTemplate();
       loadAuditLogs();
     }
   }, [isAuthorized]);
@@ -104,14 +75,6 @@ const AdminPanel = () => {
     const result = await getAllUsers();
     if (result.success) {
       setUsers(result.data);
-    }
-  };
-
-  const loadActiveTemplate = async () => {
-    const result = await getActiveBadgeTemplate();
-    if (result.success && result.data) {
-      setActiveTemplate(result.data);
-      setTemplate(result.data);
     }
   };
 
@@ -153,24 +116,6 @@ const AdminPanel = () => {
     } else {
       setError(result.error || 'Failed to update role');
     }
-  };
-
-  const handleSaveTemplate = async () => {
-    setLoading(true);
-    const result = await saveBadgeTemplate(template, currentUser.uid);
-    setLoading(false);
-
-    if (result.success) {
-      setSuccess('Badge template saved successfully!');
-      loadActiveTemplate();
-      loadAuditLogs(); // Refresh audit logs
-    } else {
-      setError(result.error || 'Failed to save template');
-    }
-  };
-
-  const handleTemplateChange = (field, value) => {
-    setTemplate(prev => ({ ...prev, [field]: value }));
   };
 
   const getRoleColor = (role) => {
@@ -223,7 +168,6 @@ const AdminPanel = () => {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', marginBottom: 3 }}>
         <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
           <Tab label="User Management" icon={<People />} iconPosition="start" />
-          <Tab label="Badge Template" icon={<BadgeIcon />} iconPosition="start" />
           <Tab label="Audit Logs" icon={<Assessment />} iconPosition="start" />
         </Tabs>
       </Box>
@@ -291,231 +235,8 @@ const AdminPanel = () => {
         </Paper>
       )}
 
-      {/* Tab 1: Badge Template Designer */}
+      {/* Tab 1: Audit Logs */}
       {tabValue === 1 && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ padding: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Badge Template Settings
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom sx={{ marginBottom: 3 }}>
-                Customize the badge layout for printing with Fargo DTC1250e
-              </Typography>
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={template.companyLogo}
-                    onChange={(e) => handleTemplateChange('companyLogo', e.target.checked)}
-                  />
-                }
-                label="Show Company Logo"
-                sx={{ marginBottom: 2, display: 'block' }}
-              />
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={template.showPhoto}
-                    onChange={(e) => handleTemplateChange('showPhoto', e.target.checked)}
-                  />
-                }
-                label="Show Associate Photo"
-                sx={{ marginBottom: 2, display: 'block' }}
-              />
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={template.showBadgeId}
-                    onChange={(e) => handleTemplateChange('showBadgeId', e.target.checked)}
-                  />
-                }
-                label="Show Badge ID"
-                sx={{ marginBottom: 2, display: 'block' }}
-              />
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={template.showName}
-                    onChange={(e) => handleTemplateChange('showName', e.target.checked)}
-                  />
-                }
-                label="Show Name"
-                sx={{ marginBottom: 2, display: 'block' }}
-              />
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={template.showPosition}
-                    onChange={(e) => handleTemplateChange('showPosition', e.target.checked)}
-                  />
-                }
-                label="Show Position"
-                sx={{ marginBottom: 2, display: 'block' }}
-              />
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={template.showShift}
-                    onChange={(e) => handleTemplateChange('showShift', e.target.checked)}
-                  />
-                }
-                label="Show Shift"
-                sx={{ marginBottom: 3, display: 'block' }}
-              />
-
-              <TextField
-                label="Background Color"
-                type="color"
-                fullWidth
-                value={template.backgroundColor}
-                onChange={(e) => handleTemplateChange('backgroundColor', e.target.value)}
-                sx={{ marginBottom: 2 }}
-              />
-
-              <TextField
-                label="Text Color"
-                type="color"
-                fullWidth
-                value={template.textColor}
-                onChange={(e) => handleTemplateChange('textColor', e.target.value)}
-                sx={{ marginBottom: 2 }}
-              />
-
-              <Typography gutterBottom>Font Size: {template.fontSize}pt</Typography>
-              <Slider
-                value={template.fontSize}
-                onChange={(e, newValue) => handleTemplateChange('fontSize', newValue)}
-                min={8}
-                max={20}
-                step={1}
-                marks
-                valueLabelDisplay="auto"
-                sx={{ marginBottom: 3 }}
-              />
-
-              <FormControl fullWidth sx={{ marginBottom: 2 }}>
-                <InputLabel>Photo Size</InputLabel>
-                <Select
-                  value={template.photoSize}
-                  label="Photo Size"
-                  onChange={(e) => handleTemplateChange('photoSize', e.target.value)}
-                >
-                  <MenuItem value="small">Small</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="large">Large</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth sx={{ marginBottom: 3 }}>
-                <InputLabel>Layout</InputLabel>
-                <Select
-                  value={template.layout}
-                  label="Layout"
-                  onChange={(e) => handleTemplateChange('layout', e.target.value)}
-                >
-                  <MenuItem value="standard">Standard</MenuItem>
-                  <MenuItem value="compact">Compact</MenuItem>
-                  <MenuItem value="detailed">Detailed</MenuItem>
-                </Select>
-              </FormControl>
-
-              <Button
-                variant="contained"
-                fullWidth
-                onClick={handleSaveTemplate}
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : 'Save Template'}
-              </Button>
-            </Paper>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ padding: 3, backgroundColor: template.backgroundColor }}>
-              <Typography variant="h6" gutterBottom>
-                Badge Preview
-              </Typography>
-              <Box
-                sx={{
-                  border: '2px dashed #ccc',
-                  borderRadius: 2,
-                  padding: 3,
-                  textAlign: 'center',
-                  backgroundColor: '#fff'
-                }}
-              >
-                {template.companyLogo && (
-                  <Typography variant="h6" sx={{ marginBottom: 2, fontWeight: 'bold' }}>
-                    CRESCENT MANAGEMENT
-                  </Typography>
-                )}
-
-                {template.showPhoto && (
-                  <Box
-                    sx={{
-                      width: template.photoSize === 'small' ? 80 : template.photoSize === 'large' ? 160 : 120,
-                      height: template.photoSize === 'small' ? 80 : template.photoSize === 'large' ? 160 : 120,
-                      backgroundColor: '#e0e0e0',
-                      margin: '0 auto 16px',
-                      borderRadius: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <Typography variant="caption">Photo</Typography>
-                  </Box>
-                )}
-
-                {template.showBadgeId && (
-                  <Typography
-                    variant="body2"
-                    sx={{ color: template.textColor, fontSize: template.fontSize - 2, marginBottom: 1 }}
-                  >
-                    PLX-00012345-DOE
-                  </Typography>
-                )}
-
-                {template.showName && (
-                  <Typography
-                    variant="h6"
-                    sx={{ color: template.textColor, fontSize: template.fontSize + 4, fontWeight: 'bold', marginBottom: 1 }}
-                  >
-                    JOHN DOE
-                  </Typography>
-                )}
-
-                {template.showPosition && (
-                  <Typography
-                    variant="body1"
-                    sx={{ color: template.textColor, fontSize: template.fontSize, marginBottom: 1 }}
-                  >
-                    Production Associate
-                  </Typography>
-                )}
-
-                {template.showShift && (
-                  <Typography
-                    variant="body2"
-                    sx={{ color: template.textColor, fontSize: template.fontSize - 2 }}
-                  >
-                    1st Shift
-                  </Typography>
-                )}
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
-      )}
-
-      {/* Tab 2: Audit Logs */}
-      {tabValue === 2 && (
         <Paper sx={{ padding: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
             <Typography variant="h6">Audit Logs</Typography>

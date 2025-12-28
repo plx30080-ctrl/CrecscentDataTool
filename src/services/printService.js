@@ -72,7 +72,7 @@ const buildPrintHTML = (badge, template) => {
       <title>Print Badge - ${badge.firstName} ${badge.lastName}</title>
       <style>
         @page {
-          size: 3.375in 2.125in;
+          size: 2.125in 3.375in;  /* Portrait: width x height */
           margin: 0;
         }
         body {
@@ -114,35 +114,45 @@ const buildPrintHTML = (badge, template) => {
           position: absolute;
           left: ${t.elements.firstName.x}px;
           top: ${t.elements.firstName.y}px;
+          width: ${t.cardSize.width - (t.elements.firstName.x * 2)}px;
           font-size: ${t.elements.firstName.fontSize}px;
           font-weight: bold;
           text-transform: uppercase;
+          text-align: ${t.elements.firstName.textAlign || 'left'};
         }
         .last-name {
           position: absolute;
           left: ${t.elements.lastName.x}px;
           top: ${t.elements.lastName.y}px;
+          width: ${t.cardSize.width - (t.elements.lastName.x * 2)}px;
           font-size: ${t.elements.lastName.fontSize}px;
           font-weight: bold;
           text-transform: uppercase;
+          text-align: ${t.elements.lastName.textAlign || 'left'};
         }
         .eid {
           position: absolute;
           left: ${t.elements.eid.x}px;
           top: ${t.elements.eid.y}px;
+          width: ${t.cardSize.width - (t.elements.eid.x * 2)}px;
           font-size: ${t.elements.eid.fontSize}px;
+          text-align: ${t.elements.eid.textAlign || 'left'};
         }
         .position {
           position: absolute;
           left: ${t.elements.position.x}px;
           top: ${t.elements.position.y}px;
+          width: ${t.cardSize.width - (t.elements.position.x * 2)}px;
           font-size: ${t.elements.position.fontSize}px;
+          text-align: ${t.elements.position.textAlign || 'left'};
         }
         .shift {
           position: absolute;
           left: ${t.elements.shift.x}px;
           top: ${t.elements.shift.y}px;
+          width: ${t.cardSize.width - (t.elements.shift.x * 2)}px;
           font-size: ${t.elements.shift.fontSize}px;
+          text-align: ${t.elements.shift.textAlign || 'left'};
         }
         .logo {
           position: absolute;
