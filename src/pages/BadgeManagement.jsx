@@ -53,6 +53,8 @@ import {
   markBadgeIssued,
   getBadgeStats
 } from '../services/badgeService';
+import BadgePrintPreview from '../components/BadgePrintPreview';
+import BadgePlaceholder from '../components/BadgePlaceholder';
 
 const BadgeManagement = () => {
   const { currentUser } = useAuth();
@@ -84,6 +86,10 @@ const BadgeManagement = () => {
   // Print Queue State
   const [printQueue, setPrintQueue] = useState([]);
   const [badgeStats, setBadgeStats] = useState(null);
+
+  // Print Preview State
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const [badgeToPrint, setBadgeToPrint] = useState(null);
 
   // Webcam refs
   const videoRef = useRef(null);
@@ -243,13 +249,20 @@ const BadgeManagement = () => {
     }
   };
 
-  const handleAddToPrintQueue = async (badge) => {
+  const handleAddToPrintQueue = (badge) => {
+    setBadgeToPrint(badge);
+    setPrintPreviewOpen(true);
+  };
+
+  const handlePrintSuccess = async (badge) => {
     const result = await addToPrintQueue(badge.id, badge, currentUser.uid);
     if (result.success) {
-      setSuccess('Badge added to print queue');
+      setSuccess('Badge printed and added to queue');
+      await markBadgePrinted(badge.id, badge.id, currentUser.uid);
       loadPrintQueue();
+      loadStats();
     } else {
-      setError(result.error || 'Failed to add to print queue');
+      setError(result.error || 'Failed to update print queue');
     }
   };
 
@@ -531,12 +544,18 @@ const BadgeManagement = () => {
             {searchResults.map((badge) => (
               <Grid item xs={12} md={4} key={badge.id}>
                 <Card>
-                  <CardMedia
-                    component="img"
-                    height="200"
-                    image={badge.photoURL || '/placeholder-avatar.png'}
-                    alt={`${badge.firstName} ${badge.lastName}`}
-                  />
+                  {badge.photoURL ? (
+                    <CardMedia
+                      component="img"
+                      height="200"
+                      image={badge.photoURL}
+                      alt={`${badge.firstName} ${badge.lastName}`}
+                    />
+                  ) : (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                      <BadgePlaceholder width={200} height={200} />
+                    </Box>
+                  )}
                   <CardContent>
                     <Typography variant="h6">
                       {badge.firstName} {badge.lastName}
@@ -692,6 +711,14 @@ const BadgeManagement = () => {
           </>
         )}
       </Dialog>
+
+      {/* Print Preview Dialog */}
+      <BadgePrintPreview
+        open={printPreviewOpen}
+        onClose={() => setPrintPreviewOpen(false)}
+        badge={badgeToPrint}
+        onPrintSuccess={handlePrintSuccess}
+      />
     </Container>
   );
 };

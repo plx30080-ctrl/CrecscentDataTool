@@ -437,3 +437,106 @@ export const getBadgeStats = async () => {
     return { success: false, error: error.message };
   }
 };
+
+// ============ BADGE TEMPLATE MANAGEMENT ============
+
+/**
+ * Get default badge template
+ */
+export const getDefaultTemplate = async () => {
+  try {
+    const templatesQuery = query(
+      collection(db, 'badgeTemplates'),
+      where('isDefault', '==', true)
+    );
+    const querySnapshot = await getDocs(templatesQuery);
+
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0];
+      return {
+        success: true,
+        data: { id: doc.id, ...doc.data() }
+      };
+    }
+
+    // Return hardcoded default if none in database
+    return {
+      success: true,
+      data: {
+        name: 'Default Template',
+        isDefault: true,
+        cardSize: { width: 337.5, height: 212.5 },
+        elements: {
+          photo: { x: 20, y: 40, width: 100, height: 120 },
+          firstName: { x: 135, y: 50, fontSize: 18, fontFamily: 'Arial, sans-serif', fontWeight: 'bold' },
+          lastName: { x: 135, y: 75, fontSize: 18, fontFamily: 'Arial, sans-serif', fontWeight: 'bold' },
+          eid: { x: 135, y: 105, fontSize: 14, fontFamily: 'Arial, sans-serif' },
+          position: { x: 135, y: 125, fontSize: 12, fontFamily: 'Arial, sans-serif' },
+          shift: { x: 135, y: 142, fontSize: 12, fontFamily: 'Arial, sans-serif' },
+          logo: { x: 240, y: 10, width: 80, height: 30, url: null },
+          barcode: { x: 80, y: 168, width: 180, height: 35 }
+        }
+      }
+    };
+  } catch (error) {
+    console.error('Error getting default template:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Save badge template
+ */
+export const saveTemplate = async (templateData, userId) => {
+  try {
+    const docRef = await addDoc(collection(db, 'badgeTemplates'), {
+      ...templateData,
+      createdAt: serverTimestamp(),
+      createdBy: userId,
+      lastModified: serverTimestamp(),
+      lastModifiedBy: userId
+    });
+
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('Error saving template:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Update badge template
+ */
+export const updateTemplate = async (templateId, templateData, userId) => {
+  try {
+    const templateRef = doc(db, 'badgeTemplates', templateId);
+    await updateDoc(templateRef, {
+      ...templateData,
+      lastModified: serverTimestamp(),
+      lastModifiedBy: userId
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating template:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Get all badge templates
+ */
+export const getAllTemplates = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'badgeTemplates'));
+    const templates = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    return { success: true, data: templates };
+  } catch (error) {
+    console.error('Error getting templates:', error);
+    return { success: false, error: error.message };
+  }
+};
