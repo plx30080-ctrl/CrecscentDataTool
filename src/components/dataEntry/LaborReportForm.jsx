@@ -129,8 +129,11 @@ const LaborReportForm = () => {
     for (let i = startRow + 1; i < data.length; i++) {
       const row = data[i];
 
-      // Stop if row is empty or doesn't have enough data
-      if (!row || row.length === 0) break;
+      // Skip empty rows (but continue processing)
+      if (!row || row.length === 0) {
+        console.log(`Skipping empty row ${i}`);
+        continue;
+      }
 
       // Skip rows that don't look like employee data (no numbers)
       const hasNumbers = row.some(cell => !isNaN(parseFloat(cell)) && cell !== '');
