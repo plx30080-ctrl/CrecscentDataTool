@@ -3,7 +3,7 @@ import { Container, Typography, Grid, Card, CardContent, CardActions, Button, Pa
 import { Dashboard, Assessment, People, CloudUpload, AddCircle, TrendingUp, Badge } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthProvider';
-import { getShiftData, getApplicantPipeline } from '../services/firestoreService';
+import { getOnPremiseData, getApplicantPipeline } from '../services/firestoreService';
 import dayjs from 'dayjs';
 
 const EnhancedHome = () => {
@@ -18,12 +18,13 @@ const EnhancedHome = () => {
 
   const loadQuickStats = async () => {
     const today = new Date();
-    const result = await getShiftData(today, today);
+    const result = await getOnPremiseData(today, today);
     const pipelineResult = await getApplicantPipeline();
 
     if (result.success) {
       const todayData = result.data;
-      const totalWorking = todayData.reduce((sum, s) => sum + (s.numberWorking || 0), 0);
+      // onPremiseData uses 'working' field, not 'numberWorking'
+      const totalWorking = todayData.reduce((sum, s) => sum + (s.working || 0), 0);
       setTodayStats({ shiftsRecorded: todayData.length, totalWorking });
     }
 
