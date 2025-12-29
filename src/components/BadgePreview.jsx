@@ -64,9 +64,11 @@ const BadgePreview = ({
           position: 'absolute',
           left: elements.firstName.x,
           top: elements.firstName.y,
+          width: elements.firstName.width || 'auto',
           fontSize: elements.firstName.fontSize,
           fontFamily: elements.firstName.fontFamily,
           fontWeight: elements.firstName.fontWeight,
+          textAlign: elements.firstName.textAlign || 'left',
           textTransform: 'uppercase',
           margin: 0,
           padding: 0,
@@ -82,9 +84,11 @@ const BadgePreview = ({
           position: 'absolute',
           left: elements.lastName.x,
           top: elements.lastName.y,
+          width: elements.lastName.width || 'auto',
           fontSize: elements.lastName.fontSize,
           fontFamily: elements.lastName.fontFamily,
           fontWeight: elements.lastName.fontWeight,
+          textAlign: elements.lastName.textAlign || 'left',
           textTransform: 'uppercase',
           margin: 0,
           padding: 0,
@@ -100,8 +104,10 @@ const BadgePreview = ({
           position: 'absolute',
           left: elements.eid.x,
           top: elements.eid.y,
+          width: elements.eid.width || 'auto',
           fontSize: elements.eid.fontSize,
           fontFamily: elements.eid.fontFamily,
+          textAlign: elements.eid.textAlign || 'left',
           margin: 0,
           padding: 0,
           lineHeight: 1
@@ -117,8 +123,10 @@ const BadgePreview = ({
             position: 'absolute',
             left: elements.position.x,
             top: elements.position.y,
+            width: elements.position.width || 'auto',
             fontSize: elements.position.fontSize,
             fontFamily: elements.position.fontFamily,
+            textAlign: elements.position.textAlign || 'left',
             margin: 0,
             padding: 0,
             lineHeight: 1
@@ -135,8 +143,10 @@ const BadgePreview = ({
             position: 'absolute',
             left: elements.shift.x,
             top: elements.shift.y,
+            width: elements.shift.width || 'auto',
             fontSize: elements.shift.fontSize,
             fontFamily: elements.shift.fontFamily,
+            textAlign: elements.shift.textAlign || 'left',
             margin: 0,
             padding: 0,
             lineHeight: 1
@@ -174,7 +184,10 @@ const BadgePreview = ({
         sx={{
           position: 'absolute',
           left: elements.barcode.x,
-          top: elements.barcode.y
+          top: elements.barcode.y,
+          width: elements.barcode.width,
+          display: 'flex',
+          justifyContent: 'center'
         }}
       >
         <BarcodeGenerator

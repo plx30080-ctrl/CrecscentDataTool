@@ -21,7 +21,7 @@ export const DEFAULT_BADGE_TEMPLATE = {
       y: 10,
       width: 80,
       height: 30,
-      url: '/images/plx-logo.png'  // Fixed path (no /CrecscentDataTool prefix)
+      url: '/images/plx-logo.png'
     },
     photo: {
       x: 56,        // Centered: (212.5 - 100) / 2
@@ -30,47 +30,52 @@ export const DEFAULT_BADGE_TEMPLATE = {
       height: 120
     },
     firstName: {
-      x: 15,        // Left margin
+      x: 0,         // Start from left edge
       y: 180,
       fontSize: 16,
       fontFamily: 'Arial, sans-serif',
       fontWeight: 'bold',
-      textAlign: 'center'
+      textAlign: 'center',
+      width: 212.5  // Full card width for centering
     },
     lastName: {
-      x: 15,
+      x: 0,
       y: 200,
       fontSize: 16,
       fontFamily: 'Arial, sans-serif',
       fontWeight: 'bold',
-      textAlign: 'center'
+      textAlign: 'center',
+      width: 212.5
     },
     eid: {
-      x: 15,
+      x: 0,
       y: 225,
       fontSize: 12,
       fontFamily: 'Arial, sans-serif',
-      textAlign: 'center'
+      textAlign: 'center',
+      width: 212.5
     },
     position: {
-      x: 15,
+      x: 0,
       y: 245,
       fontSize: 11,
       fontFamily: 'Arial, sans-serif',
-      textAlign: 'center'
+      textAlign: 'center',
+      width: 212.5
     },
     shift: {
-      x: 15,
+      x: 0,
       y: 262,
       fontSize: 11,
       fontFamily: 'Arial, sans-serif',
-      textAlign: 'center'
+      textAlign: 'center',
+      width: 212.5
     },
     barcode: {
-      x: 16,        // Centered: (212.5 - 180) / 2
-      y: 285,       // Moved up from 168 to prevent cutoff (was too close to bottom)
-      width: 180,
-      height: 40    // Increased from 35 for better scanning
+      x: 6,         // Adjusted for better centering with barcode width
+      y: 280,       // Moved up slightly to prevent cutoff
+      width: 200,   // Full usable width (212.5 - margins)
+      height: 40
     }
   }
 };
