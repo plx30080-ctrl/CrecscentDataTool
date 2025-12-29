@@ -36,10 +36,18 @@ export const addShiftData = async (shiftData, userId) => {
 
 export const getShiftData = async (startDate, endDate, shift = null) => {
   try {
+    // Normalize start date to beginning of day
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    // Normalize end date to end of day
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
     const constraints = [
-      where('date', '>=', Timestamp.fromDate(new Date(startDate))),
-      where('date', '<=', Timestamp.fromDate(new Date(endDate))),
-      orderBy('date', 'desc')
+      where('date', '>=', Timestamp.fromDate(start)),
+      where('date', '<=', Timestamp.fromDate(end)),
+      orderBy('date', 'asc')  // Changed from 'desc' to 'asc' for chronological order
     ];
 
     if (shift) {
@@ -78,11 +86,19 @@ export const addHoursData = async (hoursData, userId) => {
 
 export const getHoursData = async (startDate, endDate) => {
   try {
+    // Normalize start date to beginning of day
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    // Normalize end date to end of day
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
     const q = query(
       collection(db, 'hoursData'),
-      where('date', '>=', Timestamp.fromDate(new Date(startDate))),
-      where('date', '<=', Timestamp.fromDate(new Date(endDate))),
-      orderBy('date', 'desc')
+      where('date', '>=', Timestamp.fromDate(start)),
+      where('date', '<=', Timestamp.fromDate(end)),
+      orderBy('date', 'asc')  // Changed from 'desc' to 'asc' for chronological order
     );
 
     const querySnapshot = await getDocs(q);
@@ -605,5 +621,67 @@ export const updateUserLastLogin = async (uid) => {
   } catch (error) {
     console.error('Error updating last login:', error);
     return { success: false, error: error.message };
+  }
+};
+
+// ============ ON-PREMISE DATA ============
+export const getOnPremiseData = async (startDate, endDate) => {
+  try {
+    // Normalize start date to beginning of day
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    // Normalize end date to end of day
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const q = query(
+      collection(db, 'onPremiseData'),
+      where('date', '>=', Timestamp.fromDate(start)),
+      where('date', '<=', Timestamp.fromDate(end)),
+      orderBy('date', 'asc')
+    );
+
+    const querySnapshot = await getDocs(q);
+    const data = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: doc.data().date?.toDate()
+    }));
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error getting on-premise data:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
+// ============ BRANCH DAILY DATA ============
+export const getBranchDailyData = async (startDate, endDate) => {
+  try {
+    // Normalize start date to beginning of day
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    // Normalize end date to end of day
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const q = query(
+      collection(db, 'branchDaily'),
+      where('date', '>=', Timestamp.fromDate(start)),
+      where('date', '<=', Timestamp.fromDate(end)),
+      orderBy('date', 'asc')
+    );
+
+    const querySnapshot = await getDocs(q);
+    const data = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      date: doc.data().date?.toDate()
+    }));
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error getting branch daily data:', error);
+    return { success: false, error: error.message, data: [] };
   }
 };

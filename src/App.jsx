@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import DataEntry from './pages/DataEntry';
 import Dashboard from './pages/EnhancedDashboard';
+import UnifiedDashboard from './pages/UnifiedDashboard';
 import Upload from './pages/EnhancedUpload';
 import ProfilePage from './pages/EnhancedProfile';
 import ApplicantsPage from './pages/ApplicantsPage';
@@ -19,7 +20,6 @@ import AdminPanel from './pages/AdminPanel';
 import DataDebug from './pages/DataDebug';
 import EarlyLeavesPage from './pages/EarlyLeavesPage';
 import DNRManagement from './pages/DNRManagement';
-import LaborReportDashboard from './pages/LaborReportDashboard';
 
 function App() {
   return (
@@ -44,7 +44,7 @@ function App() {
             <Route index element={<Home />} />
             <Route path="data-entry" element={<DataEntry />} />
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="labor-reports" element={<LaborReportDashboard />} />
+            <Route path="analytics" element={<UnifiedDashboard />} />
             <Route path="scorecard" element={<ScorecardPage />} />
             <Route path="applicants" element={<ApplicantsPage />} />
             <Route path="badges" element={<BadgeManagement />} />

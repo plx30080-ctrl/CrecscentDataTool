@@ -41,7 +41,9 @@ import {
   getHoursData,
   getAggregateHours,
   getEarlyLeaveTrends,
-  getApplicantPipeline
+  getApplicantPipeline,
+  getOnPremiseData,
+  getBranchDailyData
 } from '../services/firestoreService';
 import { generateForecast, getRecruitingTimeline } from '../services/forecastingService';
 
@@ -80,11 +82,13 @@ const EnhancedDashboard = () => {
       const start = startDate.toDate();
       const end = endDate.toDate();
 
-      const [shiftResult, hoursResult, earlyLeavesResult, pipelineResult] = await Promise.all([
+      const [shiftResult, hoursResult, earlyLeavesResult, pipelineResult, onPremiseResult, branchDailyResult] = await Promise.all([
         getShiftData(start, end),
         getAggregateHours(start, end, 'day'),
         getEarlyLeaveTrends(start, end),
-        getApplicantPipeline()
+        getApplicantPipeline(),
+        getOnPremiseData(start, end),
+        getBranchDailyData(start, end)
       ]);
 
     console.log('Dashboard data loaded:', {
@@ -97,6 +101,14 @@ const EnhancedDashboard = () => {
       hoursResult: {
         success: hoursResult.success,
         dataKeys: Object.keys(hoursResult.data || {}).length
+      },
+      onPremiseResult: {
+        success: onPremiseResult.success,
+        dataCount: onPremiseResult.data?.length || 0
+      },
+      branchDailyResult: {
+        success: branchDailyResult.success,
+        dataCount: branchDailyResult.data?.length || 0
       },
       earlyLeavesResult: {
         success: earlyLeavesResult.success,
@@ -115,6 +127,8 @@ const EnhancedDashboard = () => {
       setDashboardData({
         shifts: shiftResult.data || [],
         hours: hoursResult.data || [],
+        onPremise: onPremiseResult.success ? onPremiseResult.data : [],
+        branchDaily: branchDailyResult.success ? branchDailyResult.data : [],
         earlyLeaves: earlyLeavesResult.success ? earlyLeavesResult.data : null,
         pipeline: pipelineResult.success ? pipelineResult.data : null
       });
