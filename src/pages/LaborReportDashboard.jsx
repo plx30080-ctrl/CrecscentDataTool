@@ -17,10 +17,12 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
-  Chip
+  Chip,
+  Button
 } from '@mui/material';
-import { Assessment, TrendingUp } from '@mui/icons-material';
+import { Assessment, TrendingUp, Download } from '@mui/icons-material';
 import { getAllLaborReports } from '../services/laborReportService';
+import { exportLaborReportToExcel } from '../utils/exportUtils';
 import dayjs from 'dayjs';
 
 const LaborReportDashboard = () => {
@@ -135,10 +137,20 @@ const LaborReportDashboard = () => {
           </Grid>
           {selectedReport && (
             <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Chip label={`Week Ending: ${dayjs(selectedReport.weekEnding).format('MMM D, YYYY')}`} color="primary" />
-                <Chip label={`${selectedReport.employeeCount} Employees`} />
-                <Chip label={`Submitted by: ${selectedReport.submittedBy}`} variant="outlined" />
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Chip label={`Week Ending: ${dayjs(selectedReport.weekEnding).format('MMM D, YYYY')}`} color="primary" />
+                  <Chip label={`${selectedReport.employeeCount} Employees`} />
+                  <Chip label={`Submitted by: ${selectedReport.submittedBy}`} variant="outlined" />
+                </Box>
+                <Button
+                  variant="outlined"
+                  startIcon={<Download />}
+                  onClick={() => exportLaborReportToExcel(selectedReport)}
+                  size="small"
+                >
+                  Export to Excel
+                </Button>
               </Box>
             </Grid>
           )}

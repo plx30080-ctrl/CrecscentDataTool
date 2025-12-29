@@ -475,6 +475,71 @@ const LaborReportForm = () => {
               </TableContainer>
             </Grid>
 
+            {/* Per-Shift Totals */}
+            {parsedData.dailyBreakdown && (
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                  <strong>Shift Totals</strong>
+                </Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Shift</strong></TableCell>
+                        <TableCell align="right"><strong>Direct Hours</strong></TableCell>
+                        <TableCell align="right"><strong>Indirect Hours</strong></TableCell>
+                        <TableCell align="right"><strong>Total Hours</strong></TableCell>
+                        <TableCell align="right"><strong>% of Total</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell><strong>1st Shift</strong></TableCell>
+                        <TableCell align="right">
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + (day.shift1?.direct || 0), 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + (day.shift1?.indirect || 0), 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell align="right">
+                          <strong>
+                            {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + (day.shift1?.total || 0), 0).toFixed(2)}
+                          </strong>
+                        </TableCell>
+                        <TableCell align="right">
+                          {((Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + (day.shift1?.total || 0), 0) / parsedData.totalHours) * 100).toFixed(1)}%
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell><strong>2nd Shift</strong></TableCell>
+                        <TableCell align="right">
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + (day.shift2?.direct || 0), 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + (day.shift2?.indirect || 0), 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell align="right">
+                          <strong>
+                            {Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + (day.shift2?.total || 0), 0).toFixed(2)}
+                          </strong>
+                        </TableCell>
+                        <TableCell align="right">
+                          {((Object.values(parsedData.dailyBreakdown).reduce((sum, day) => sum + (day.shift2?.total || 0), 0) / parsedData.totalHours) * 100).toFixed(1)}%
+                        </TableCell>
+                      </TableRow>
+                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableCell><strong>Overall Total</strong></TableCell>
+                        <TableCell align="right"><strong>{parsedData.directHours.toFixed(2)}</strong></TableCell>
+                        <TableCell align="right"><strong>{parsedData.indirectHours.toFixed(2)}</strong></TableCell>
+                        <TableCell align="right"><strong>{parsedData.totalHours.toFixed(2)}</strong></TableCell>
+                        <TableCell align="right"><strong>100.0%</strong></TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+            )}
+
             {/* Daily Breakdown by Shift */}
             {parsedData.dailyBreakdown && (
               <Grid item xs={12}>

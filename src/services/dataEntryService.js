@@ -37,7 +37,8 @@ const syncApplicantStatuses = async (employeeIds) => {
         );
         const querySnapshot2 = await getDocs(q2);
 
-        querySnapshot2.forEach(async (document) => {
+        // Process all matches for crmNumber
+        for (const document of querySnapshot2.docs) {
           const currentStatus = document.data().status;
           // Only update if not already "Started"
           if (currentStatus !== 'Started') {
@@ -47,9 +48,10 @@ const syncApplicantStatuses = async (employeeIds) => {
             });
             updatedCount++;
           }
-        });
+        }
       } else {
-        querySnapshot.forEach(async (document) => {
+        // Process all matches for eid
+        for (const document of querySnapshot.docs) {
           const currentStatus = document.data().status;
           // Only update if not already "Started"
           if (currentStatus !== 'Started') {
@@ -59,7 +61,7 @@ const syncApplicantStatuses = async (employeeIds) => {
             });
             updatedCount++;
           }
-        });
+        }
       }
     }
 
@@ -184,11 +186,13 @@ export const submitLaborReport = async (data) => {
     const docRef = await addDoc(collection(db, 'laborReports'), dataToSubmit);
 
     // Auto-update applicant statuses to "Started" for EIDs in labor report
+    let statusesUpdated = 0;
     if (data.employeeIds && data.employeeIds.length > 0) {
-      await syncApplicantStatuses(data.employeeIds);
+      const syncResult = await syncApplicantStatuses(data.employeeIds);
+      statusesUpdated = syncResult.updatedCount || 0;
     }
 
-    return { success: true, id: docRef.id, statusesUpdated: data.employeeIds?.length || 0 };
+    return { success: true, id: docRef.id, statusesUpdated };
   } catch (error) {
     console.error('Error submitting labor report:', error);
     return { success: false, error: error.message };

@@ -30,7 +30,7 @@ import {
   Avatar,
   Stack
 } from '@mui/material';
-import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print, Download, Sync } from '@mui/icons-material';
+import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print, Download, Sync, Folder } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -44,6 +44,7 @@ import {
 } from '../services/firestoreService';
 import { createBadge, searchBadges, createOrUpdateBadgeFromApplicant, getBadgeByEID } from '../services/badgeService';
 import BadgePrintPreview from '../components/BadgePrintPreview';
+import ApplicantDocuments from '../components/ApplicantDocuments';
 
 const ApplicantsPage = () => {
   const { currentUser } = useAuth();
@@ -96,6 +97,10 @@ const ApplicantsPage = () => {
   // Print preview state
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [badgeToPrint, setBadgeToPrint] = useState(null);
+
+  // Documents dialog state
+  const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
+  const [selectedApplicantForDocs, setSelectedApplicantForDocs] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -792,6 +797,7 @@ const ApplicantsPage = () => {
                     </TableSortLabel>
                   </TableCell>
                   <TableCell>Notes</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -866,11 +872,23 @@ const ApplicantsPage = () => {
                         ) : '-'}
                       </Typography>
                     </TableCell>
+                    <TableCell>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setSelectedApplicantForDocs(applicant);
+                          setDocumentsDialogOpen(true);
+                        }}
+                        title="View Documents"
+                      >
+                        <Folder />
+                      </IconButton>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredApplicants.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography color="text.secondary" sx={{ padding: 4 }}>
                         {searchTerm ? 'No applicants found matching your search.' : 'No applicants yet. Click "Add Applicant" to get started.'}
                       </Typography>
@@ -1104,6 +1122,33 @@ const ApplicantsPage = () => {
           badge={badgeToPrint}
           onPrintSuccess={handlePrintSuccess}
         />
+
+        {/* Documents Dialog */}
+        <Dialog
+          open={documentsDialogOpen}
+          onClose={() => setDocumentsDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            Applicant Documents
+          </DialogTitle>
+          <DialogContent>
+            {selectedApplicantForDocs && (
+              <ApplicantDocuments
+                applicantId={selectedApplicantForDocs.id}
+                applicantName={
+                  selectedApplicantForDocs.firstName && selectedApplicantForDocs.lastName
+                    ? `${selectedApplicantForDocs.firstName} ${selectedApplicantForDocs.lastName}`
+                    : selectedApplicantForDocs.name || 'Unknown'
+                }
+              />
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDocumentsDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </LocalizationProvider>
   );

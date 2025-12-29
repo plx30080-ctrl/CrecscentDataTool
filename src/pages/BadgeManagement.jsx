@@ -28,7 +28,9 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemAvatar
+  ListItemAvatar,
+  Checkbox,
+  Toolbar
 } from '@mui/material';
 import {
   CameraAlt,
@@ -86,6 +88,7 @@ const BadgeManagement = () => {
   // Print Queue State
   const [printQueue, setPrintQueue] = useState([]);
   const [badgeStats, setBadgeStats] = useState(null);
+  const [selectedBadges, setSelectedBadges] = useState([]);
 
   // Print Preview State
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
@@ -274,6 +277,58 @@ const BadgeManagement = () => {
     } else {
       setError(result.error || 'Failed to mark as printed');
     }
+  };
+
+  // Bulk badge selection handlers
+  const handleToggleBadge = (badgeId) => {
+    setSelectedBadges(prev =>
+      prev.includes(badgeId)
+        ? prev.filter(id => id !== badgeId)
+        : [...prev, badgeId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedBadges.length === printQueue.length) {
+      setSelectedBadges([]);
+    } else {
+      setSelectedBadges(printQueue.map(item => item.id));
+    }
+  };
+
+  const handleBulkPrint = async () => {
+    if (selectedBadges.length === 0) {
+      setError('No badges selected');
+      return;
+    }
+
+    setLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const badgeId of selectedBadges) {
+      const queueItem = printQueue.find(item => item.id === badgeId);
+      if (queueItem) {
+        const result = await markBadgePrinted(queueItem.id, queueItem.badgeId, currentUser.uid);
+        if (result.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+    }
+
+    setLoading(false);
+    setSelectedBadges([]);
+
+    if (failCount === 0) {
+      setSuccess(`Successfully printed ${successCount} badge${successCount !== 1 ? 's' : ''}`);
+    } else {
+      setError(`Printed ${successCount} badge${successCount !== 1 ? 's' : ''}, ${failCount} failed`);
+    }
+
+    loadPrintQueue();
+    loadStats();
   };
 
   const handleMarkIssued = async (badgeId) => {
@@ -601,7 +656,51 @@ const BadgeManagement = () => {
       {/* Tab 2: Print Queue */}
       {tabValue === 2 && (
         <Paper sx={{ padding: 3 }}>
-          <Typography variant="h6" gutterBottom>Print Queue - Fargo DTC1250e</Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+            <Typography variant="h6">Print Queue - Fargo DTC1250e</Typography>
+            {printQueue.length > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                {printQueue.length} badge{printQueue.length !== 1 ? 's' : ''} in queue
+              </Typography>
+            )}
+          </Box>
+
+          {/* Bulk Action Toolbar */}
+          {selectedBadges.length > 0 && (
+            <Toolbar
+              sx={{
+                backgroundColor: 'primary.light',
+                borderRadius: 1,
+                marginBottom: 2,
+                padding: 2
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ flex: 1 }}>
+                {selectedBadges.length} selected
+              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleBulkPrint}
+                disabled={loading}
+                startIcon={<Print />}
+              >
+                Print Selected ({selectedBadges.length})
+              </Button>
+            </Toolbar>
+          )}
+
+          {printQueue.length > 0 && (
+            <Box sx={{ marginBottom: 2 }}>
+              <Button
+                size="small"
+                onClick={handleSelectAll}
+                startIcon={<CheckCircle />}
+              >
+                {selectedBadges.length === printQueue.length ? 'Deselect All' : 'Select All'}
+              </Button>
+            </Box>
+          )}
 
           <List>
             {printQueue.map((item) => (
@@ -609,7 +708,7 @@ const BadgeManagement = () => {
                 key={item.id}
                 secondaryAction={
                   <Button
-                    variant="contained"
+                    variant="outlined"
                     size="small"
                     onClick={() => handleMarkPrinted(item)}
                     startIcon={<CheckCircle />}
@@ -618,6 +717,12 @@ const BadgeManagement = () => {
                   </Button>
                 }
               >
+                <Checkbox
+                  edge="start"
+                  checked={selectedBadges.includes(item.id)}
+                  onChange={() => handleToggleBadge(item.id)}
+                  sx={{ marginRight: 1 }}
+                />
                 <ListItemAvatar>
                   <Avatar><Person /></Avatar>
                 </ListItemAvatar>

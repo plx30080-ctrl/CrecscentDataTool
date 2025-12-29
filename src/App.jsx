@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthProvider';
+import { NotificationProvider } from './contexts/NotificationContext';
 import PrivateRoute from './components/PrivateRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
@@ -25,7 +26,8 @@ function App() {
     <ErrorBoundary>
       <BrowserRouter basename="/CrecscentDataTool">
         <AuthProvider>
-          <Routes>
+          <NotificationProvider>
+            <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
@@ -54,6 +56,7 @@ function App() {
             <Route path="profile" element={<ProfilePage />} />
           </Route>
           </Routes>
+          </NotificationProvider>
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>
