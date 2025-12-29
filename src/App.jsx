@@ -9,7 +9,6 @@ import Home from './pages/EnhancedHome';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import DataEntry from './pages/DataEntry';
-import Dashboard from './pages/EnhancedDashboard';
 import UnifiedDashboard from './pages/UnifiedDashboard';
 import Upload from './pages/EnhancedUpload';
 import ProfilePage from './pages/EnhancedProfile';
@@ -43,7 +42,6 @@ function App() {
           >
             <Route index element={<Home />} />
             <Route path="data-entry" element={<DataEntry />} />
-            <Route path="dashboard" element={<Dashboard />} />
             <Route path="analytics" element={<UnifiedDashboard />} />
             <Route path="scorecard" element={<ScorecardPage />} />
             <Route path="applicants" element={<ApplicantsPage />} />

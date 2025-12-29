@@ -43,7 +43,6 @@ const Layout = () => {
           </Typography>
           <Button color="inherit" component={Link} to="/">Home</Button>
           <Button color="inherit" component={Link} to="/data-entry">Data Entry</Button>
-          <Button color="inherit" component={Link} to="/dashboard">Dashboard</Button>
           <Button color="inherit" component={Link} to="/analytics">Analytics</Button>
           <Button color="inherit" component={Link} to="/applicants">Applicants</Button>
           <Button color="inherit" component={Link} to="/badges">Badges</Button>

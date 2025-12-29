@@ -9,13 +9,22 @@ import {
   Typography
 } from '@mui/material';
 import { Dashboard as DashboardIcon } from '@mui/icons-material';
+import EnhancedDashboard from './EnhancedDashboard';
 import LaborReportDashboard from './LaborReportDashboard';
 import RecruiterDashboard from './RecruiterDashboard';
+import FirstShiftDashboard from './FirstShiftDashboard';
+import SecondShiftDashboard from './SecondShiftDashboard';
+import YOYComparison from './YOYComparison';
+import NewStartsAnalytics from './NewStartsAnalytics';
 
 const DASHBOARD_TYPES = [
-  { value: 'overview', label: 'Overview', component: null },
+  { value: 'overview', label: 'Overview', component: EnhancedDashboard },
   { value: 'labor-reports', label: 'Labor Reports', component: LaborReportDashboard },
-  { value: 'recruiter-efficiency', label: 'Recruiter Efficiency', component: RecruiterDashboard }
+  { value: 'recruiter-efficiency', label: 'Recruiter Efficiency', component: RecruiterDashboard },
+  { value: 'first-shift', label: '1st Shift Metrics', component: FirstShiftDashboard },
+  { value: 'second-shift', label: '2nd Shift Metrics', component: SecondShiftDashboard },
+  { value: 'yoy-comparison', label: 'Year-Over-Year Comparison', component: YOYComparison },
+  { value: 'new-starts', label: 'New Starts Analytics', component: NewStartsAnalytics }
 ];
 
 const UnifiedDashboard = () => {
@@ -52,18 +61,7 @@ const UnifiedDashboard = () => {
         </FormControl>
       </Box>
 
-      {selectedDashboard === 'overview' ? (
-        <Box sx={{ textAlign: 'center', paddingY: 8 }}>
-          <Typography variant="h5" gutterBottom>
-            Welcome to Analytics Dashboard
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Select a dashboard type from the dropdown above to view detailed analytics.
-          </Typography>
-        </Box>
-      ) : (
-        DashboardComponent && <DashboardComponent />
-      )}
+      {DashboardComponent && <DashboardComponent />}
     </Container>
   );
 };
