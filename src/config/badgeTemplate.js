@@ -18,20 +18,20 @@ export const DEFAULT_BADGE_TEMPLATE = {
   elements: {
     logo: {
       x: 66,        // Centered: (212.5 - 80) / 2
-      y: 10,
+      y: 30,        // Lowered from 10 to 30
       width: 80,
       height: 30,
       url: import.meta.env.BASE_URL + 'images/plx-logo.png'
     },
     photo: {
       x: 56,        // Centered: (212.5 - 100) / 2
-      y: 50,
+      y: 75,        // Lowered from 50 to 75
       width: 100,
       height: 120
     },
     firstName: {
       x: 0,         // Start from left edge
-      y: 180,
+      y: 205,       // Adjusted from 180 to 205
       fontSize: 16,
       fontFamily: 'Arial, sans-serif',
       fontWeight: 'bold',
@@ -40,7 +40,7 @@ export const DEFAULT_BADGE_TEMPLATE = {
     },
     lastName: {
       x: 0,
-      y: 200,
+      y: 225,       // Adjusted from 200 to 225
       fontSize: 16,
       fontFamily: 'Arial, sans-serif',
       fontWeight: 'bold',
@@ -53,11 +53,12 @@ export const DEFAULT_BADGE_TEMPLATE = {
       fontSize: 12,
       fontFamily: 'Arial, sans-serif',
       textAlign: 'center',
-      width: 212.5
+      width: 212.5,
+      hidden: true  // Hide EID from badge
     },
     position: {
       x: 0,
-      y: 245,
+      y: 250,       // Adjusted from 245 to 250
       fontSize: 11,
       fontFamily: 'Arial, sans-serif',
       textAlign: 'center',
@@ -69,11 +70,12 @@ export const DEFAULT_BADGE_TEMPLATE = {
       fontSize: 11,
       fontFamily: 'Arial, sans-serif',
       textAlign: 'center',
-      width: 212.5
+      width: 212.5,
+      hidden: true  // Hide shift from badge
     },
     barcode: {
       x: 6,         // Adjusted for better centering with barcode width
-      y: 280,       // Moved up slightly to prevent cutoff
+      y: 275,       // Adjusted from 280 to 275
       width: 200,   // Full usable width (212.5 - margins)
       height: 40
     }

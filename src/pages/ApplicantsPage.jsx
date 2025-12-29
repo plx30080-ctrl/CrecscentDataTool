@@ -79,6 +79,7 @@ const ApplicantsPage = () => {
     phone: '',
     status: 'Applied',
     shift: '1st',
+    recruiter: '',
     projectedStartDate: null,
     tentativeStartDate: null,
     notes: ''
@@ -1057,6 +1058,15 @@ const ApplicantsPage = () => {
                     <MenuItem value="2nd">2nd Shift</MenuItem>
                   </Select>
                 </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Recruiter"
+                  fullWidth
+                  value={formData.recruiter}
+                  onChange={(e) => handleChange('recruiter', e.target.value)}
+                  placeholder="Enter recruiter name"
+                />
               </Grid>
               <Grid item xs={12} md={6}>
                 <DatePicker

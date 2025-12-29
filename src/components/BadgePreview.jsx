@@ -99,22 +99,24 @@ const BadgePreview = ({
       </Typography>
 
       {/* Employee ID */}
-      <Typography
-        sx={{
-          position: 'absolute',
-          left: elements.eid.x,
-          top: elements.eid.y,
-          width: elements.eid.width || 'auto',
-          fontSize: elements.eid.fontSize,
-          fontFamily: elements.eid.fontFamily,
-          textAlign: elements.eid.textAlign || 'left',
-          margin: 0,
-          padding: 0,
-          lineHeight: 1
-        }}
-      >
-        EID: {badge?.eid || '000000'}
-      </Typography>
+      {!elements.eid.hidden && (
+        <Typography
+          sx={{
+            position: 'absolute',
+            left: elements.eid.x,
+            top: elements.eid.y,
+            width: elements.eid.width || 'auto',
+            fontSize: elements.eid.fontSize,
+            fontFamily: elements.eid.fontFamily,
+            textAlign: elements.eid.textAlign || 'left',
+            margin: 0,
+            padding: 0,
+            lineHeight: 1
+          }}
+        >
+          EID: {badge?.eid || '000000'}
+        </Typography>
+      )}
 
       {/* Position */}
       {badge?.position && (
@@ -137,7 +139,7 @@ const BadgePreview = ({
       )}
 
       {/* Shift */}
-      {badge?.shift && (
+      {badge?.shift && !elements.shift.hidden && (
         <Typography
           sx={{
             position: 'absolute',

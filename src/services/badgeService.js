@@ -110,6 +110,7 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
         lastName,
         position: applicant.position || existingBadge.data.position || '',
         shift: applicant.shift || existingBadge.data.shift || '1st',
+        recruiter: applicant.recruiter || existingBadge.data.recruiter || '',
         status: applicant.status === 'Started' ? 'Cleared' : 'Pending',
         updatedAt: serverTimestamp()
       };
@@ -151,6 +152,7 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
         photoURL,
         position: applicant.position || '',
         shift: applicant.shift || '1st',
+        recruiter: applicant.recruiter || '',
         status: applicant.status === 'Started' ? 'Cleared' : 'Pending',
         notes: applicant.notes || '',
         createdAt: serverTimestamp(),

@@ -70,6 +70,7 @@ const BadgeManagement = () => {
     status: 'Pending',
     position: '',
     shift: '1st',
+    recruiter: '',
     notes: ''
   });
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -472,6 +473,15 @@ const BadgeManagement = () => {
               </FormControl>
 
               <TextField
+                label="Recruiter"
+                fullWidth
+                value={formData.recruiter}
+                onChange={(e) => handleChange('recruiter', e.target.value)}
+                placeholder="Enter recruiter name"
+                sx={{ marginBottom: 2 }}
+              />
+
+              <TextField
                 label="Notes"
                 fullWidth
                 multiline
@@ -757,12 +767,15 @@ const BadgeManagement = () => {
               <Typography variant="h6">
                 {selectedBadge.firstName} {selectedBadge.lastName}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Badge ID: {selectedBadge.badgeId || 'N/A'}
+              <Typography variant="body2" color="text.secondary" sx={{ marginBottom: 1 }}>
+                Badge ID: {selectedBadge.badgeId || 'Not assigned'}
               </Typography>
               <Typography>EID: {selectedBadge.eid}</Typography>
-              <Typography>Position: {selectedBadge.position}</Typography>
-              <Typography>Shift: {selectedBadge.shift}</Typography>
+              <Typography>Position: {selectedBadge.position || 'N/A'}</Typography>
+              <Typography>Shift: {selectedBadge.shift || 'N/A'}</Typography>
+              {selectedBadge.recruiter && (
+                <Typography>Recruiter: {selectedBadge.recruiter}</Typography>
+              )}
               <Chip
                 label={selectedBadge.status}
                 color={getStatusColor(selectedBadge.status)}
