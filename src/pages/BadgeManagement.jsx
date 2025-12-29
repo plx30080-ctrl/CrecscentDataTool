@@ -749,7 +749,7 @@ const BadgeManagement = () => {
             <DialogContent>
               <Box sx={{ textAlign: 'center', marginBottom: 2 }}>
                 <img
-                  src={selectedBadge.photoURL || '/placeholder-avatar.png'}
+                  src={selectedBadge.photoURL || `${import.meta.env.BASE_URL}placeholder-avatar.png`}
                   alt={`${selectedBadge.firstName} ${selectedBadge.lastName}`}
                   style={{ width: '200px', height: '200px', objectFit: 'cover' }}
                 />

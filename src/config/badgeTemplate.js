@@ -21,7 +21,7 @@ export const DEFAULT_BADGE_TEMPLATE = {
       y: 10,
       width: 80,
       height: 30,
-      url: '/images/plx-logo.png'
+      url: import.meta.env.BASE_URL + 'images/plx-logo.png'
     },
     photo: {
       x: 56,        // Centered: (212.5 - 100) / 2
