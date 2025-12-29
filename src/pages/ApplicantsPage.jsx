@@ -50,6 +50,10 @@ const ApplicantsPage = () => {
   const [applicants, setApplicants] = useState([]);
   const [filteredApplicants, setFilteredApplicants] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterShift, setFilterShift] = useState('All');
+  const [filterDateFrom, setFilterDateFrom] = useState(null);
+  const [filterDateTo, setFilterDateTo] = useState(null);
   const [sortField, setSortField] = useState('processDate');
   const [sortDirection, setSortDirection] = useState('desc');
   const [pipeline, setPipeline] = useState(null);
@@ -116,22 +120,58 @@ const ApplicantsPage = () => {
     setLoading(false);
   };
 
-  // Search and sort filter
+  // Search and filter
   useEffect(() => {
-    let filtered = searchTerm ? applicants.filter(applicant => {
-      const searchLower = searchTerm.toLowerCase();
-      const name = (applicant.name || '').toLowerCase();
-      const email = (applicant.email || '').toLowerCase();
-      const crmNumber = (applicant.crmNumber || '').toLowerCase();
-      const eid = (applicant.eid || '').toLowerCase();
-      const status = (applicant.status || '').toLowerCase();
+    let filtered = [...applicants];
 
-      return name.includes(searchLower) ||
-             email.includes(searchLower) ||
-             crmNumber.includes(searchLower) ||
-             eid.includes(searchLower) ||
-             status.includes(searchLower);
-    }) : [...applicants];
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(applicant => {
+        const searchLower = searchTerm.toLowerCase();
+        const name = (applicant.name || '').toLowerCase();
+        const email = (applicant.email || '').toLowerCase();
+        const crmNumber = (applicant.crmNumber || '').toLowerCase();
+        const eid = (applicant.eid || '').toLowerCase();
+        const status = (applicant.status || '').toLowerCase();
+
+        return name.includes(searchLower) ||
+               email.includes(searchLower) ||
+               crmNumber.includes(searchLower) ||
+               eid.includes(searchLower) ||
+               status.includes(searchLower);
+      });
+    }
+
+    // Apply status filter
+    if (filterStatus && filterStatus !== 'All') {
+      filtered = filtered.filter(applicant => applicant.status === filterStatus);
+    }
+
+    // Apply shift filter
+    if (filterShift && filterShift !== 'All') {
+      filtered = filtered.filter(applicant => applicant.shift === filterShift);
+    }
+
+    // Apply date range filter (processDate)
+    if (filterDateFrom) {
+      filtered = filtered.filter(applicant => {
+        if (!applicant.processDate) return false;
+        const processDate = applicant.processDate instanceof Date
+          ? applicant.processDate
+          : new Date(applicant.processDate);
+        return processDate >= filterDateFrom.toDate();
+      });
+    }
+
+    if (filterDateTo) {
+      filtered = filtered.filter(applicant => {
+        if (!applicant.processDate) return false;
+        const processDate = applicant.processDate instanceof Date
+          ? applicant.processDate
+          : new Date(applicant.processDate);
+        return processDate <= filterDateTo.toDate();
+      });
+    }
 
     // Apply sorting
     filtered.sort((a, b) => {
@@ -161,7 +201,7 @@ const ApplicantsPage = () => {
     });
 
     setFilteredApplicants(filtered);
-  }, [searchTerm, applicants, sortField, sortDirection]);
+  }, [searchTerm, filterStatus, filterShift, filterDateFrom, filterDateTo, applicants, sortField, sortDirection]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -579,12 +619,94 @@ const ApplicantsPage = () => {
             InputProps={{
               startAdornment: <Search sx={{ marginRight: 1, color: 'text.secondary' }} />
             }}
+            sx={{ marginBottom: 2 }}
           />
-          {searchTerm && (
-            <Typography variant="caption" color="text.secondary" sx={{ marginTop: 1, display: 'block' }}>
-              Found {filteredApplicants.length} result{filteredApplicants.length !== 1 ? 's' : ''}
+
+          {/* Advanced Filters */}
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={filterStatus}
+                  label="Status"
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <MenuItem value="All">All Statuses</MenuItem>
+                  <MenuItem value="Applied">Applied</MenuItem>
+                  <MenuItem value="Interviewed">Interviewed</MenuItem>
+                  <MenuItem value="Offered">Offered</MenuItem>
+                  <MenuItem value="Accepted">Accepted</MenuItem>
+                  <MenuItem value="Started">Started</MenuItem>
+                  <MenuItem value="No Show">No Show</MenuItem>
+                  <MenuItem value="Declined">Declined</MenuItem>
+                  <MenuItem value="Terminated">Terminated</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Shift</InputLabel>
+                <Select
+                  value={filterShift}
+                  label="Shift"
+                  onChange={(e) => setFilterShift(e.target.value)}
+                >
+                  <MenuItem value="All">All Shifts</MenuItem>
+                  <MenuItem value="1st">1st Shift</MenuItem>
+                  <MenuItem value="2nd">2nd Shift</MenuItem>
+                  <MenuItem value="3rd">3rd Shift</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Process Date From"
+                  value={filterDateFrom}
+                  onChange={(newValue) => setFilterDateFrom(newValue)}
+                  slotProps={{
+                    textField: { fullWidth: true, size: 'small' },
+                    actionBar: { actions: ['clear'] }
+                  }}
+                />
+              </LocalizationProvider>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Process Date To"
+                  value={filterDateTo}
+                  onChange={(newValue) => setFilterDateTo(newValue)}
+                  slotProps={{
+                    textField: { fullWidth: true, size: 'small' },
+                    actionBar: { actions: ['clear'] }
+                  }}
+                />
+              </LocalizationProvider>
+            </Grid>
+          </Grid>
+
+          {/* Filter Results Summary */}
+          <Box sx={{ marginTop: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="caption" color="text.secondary">
+              Showing {filteredApplicants.length} of {applicants.length} applicants
             </Typography>
-          )}
+            {(searchTerm || filterStatus !== 'All' || filterShift !== 'All' || filterDateFrom || filterDateTo) && (
+              <Button
+                size="small"
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterStatus('All');
+                  setFilterShift('All');
+                  setFilterDateFrom(null);
+                  setFilterDateTo(null);
+                }}
+              >
+                Clear All Filters
+              </Button>
+            )}
+          </Box>
         </Paper>
 
         {/* Pipeline Overview */}

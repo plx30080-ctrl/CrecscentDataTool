@@ -173,6 +173,8 @@ export const submitLaborReport = async (data) => {
       totalHours: parseFloat(data.totalHours) || 0,
       employeeCount: parseInt(data.employeeCount) || 0,
       employeeIds: data.employeeIds || [],
+      dailyBreakdown: data.dailyBreakdown || null, // Store shift-level daily breakdown
+      employeeDetails: data.employeeDetails || [], // Store per-employee details
       fileName: data.fileName || '',
       submittedAt: serverTimestamp(),
       submittedBy: user.email,
