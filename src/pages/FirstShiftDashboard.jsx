@@ -41,18 +41,22 @@ const FirstShiftDashboard = () => {
       const start = startDate.toDate();
       const end = endDate.toDate();
 
-      const [shiftResult, onPremiseResult] = await Promise.all([
-        getShiftData(start, end, '1st'),
-        getOnPremiseData(start, end)
-      ]);
+      const onPremiseResult = await getOnPremiseData(start, end);
 
-      if (shiftResult.success) {
-        setShiftData(shiftResult.data || []);
-      }
       if (onPremiseResult.success) {
-        // Filter for 1st shift data
-        const firstShiftOnPremise = onPremiseResult.data.filter(d => d.shift === '1st');
-        setOnPremiseData(firstShiftOnPremise);
+        // Filter for 1st shift data only
+        const firstShiftData = onPremiseResult.data.filter(d => d.shift === '1st');
+        setOnPremiseData(firstShiftData);
+
+        // Map onPremiseData to shiftData format for charts
+        // onPremiseData has: working, requested, required fields
+        // We need: headcount, hours fields for charts
+        const mappedData = firstShiftData.map(d => ({
+          ...d,
+          headcount: d.working || 0,
+          hours: (d.working || 0) * 8 // Estimate 8 hours per person if actual hours not available
+        }));
+        setShiftData(mappedData);
       }
     } catch (err) {
       console.error('Error loading 1st shift data:', err);

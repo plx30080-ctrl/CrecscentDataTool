@@ -1,0 +1,36 @@
+/* Print-specific styles for badge printing */
+@media print {
+  /* Hide everything except the badge during print */
+  body * {
+    visibility: hidden;
+  }
+
+  #badge-print-area,
+  #badge-print-area * {
+    visibility: visible;
+  }
+
+  #badge-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  /* Hide elements marked with data-print-hide attribute */
+  [data-print-hide="true"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Remove margins and padding for clean print */
+  @page {
+    margin: 0;
+    size: 2.125in 3.375in portrait;
+  }
+
+  /* Ensure badge ID is centered under barcode */
+  .badge-id-text {
+    text-align: center !important;
+    width: 100% !important;
+  }
+}

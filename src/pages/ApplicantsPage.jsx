@@ -427,14 +427,14 @@ const ApplicantsPage = () => {
       return;
     }
 
-    // Create downloadable file
-    const header = 'Name\tPhone Number\tStatus';
-    const content = [header, ...phonesWithNames].join('\n');
-    const blob = new Blob([content], { type: 'text/plain' });
+    // Create downloadable CSV file
+    const header = 'Name,Phone Number,Status';
+    const content = [header, ...phonesWithNames.map(row => row.replace(/\t/g, ','))].join('\n');
+    const blob = new Blob([content], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `phone-list-${dayjs().format('YYYY-MM-DD')}.txt`;
+    link.download = `phone-list-${dayjs().format('YYYY-MM-DD')}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -902,7 +902,7 @@ const ApplicantsPage = () => {
         </Paper>
 
         {/* Add/Edit Dialog */}
-        <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
           <DialogTitle>
             {editingApplicant ? 'Applicant Profile' : 'Add New Applicant'}
           </DialogTitle>
@@ -959,8 +959,10 @@ const ApplicantsPage = () => {
                           <video
                             ref={videoRef}
                             autoPlay
-                            style={{ width: '200px', borderRadius: '8px' }}
+                            playsInline
+                            style={{ width: '320px', height: '240px', borderRadius: '8px', border: '2px solid #ccc' }}
                           />
+                          <canvas ref={canvasRef} style={{ display: 'none' }} />
                           <Stack direction="row" spacing={1}>
                             <Button
                               variant="contained"

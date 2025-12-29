@@ -78,7 +78,10 @@ const NewStartsAnalytics = () => {
       totalStarts: applicantsData.length,
       activeAfter2Days: 0,
       activeAfter2Weeks: 0,
-      processTimeDistribution: {}
+      processTimeDistribution: {},
+      missingProcessDates: 0,
+      missingTentativeStartDates: 0,
+      matchedAssociates: 0
     };
 
     let totalProcessTime = 0;
@@ -89,6 +92,10 @@ const NewStartsAnalytics = () => {
     let secondWeekEligible = 0;
 
     applicantsData.forEach(applicant => {
+      // Track missing dates for debugging
+      if (!applicant.processDate) metrics.missingProcessDates++;
+      if (!applicant.tentativeStartDate) metrics.missingTentativeStartDates++;
+
       // Calculate process to start time
       if (applicant.processDate && applicant.tentativeStartDate) {
         const processTime = dayjs(applicant.tentativeStartDate).diff(dayjs(applicant.processDate), 'day');
@@ -104,24 +111,28 @@ const NewStartsAnalytics = () => {
 
       // Find matching associate
       const associate = associatesData.find(a => a.eid === applicant.eid);
-      if (associate && associate.startDate) {
-        const daysSinceStart = dayjs().diff(dayjs(associate.startDate), 'day');
+      if (associate) {
+        metrics.matchedAssociates++;
 
-        // 2nd day return rate
-        if (daysSinceStart >= 2) {
-          secondDayEligible++;
-          if (associate.daysWorked >= 2 || associate.status === 'Active') {
-            secondDayReturns++;
-            metrics.activeAfter2Days++;
+        if (associate.startDate) {
+          const daysSinceStart = dayjs().diff(dayjs(associate.startDate), 'day');
+
+          // 2nd day return rate
+          if (daysSinceStart >= 2) {
+            secondDayEligible++;
+            if (associate.daysWorked >= 2 || associate.status === 'Active') {
+              secondDayReturns++;
+              metrics.activeAfter2Days++;
+            }
           }
-        }
 
-        // 2nd week return rate
-        if (daysSinceStart >= 14) {
-          secondWeekEligible++;
-          if (associate.daysWorked >= 10 || (associate.status === 'Active' && daysSinceStart >= 14)) {
-            secondWeekReturns++;
-            metrics.activeAfter2Weeks++;
+          // 2nd week return rate
+          if (daysSinceStart >= 14) {
+            secondWeekEligible++;
+            if (associate.daysWorked >= 10 || (associate.status === 'Active' && daysSinceStart >= 14)) {
+              secondWeekReturns++;
+              metrics.activeAfter2Weeks++;
+            }
           }
         }
       }
@@ -132,6 +143,15 @@ const NewStartsAnalytics = () => {
     metrics.secondWeekReturnRate = secondWeekEligible > 0 ? ((secondWeekReturns / secondWeekEligible) * 100).toFixed(1) : 0;
     metrics.secondDayEligible = secondDayEligible;
     metrics.secondWeekEligible = secondWeekEligible;
+
+    console.log('New Starts Debug:', {
+      totalApplicants: applicantsData.length,
+      missingProcessDates: metrics.missingProcessDates,
+      missingTentativeStartDates: metrics.missingTentativeStartDates,
+      validProcessCount,
+      matchedAssociates: metrics.matchedAssociates,
+      totalAssociates: associatesData.length
+    });
 
     setMetrics(metrics);
   };
@@ -274,6 +294,67 @@ const NewStartsAnalytics = () => {
             </TableBody>
           </Table>
         </TableContainer>
+      </Paper>
+
+      {/* Debug: List of Started Applicants */}
+      <Paper sx={{ padding: 3, marginTop: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Started Applicants ({applicants.length})
+        </Typography>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell><strong>Name</strong></TableCell>
+                <TableCell><strong>EID</strong></TableCell>
+                <TableCell><strong>Process Date</strong></TableCell>
+                <TableCell><strong>Tentative Start</strong></TableCell>
+                <TableCell><strong>Days to Start</strong></TableCell>
+                <TableCell><strong>In Associates?</strong></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {applicants.map((app, index) => {
+                const processTime = app.processDate && app.tentativeStartDate
+                  ? dayjs(app.tentativeStartDate).diff(dayjs(app.processDate), 'day')
+                  : null;
+                const hasAssociate = associates.some(a => a.eid === app.eid);
+
+                return (
+                  <TableRow key={index}>
+                    <TableCell>{app.firstName} {app.lastName || app.name}</TableCell>
+                    <TableCell>{app.eid || app.crmNumber || '-'}</TableCell>
+                    <TableCell>
+                      {app.processDate ? dayjs(app.processDate).format('MMM DD, YYYY') :
+                        <span style={{ color: 'red' }}>Missing</span>}
+                    </TableCell>
+                    <TableCell>
+                      {app.tentativeStartDate ? dayjs(app.tentativeStartDate).format('MMM DD, YYYY') :
+                        <span style={{ color: 'red' }}>Missing</span>}
+                    </TableCell>
+                    <TableCell>{processTime !== null ? processTime + ' days' : '-'}</TableCell>
+                    <TableCell>{hasAssociate ? '✅' : '❌'}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {applicants.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">
+                    <Typography variant="body2" color="text.secondary">
+                      No applicants with status "Started"
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <Alert severity="info" sx={{ mt: 2 }}>
+          <strong>Why metrics show 0:</strong><br/>
+          • <strong>Avg Process Time:</strong> Requires both "Process Date" and "Tentative Start Date" fields<br/>
+          • <strong>2nd Day/Week Return:</strong> Requires matching record in Associates collection with startDate field<br/>
+          • To fix: Edit applicants and fill in missing dates, or upload associates data
+        </Alert>
       </Paper>
     </Box>
   );

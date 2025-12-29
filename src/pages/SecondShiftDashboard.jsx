@@ -41,17 +41,20 @@ const SecondShiftDashboard = () => {
       const start = startDate.toDate();
       const end = endDate.toDate();
 
-      const [shiftResult, onPremiseResult] = await Promise.all([
-        getShiftData(start, end, '2nd'),
-        getOnPremiseData(start, end)
-      ]);
+      const onPremiseResult = await getOnPremiseData(start, end);
 
-      if (shiftResult.success) {
-        setShiftData(shiftResult.data || []);
-      }
       if (onPremiseResult.success) {
-        const secondShiftOnPremise = onPremiseResult.data.filter(d => d.shift === '2nd');
-        setOnPremiseData(secondShiftOnPremise);
+        // Filter for 2nd shift data only
+        const secondShiftData = onPremiseResult.data.filter(d => d.shift === '2nd');
+        setOnPremiseData(secondShiftData);
+
+        // Map onPremiseData to shiftData format for charts
+        const mappedData = secondShiftData.map(d => ({
+          ...d,
+          headcount: d.working || 0,
+          hours: (d.working || 0) * 8 // Estimate 8 hours per person if actual hours not available
+        }));
+        setShiftData(mappedData);
       }
     } catch (err) {
       console.error('Error loading 2nd shift data:', err);
