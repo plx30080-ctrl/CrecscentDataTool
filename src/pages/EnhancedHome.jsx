@@ -47,7 +47,7 @@ const EnhancedHome = () => {
       title: 'View Dashboard',
       description: 'Analyze trends and performance metrics',
       icon: <Dashboard fontSize="large" color="success" />,
-      path: '/dashboard',
+      path: '/analytics',
       color: '#2e7d32'
     },
     {

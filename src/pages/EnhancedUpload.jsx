@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Typography, Container, Button, Paper, Box, Alert, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
-import { CloudUpload, CheckCircle, People, BarChart } from '@mui/icons-material';
+import { CloudUpload, CheckCircle, People, BarChart, AccountTree } from '@mui/icons-material';
 import Papa from 'papaparse';
 import { useAuth } from '../hooks/useAuth';
 import { addShiftData, addHoursData } from '../services/firestoreService';
 import ApplicantBulkUpload from '../components/ApplicantBulkUpload';
+import FlexibleUpload from '../components/FlexibleUpload';
 import logger from '../utils/logger';
 
 const EnhancedUpload = () => {
@@ -254,12 +255,19 @@ const EnhancedUpload = () => {
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', marginBottom: 3 }}>
         <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+          <Tab label="Flexible Upload" icon={<AccountTree />} iconPosition="start" />
           <Tab label="Shift & Hours Data" icon={<BarChart />} iconPosition="start" />
           <Tab label="Applicant Data" icon={<People />} iconPosition="start" />
         </Tabs>
       </Box>
 
       {tabValue === 0 && (
+        <Box>
+          <FlexibleUpload />
+        </Box>
+      )}
+
+      {tabValue === 1 && (
         <Box>
           {success && <Alert severity="success" sx={{ marginBottom: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
           {error && <Alert severity="error" sx={{ marginBottom: 2 }} onClose={() => setError('')}>{error}</Alert>}
@@ -356,7 +364,7 @@ const EnhancedUpload = () => {
         </Box>
       )}
 
-      {tabValue === 1 && (
+      {tabValue === 2 && (
         <Box>
           <ApplicantBulkUpload />
         </Box>

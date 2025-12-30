@@ -776,7 +776,19 @@ const ApplicantsPage = () => {
               .filter(([, count]) => count > 0)
               .map(([status, count]) => (
                 <Grid item xs={12} sm={6} md={3} lg={2} key={status}>
-                  <Card>
+                  <Card
+                    sx={{
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      border: filterStatus === status ? '2px solid #1976d2' : 'none',
+                      backgroundColor: filterStatus === status ? '#e3f2fd' : 'inherit',
+                      '&:hover': {
+                        boxShadow: 4,
+                        transform: 'translateY(-2px)'
+                      }
+                    }}
+                    onClick={() => setFilterStatus(filterStatus === status ? 'All' : status)}
+                  >
                     <CardContent>
                       <Typography color="text.secondary" gutterBottom fontSize="0.85rem">
                         {status}
@@ -788,7 +800,20 @@ const ApplicantsPage = () => {
               ))
             }
             <Grid item xs={12} sm={6} md={3} lg={2}>
-              <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+              <Card
+                sx={{
+                  background: filterStatus === 'All'
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                    : 'linear-gradient(135deg, #999 0%, #666 100%)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    boxShadow: 6,
+                    transform: 'translateY(-2px)'
+                  }
+                }}
+                onClick={() => setFilterStatus('All')}
+              >
                 <CardContent>
                   <Typography color="white" gutterBottom fontSize="0.85rem">Total</Typography>
                   <Typography variant="h4" color="white">{pipeline.total}</Typography>
@@ -804,7 +829,7 @@ const ApplicantsPage = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>
+                  <TableCell sx={{ width: '80px', minWidth: '80px' }}>
                     <TableSortLabel
                       active={sortField === 'eid'}
                       direction={sortField === 'eid' ? sortDirection : 'asc'}
@@ -813,7 +838,7 @@ const ApplicantsPage = () => {
                       EID
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '140px', minWidth: '140px' }}>
                     <TableSortLabel
                       active={sortField === 'name'}
                       direction={sortField === 'name' ? sortDirection : 'asc'}
@@ -822,9 +847,9 @@ const ApplicantsPage = () => {
                       Name
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Phone</TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '160px', minWidth: '160px' }}>Email</TableCell>
+                  <TableCell sx={{ width: '120px', minWidth: '120px' }}>Phone</TableCell>
+                  <TableCell sx={{ width: '140px', minWidth: '140px' }}>
                     <TableSortLabel
                       active={sortField === 'status'}
                       direction={sortField === 'status' ? sortDirection : 'asc'}
@@ -833,7 +858,7 @@ const ApplicantsPage = () => {
                       Status
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '60px', minWidth: '60px' }}>
                     <TableSortLabel
                       active={sortField === 'shift'}
                       direction={sortField === 'shift' ? sortDirection : 'asc'}
@@ -842,7 +867,7 @@ const ApplicantsPage = () => {
                       Shift
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '110px', minWidth: '110px' }}>
                     <TableSortLabel
                       active={sortField === 'processDate'}
                       direction={sortField === 'processDate' ? sortDirection : 'asc'}
@@ -851,7 +876,7 @@ const ApplicantsPage = () => {
                       Process Date
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '110px', minWidth: '110px' }}>
                     <TableSortLabel
                       active={sortField === 'tentativeStartDate'}
                       direction={sortField === 'tentativeStartDate' ? sortDirection : 'asc'}
@@ -860,22 +885,23 @@ const ApplicantsPage = () => {
                       Tentative Start
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>Notes</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell sx={{ width: '120px', minWidth: '120px' }}>Notes</TableCell>
+                  <TableCell sx={{ width: '100px', minWidth: '100px' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredApplicants.map((applicant) => (
-                  <TableRow key={applicant.id}>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
+                  <TableRow key={applicant.id} sx={{ '& td': { padding: '6px 8px', fontSize: '0.875rem' } }}>
+                    <TableCell sx={{ width: '80px', minWidth: '80px' }}>
+                      <Typography variant="body2" fontWeight="medium" noWrap>
                         {applicant.eid || applicant.crmNumber || 'N/A'}
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '140px', minWidth: '140px' }}>
                       <Typography
                         variant="body2"
                         onClick={() => handleOpenDialog(applicant)}
+                        noWrap
                         sx={{
                           color: '#1976d2',
                           cursor: 'pointer',
@@ -883,65 +909,77 @@ const ApplicantsPage = () => {
                             textDecoration: 'underline'
                           }
                         }}
+                        title={applicant.firstName && applicant.lastName
+                          ? `${applicant.firstName} ${applicant.lastName}`
+                          : applicant.name || 'N/A'}
                       >
                         {applicant.firstName && applicant.lastName
                           ? `${applicant.firstName} ${applicant.lastName}`
                           : applicant.name || 'N/A'}
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '160px', minWidth: '160px' }}>
                       {applicant.email ? (
                         <a
                           href={`mailto:${applicant.email}`}
                           style={{ color: '#1976d2', textDecoration: 'none' }}
                           onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
                           onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+                          title={applicant.email}
                         >
-                          {applicant.email}
+                          <Typography variant="body2" noWrap>
+                            {applicant.email}
+                          </Typography>
                         </a>
-                      ) : '-'}
+                      ) : <Typography variant="body2">-</Typography>}
                     </TableCell>
-                    <TableCell>
-                      {formatPhone(applicant.phoneNumber || applicant.phone) || '-'}
+                    <TableCell sx={{ width: '120px', minWidth: '120px' }}>
+                      <Typography variant="body2" noWrap>
+                        {formatPhone(applicant.phoneNumber || applicant.phone) || '-'}
+                      </Typography>
                     </TableCell>
-                    <TableCell>
-                      <FormControl size="small" fullWidth>
+                    <TableCell sx={{ width: '140px', minWidth: '140px', padding: '0 8px !important' }}>
+                      <FormControl size="small" fullWidth variant="standard">
                         <Select
                           value={applicant.status}
                           onChange={(e) => handleQuickStatusUpdate(applicant.id, e.target.value)}
-                          sx={{ minWidth: 140 }}
+                          sx={{ fontSize: '0.875rem' }}
                         >
                           {ALL_STATUSES.map(status => (
-                            <MenuItem key={status} value={status}>
+                            <MenuItem key={status} value={status} sx={{ fontSize: '0.875rem' }}>
                               {status}
                             </MenuItem>
                           ))}
                         </Select>
                       </FormControl>
                     </TableCell>
-                    <TableCell>{applicant.shift || '-'}</TableCell>
-                    <TableCell>
-                      {applicant.processDate
-                        ? dayjs(applicant.processDate).format('MMM D, YYYY')
-                        : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {applicant.tentativeStartDate
-                        ? dayjs(applicant.tentativeStartDate).format('MMM D, YYYY')
-                        : applicant.projectedStartDate
-                        ? dayjs(applicant.projectedStartDate).format('MMM D, YYYY')
-                        : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" noWrap sx={{ maxWidth: 150 }}>
-                        {applicant.notes ? (
-                          applicant.notes.length > 30
-                            ? `${applicant.notes.substring(0, 30)}...`
-                            : applicant.notes
-                        ) : '-'}
+                    <TableCell sx={{ width: '60px', minWidth: '60px' }}>
+                      <Typography variant="body2" noWrap>
+                        {applicant.shift || '-'}
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '110px', minWidth: '110px' }}>
+                      <Typography variant="body2" noWrap>
+                        {applicant.processDate
+                          ? dayjs(applicant.processDate).format('M/D/YY')
+                          : '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ width: '110px', minWidth: '110px' }}>
+                      <Typography variant="body2" noWrap>
+                        {applicant.tentativeStartDate
+                          ? dayjs(applicant.tentativeStartDate).format('M/D/YY')
+                          : applicant.projectedStartDate
+                          ? dayjs(applicant.projectedStartDate).format('M/D/YY')
+                          : '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ width: '120px', minWidth: '120px' }}>
+                      <Typography variant="body2" noWrap title={applicant.notes || ''}>
+                        {applicant.notes || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ width: '100px', minWidth: '100px' }}>
                       <Stack direction="row" spacing={0.5}>
                         <IconButton
                           size="small"
@@ -951,7 +989,7 @@ const ApplicantsPage = () => {
                           }}
                           title="View Documents"
                         >
-                          <Folder />
+                          <Folder fontSize="small" />
                         </IconButton>
                         <IconButton
                           size="small"
@@ -959,7 +997,7 @@ const ApplicantsPage = () => {
                           onClick={() => handleDeleteApplicant(applicant)}
                           title="Delete Applicant"
                         >
-                          <Delete />
+                          <Delete fontSize="small" />
                         </IconButton>
                       </Stack>
                     </TableCell>

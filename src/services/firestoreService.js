@@ -958,3 +958,89 @@ export const getBranchDailyData = async (startDate, endDate) => {
     return { success: false, error: error.message, data: [] };
   }
 };
+
+// ============ FLEXIBLE BULK UPLOAD ============
+/**
+ * Flexible bulk upload function for any collection
+ * Handles column mapping and data transformation
+ *
+ * @param {string} collectionName - Firestore collection name
+ * @param {Array} mappedData - Array of objects with transformed data (already mapped)
+ * @param {string} userId - User ID performing the upload
+ * @returns {Promise<{success: boolean, count?: number, error?: string}>}
+ */
+export const flexibleBulkUpload = async (collectionName, mappedData, userId) => {
+  try {
+    if (!mappedData || mappedData.length === 0) {
+      return { success: false, error: 'No data to upload' };
+    }
+
+    const batchSize = 500; // Firestore batch write limit
+    const batches = [];
+    let currentBatch = writeBatch(db);
+    let operationCount = 0;
+    let totalCount = 0;
+
+    logger.info(`Starting flexible bulk upload of ${mappedData.length} records to ${collectionName}`);
+
+    mappedData.forEach((record) => {
+      const docRef = doc(collection(db, collectionName));
+
+      // Prepare the record with metadata
+      const recordToSave = {
+        ...record,
+        submittedBy: userId,
+        submittedAt: serverTimestamp()
+      };
+
+      // Convert date fields to Firestore Timestamps
+      Object.keys(recordToSave).forEach(key => {
+        if (recordToSave[key] instanceof Date) {
+          recordToSave[key] = Timestamp.fromDate(recordToSave[key]);
+        }
+      });
+
+      currentBatch.set(docRef, recordToSave);
+      operationCount++;
+      totalCount++;
+
+      // Create a new batch when we hit the limit
+      if (operationCount === batchSize) {
+        batches.push(currentBatch);
+        currentBatch = writeBatch(db);
+        operationCount = 0;
+      }
+    });
+
+    // Push the last batch if it has operations
+    if (operationCount > 0) {
+      batches.push(currentBatch);
+    }
+
+    // Commit all batches
+    logger.info(`Committing ${batches.length} batches...`);
+    for (let i = 0; i < batches.length; i++) {
+      await batches[i].commit();
+      logger.info(`Batch ${i + 1}/${batches.length} committed`);
+    }
+
+    // Log upload history
+    try {
+      await addDoc(collection(db, 'uploadHistory'), {
+        collection: collectionName,
+        recordCount: totalCount,
+        uploadedBy: userId,
+        uploadedAt: serverTimestamp(),
+        method: 'flexibleUpload'
+      });
+    } catch (historyError) {
+      logger.warn('Failed to log upload history:', historyError);
+    }
+
+    logger.info(`Flexible bulk upload complete: ${totalCount} records added to ${collectionName}`);
+    return { success: true, count: totalCount };
+  } catch (error) {
+    logger.error('Error in flexible bulk upload:', error);
+    return { success: false, error: error.message };
+  }
+};
