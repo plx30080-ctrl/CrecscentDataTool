@@ -23,6 +23,7 @@ import { CompareArrows, TrendingUp, TrendingDown } from '@mui/icons-material';
 import { Line, Bar } from 'react-chartjs-2';
 import { getHoursData } from '../services/firestoreService';
 import dayjs from 'dayjs';
+import logger from '../utils/logger';
 
 const YOYComparison = () => {
   const [loading, setLoading] = useState(true);

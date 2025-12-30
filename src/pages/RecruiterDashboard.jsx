@@ -23,6 +23,7 @@ import { TrendingUp, PersonSearch, Group } from '@mui/icons-material';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import dayjs from 'dayjs';
+import logger from '../utils/logger';
 
 const RecruiterDashboard = () => {
   const [loading, setLoading] = useState(true);

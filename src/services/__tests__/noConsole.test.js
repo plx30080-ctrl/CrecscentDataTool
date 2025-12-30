@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
-
+/* global process */
 function listFiles(dir) {
   const entries = readdirSync(dir, { withFileTypes: true });
   const files = [];
