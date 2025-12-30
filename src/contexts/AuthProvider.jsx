@@ -120,6 +120,24 @@ export const AuthProvider = ({ children }) => {
     return userProfile?.role === 'admin';
   };
 
+  // Refresh user profile data from Firestore
+  const refreshUserProfile = async () => {
+    if (!currentUser) return;
+
+    try {
+      const profileResult = await getUserProfile(currentUser.uid);
+      if (profileResult.success) {
+        setUserProfile(profileResult.data);
+        return { success: true };
+      } else {
+        return { success: false, error: profileResult.error };
+      }
+    } catch (err) {
+      console.error('Error refreshing user profile:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
   const value = {
     currentUser,
     userProfile,
@@ -130,7 +148,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     resetPassword,
     hasRole,
-    isAdmin
+    isAdmin,
+    refreshUserProfile
   };
 
   return (

@@ -33,7 +33,8 @@ import {
   People,
   Assessment,
   Edit,
-  Refresh
+  Refresh,
+  Delete
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -41,6 +42,7 @@ import {
   updateUserRole,
   getAuditLogs
 } from '../services/adminService';
+import { deleteUserProfile } from '../services/firestoreService';
 import { checkPrinterStatus, getAvailablePrinters } from '../services/printService';
 import dayjs from 'dayjs';
 import logger from '../utils/logger';
@@ -144,6 +146,40 @@ const AdminPanel = () => {
     }
   };
 
+  const handleDeleteUser = async (user) => {
+    // Prevent deletion of own account
+    if (user.id === currentUser.uid) {
+      setError('You cannot delete your own account');
+      return;
+    }
+
+    const confirmMessage = `Are you sure you want to delete the user profile for ${user.displayName || user.email}?\n\nThis will:\n- Delete their profile data\n- Delete their profile photo\n- Remove all their account information\n\nThis action cannot be undone.`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await deleteUserProfile(user.id, currentUser.uid);
+
+      if (result.success) {
+        setSuccess(`User profile for ${user.displayName || user.email} has been deleted`);
+        loadUsers();
+        loadAuditLogs();
+      } else {
+        setError(result.error || 'Failed to delete user profile');
+      }
+    } catch (err) {
+      setError('An error occurred while deleting the user profile');
+      console.error('Delete user error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getRoleColor = (role) => {
     const colors = {
       'admin': 'error',
@@ -235,14 +271,25 @@ const AdminPanel = () => {
                       {user.createdAt ? dayjs(user.createdAt).format('MMM D, YYYY') : 'N/A'}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="small"
-                        startIcon={<Edit />}
-                        onClick={() => handleOpenRoleDialog(user)}
-                        disabled={user.id === currentUser.uid}
-                      >
-                        Change Role
-                      </Button>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          size="small"
+                          startIcon={<Edit />}
+                          onClick={() => handleOpenRoleDialog(user)}
+                          disabled={user.id === currentUser.uid}
+                        >
+                          Change Role
+                        </Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          startIcon={<Delete />}
+                          onClick={() => handleDeleteUser(user)}
+                          disabled={user.id === currentUser.uid}
+                        >
+                          Delete
+                        </Button>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}

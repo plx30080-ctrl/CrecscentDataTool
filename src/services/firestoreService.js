@@ -3,6 +3,7 @@ import {
   addDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   doc,
   getDocs,
   getDoc,
@@ -14,7 +15,8 @@ import {
   writeBatch,
   serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from '../firebase';
 import logger from '../utils/logger';
 
 // ============ SHIFT DATA ============
@@ -619,6 +621,142 @@ export const updateUserLastLogin = async (uid) => {
     return { success: true };
   } catch (error) {
     logger.error('Error updating last login:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Upload or update user profile photo
+export const updateUserPhoto = async (uid, photoFile) => {
+  try {
+    logger.debug('Updating user photo for UID:', uid);
+
+    // Get current user profile to check for existing photo
+    const docRef = doc(db, 'users', uid);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+      return { success: false, error: 'User profile not found' };
+    }
+
+    const userData = docSnap.data();
+
+    // Delete old photo if it exists
+    if (userData.photoURL) {
+      try {
+        // Extract the file path from the URL
+        const oldPhotoPath = `user-photos/${uid}`;
+        const oldPhotoRef = ref(storage, oldPhotoPath);
+        await deleteObject(oldPhotoRef);
+        logger.debug('Deleted old profile photo');
+      } catch (deleteError) {
+        // Continue even if delete fails (photo might not exist)
+        logger.warn('Could not delete old photo:', deleteError);
+      }
+    }
+
+    // Upload new photo
+    const storageRef = ref(storage, `user-photos/${uid}`);
+    await uploadBytes(storageRef, photoFile);
+    const photoURL = await getDownloadURL(storageRef);
+
+    // Update user document with new photo URL
+    await updateDoc(docRef, {
+      photoURL,
+      updatedAt: serverTimestamp()
+    });
+
+    logger.debug('Profile photo updated successfully');
+    return { success: true, photoURL };
+  } catch (error) {
+    logger.error('Error updating user photo:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Delete user profile photo
+export const deleteUserPhoto = async (uid) => {
+  try {
+    logger.debug('Deleting user photo for UID:', uid);
+
+    // Get current user profile
+    const docRef = doc(db, 'users', uid);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+      return { success: false, error: 'User profile not found' };
+    }
+
+    const userData = docSnap.data();
+
+    // Delete photo from storage if it exists
+    if (userData.photoURL) {
+      try {
+        const photoPath = `user-photos/${uid}`;
+        const photoRef = ref(storage, photoPath);
+        await deleteObject(photoRef);
+        logger.debug('Deleted profile photo from storage');
+      } catch (deleteError) {
+        logger.warn('Could not delete photo from storage:', deleteError);
+      }
+    }
+
+    // Remove photoURL from user document
+    await updateDoc(docRef, {
+      photoURL: null,
+      updatedAt: serverTimestamp()
+    });
+
+    logger.debug('Profile photo deleted successfully');
+    return { success: true };
+  } catch (error) {
+    logger.error('Error deleting user photo:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Delete user profile (admin function)
+export const deleteUserProfile = async (uid, deletedBy) => {
+  try {
+    logger.debug('Deleting user profile for UID:', uid);
+
+    // Get user profile before deletion for logging
+    const docRef = doc(db, 'users', uid);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+      return { success: false, error: 'User profile not found' };
+    }
+
+    const userData = docSnap.data();
+
+    // Delete profile photo from storage if it exists
+    if (userData.photoURL) {
+      try {
+        const photoPath = `user-photos/${uid}`;
+        const photoRef = ref(storage, photoPath);
+        await deleteObject(photoRef);
+        logger.debug('Deleted profile photo from storage');
+      } catch (deleteError) {
+        logger.warn('Could not delete photo from storage:', deleteError);
+      }
+    }
+
+    // Log the deletion action
+    await logAuditAction({
+      action: 'delete_user',
+      performedBy: deletedBy,
+      targetUser: uid,
+      details: `Deleted user profile: ${userData.displayName} (${userData.email})`,
+      timestamp: serverTimestamp()
+    });
+
+    // Delete user document
+    await deleteDoc(docRef);
+
+    logger.debug('User profile deleted successfully');
+    return { success: true };
+  } catch (error) {
+    logger.error('Error deleting user profile:', error);
     return { success: false, error: error.message };
   }
 };

@@ -2,6 +2,22 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    // User profile photos - users can only manage their own photo
+    match /user-photos/{userId} {
+      // Users can upload/update their own photo
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024  // Max 5MB
+                   && request.resource.contentType.matches('image/.*');
+
+      // Users can delete their own photo
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+
+      // All authenticated users can read profile photos
+      allow read: if request.auth != null;
+    }
+
     // Badge photos - allow authenticated users to read and write
     match /badges/{badgePhoto} {
       // Allow authenticated users to upload badge photos
