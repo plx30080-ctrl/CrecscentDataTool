@@ -30,7 +30,7 @@ import {
   Avatar,
   Stack
 } from '@mui/material';
-import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print, Download, Sync, Folder } from '@mui/icons-material';
+import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print, Download, Sync, Folder, Delete, DeleteSweep } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -39,6 +39,8 @@ import { useAuth } from '../hooks/useAuth';
 import {
   addApplicant,
   updateApplicant,
+  deleteApplicant,
+  bulkDeleteApplicants,
   getApplicants,
   getApplicantPipeline
 } from '../services/firestoreService';
@@ -47,7 +49,7 @@ import BadgePrintPreview from '../components/BadgePrintPreview';
 import ApplicantDocuments from '../components/ApplicantDocuments';
 
 const ApplicantsPage = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [applicants, setApplicants] = useState([]);
   const [filteredApplicants, setFilteredApplicants] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -551,6 +553,68 @@ const ApplicantsPage = () => {
     }
   };
 
+  const handleDeleteApplicant = async (applicant) => {
+    const confirmMessage = `Are you sure you want to delete ${applicant.firstName} ${applicant.lastName}?\n\nThis action cannot be undone.`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    const result = await deleteApplicant(applicant.id);
+    if (result.success) {
+      setSuccess(`${applicant.firstName} ${applicant.lastName} has been deleted`);
+      loadData();
+      setTimeout(() => setSuccess(''), 3000);
+    } else {
+      setError(`Failed to delete applicant: ${result.error}`);
+    }
+  };
+
+  const handlePurgeOldApplicants = async () => {
+    // Calculate date 6 months ago
+    const sixMonthsAgo = dayjs().subtract(6, 'months').toDate();
+
+    // Statuses that indicate applicant didn't start
+    const nonStartedStatuses = ['Applied', 'Interviewed', 'Processed', 'Hired', 'Rejected', 'CB Updated', 'BG Pending', 'Adjudication Pending', 'I-9 Pending', 'Declined', 'No Contact'];
+
+    // Find applicants to purge
+    const applicantsToPurge = applicants.filter(applicant => {
+      if (!applicant.processDate) return false;
+
+      const processDate = applicant.processDate instanceof Date
+        ? applicant.processDate
+        : new Date(applicant.processDate);
+
+      const isOld = processDate < sixMonthsAgo;
+      const didntStart = nonStartedStatuses.includes(applicant.status);
+
+      return isOld && didntStart;
+    });
+
+    if (applicantsToPurge.length === 0) {
+      setError('No applicants found that meet purge criteria (6+ months old and did not start)');
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
+    const confirmMessage = `This will permanently delete ${applicantsToPurge.length} applicants that:\n- Were processed more than 6 months ago\n- Did not start or were rejected/declined\n\nThis action cannot be undone.\n\nContinue?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    const idsToDelete = applicantsToPurge.map(a => a.id);
+    const result = await bulkDeleteApplicants(idsToDelete);
+
+    if (result.success) {
+      setSuccess(`Successfully purged ${result.deletedCount} old applicant records`);
+      loadData();
+      setTimeout(() => setSuccess(''), 5000);
+    } else {
+      setError(`Failed to purge applicants: ${result.error}`);
+    }
+  };
+
   const ALL_STATUSES = [
     'Applied', 'Interviewed', 'Processed', 'Hired', 'Started', 'Rejected',
     'CB Updated', 'BG Pending', 'Adjudication Pending', 'I-9 Pending', 'Declined', 'No Contact'
@@ -572,6 +636,16 @@ const ApplicantsPage = () => {
             Applicant Tracking System
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
+            {(userProfile?.role === 'admin' || userProfile?.role === 'Market Manager') && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteSweep />}
+                onClick={handlePurgeOldApplicants}
+              >
+                Purge Old Records
+              </Button>
+            )}
             <Button
               variant="outlined"
               startIcon={<Download />}
@@ -770,6 +844,15 @@ const ApplicantsPage = () => {
                   </TableCell>
                   <TableCell>
                     <TableSortLabel
+                      active={sortField === 'processDate'}
+                      direction={sortField === 'processDate' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('processDate')}
+                    >
+                      Process Date
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
                       active={sortField === 'tentativeStartDate'}
                       direction={sortField === 'tentativeStartDate' ? sortDirection : 'asc'}
                       onClick={() => handleSort('tentativeStartDate')}
@@ -838,6 +921,11 @@ const ApplicantsPage = () => {
                     </TableCell>
                     <TableCell>{applicant.shift || '-'}</TableCell>
                     <TableCell>
+                      {applicant.processDate
+                        ? dayjs(applicant.processDate).format('MMM D, YYYY')
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
                       {applicant.tentativeStartDate
                         ? dayjs(applicant.tentativeStartDate).format('MMM D, YYYY')
                         : applicant.projectedStartDate
@@ -854,22 +942,32 @@ const ApplicantsPage = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setSelectedApplicantForDocs(applicant);
-                          setDocumentsDialogOpen(true);
-                        }}
-                        title="View Documents"
-                      >
-                        <Folder />
-                      </IconButton>
+                      <Stack direction="row" spacing={0.5}>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setSelectedApplicantForDocs(applicant);
+                            setDocumentsDialogOpen(true);
+                          }}
+                          title="View Documents"
+                        >
+                          <Folder />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteApplicant(applicant)}
+                          title="Delete Applicant"
+                        >
+                          <Delete />
+                        </IconButton>
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
                 {filteredApplicants.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} align="center">
+                    <TableCell colSpan={10} align="center">
                       <Typography color="text.secondary" sx={{ padding: 4 }}>
                         {searchTerm ? 'No applicants found matching your search.' : 'No applicants yet. Click "Add Applicant" to get started.'}
                       </Typography>
@@ -889,14 +987,13 @@ const ApplicantsPage = () => {
           <DialogContent>
             {error && <Alert severity="error" sx={{ marginBottom: 2 }}>{error}</Alert>}
 
-            <Grid container spacing={2} sx={{ marginTop: 1 }}>
+            <Grid container spacing={3} sx={{ marginTop: 1 }}>
               {/* Photo Capture Section */}
               <Grid item xs={12}>
+                <Typography variant="h6" sx={{ marginBottom: 2, color: 'primary.main' }}>
+                  Photo
+                </Typography>
                 <Paper sx={{ padding: 2, backgroundColor: '#f5f5f5' }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Associate Photo
-                  </Typography>
-
                   <Stack direction="row" spacing={2} alignItems="center">
                     {photoPreview && (
                       <Avatar
@@ -969,6 +1066,11 @@ const ApplicantsPage = () => {
               </Grid>
 
               {/* Basic Information */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ marginBottom: 2, color: 'primary.main' }}>
+                  Personal Information
+                </Typography>
+              </Grid>
               <Grid item xs={12} md={4}>
                 <TextField
                   label="First Name"
@@ -1013,6 +1115,12 @@ const ApplicantsPage = () => {
                   onChange={(e) => handleChange('phone', e.target.value)}
                   placeholder="(555) 123-4567"
                 />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ marginTop: 2, marginBottom: 2, color: 'primary.main' }}>
+                  Employment Details
+                </Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>

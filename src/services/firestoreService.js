@@ -326,6 +326,38 @@ export const updateApplicant = async (applicantId, updates) => {
   }
 };
 
+// Delete a single applicant
+export const deleteApplicant = async (applicantId) => {
+  try {
+    const docRef = doc(db, 'applicants', applicantId);
+    await deleteDoc(docRef);
+    logger.info('Applicant deleted:', applicantId);
+    return { success: true };
+  } catch (error) {
+    logger.error('Error deleting applicant:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Bulk delete applicants (for purging old records)
+export const bulkDeleteApplicants = async (applicantIds) => {
+  try {
+    const batch = writeBatch(db);
+
+    applicantIds.forEach(id => {
+      const docRef = doc(db, 'applicants', id);
+      batch.delete(docRef);
+    });
+
+    await batch.commit();
+    logger.info(`Bulk deleted ${applicantIds.length} applicants`);
+    return { success: true, deletedCount: applicantIds.length };
+  } catch (error) {
+    logger.error('Error bulk deleting applicants:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 export const getApplicants = async (status = null) => {
   try {
     const constraints = [];
