@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import logger from './logger';
 import { Button, Paper, Typography, Alert, Box } from '@mui/material';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -72,7 +73,7 @@ const FixMyUserProfile = () => {
       setLoading(false);
 
     } catch (error) {
-      console.error('Error fixing profile:', error);
+      logger.error('Error fixing profile:', error);
       setStatus(`Error: ${error.message}`);
       setLoading(false);
     }

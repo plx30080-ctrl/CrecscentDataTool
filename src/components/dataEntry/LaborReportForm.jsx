@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logger from '../../utils/logger';
 import {
   Box,
   Grid,
@@ -64,7 +65,7 @@ const LaborReportForm = () => {
 
           reader.readAsArrayBuffer(file);
         } catch (error) {
-          console.error('Parse error:', error);
+          logger.error('Parse error:', error);
           setMessage({ type: 'error', text: 'Failed to parse file' });
           setLoading(false);
         }
@@ -76,13 +77,13 @@ const LaborReportForm = () => {
   };
 
   const calculateHours = (data) => {
-    console.log('=== Labor Report Parser Debug ===');
-    console.log('Total rows in file:', data.length);
+    logger.debug('=== Labor Report Parser Debug ===');
+    logger.debug('Total rows in file:', data.length);
 
     // Log first 10 rows for debugging
-    console.log('\nFirst 10 rows:');
+    logger.debug('\nFirst 10 rows:');
     data.slice(0, 10).forEach((row, i) => {
-      console.log(`Row ${i}:`, row);
+      logger.debug(`Row ${i}:`, row);
     });
 
     let directHours = 0;
@@ -160,10 +161,10 @@ const LaborReportForm = () => {
       if (startRow !== -1) startRow--; // Go back one row to include the header
     }
 
-    console.log('\nData start row:', startRow);
+    logger.debug('\nData start row:', startRow);
 
     if (startRow === -1) {
-      console.warn('Could not find data start row!');
+      logger.warn('Could not find data start row!');
       return { directHours: 0, indirectHours: 0, totalHours: 0, employeeCount: 0, employeeIds: [] };
     }
 
@@ -173,14 +174,14 @@ const LaborReportForm = () => {
 
       // Skip empty rows (but continue processing)
       if (!row || row.length === 0) {
-        console.log(`Skipping empty row ${i}`);
+        logger.debug(`Skipping empty row ${i}`);
         continue;
       }
 
       // Skip rows that don't look like employee data (no numbers)
       const hasNumbers = row.some(cell => !isNaN(parseFloat(cell)) && cell !== '');
       if (!hasNumbers) {
-        console.log(`Skipping row ${i} (no numbers):`, row);
+        logger.debug(`Skipping row ${i} (no numbers):`, row);
         continue;
       }
 
@@ -189,12 +190,12 @@ const LaborReportForm = () => {
       const nameCell = row[2] ? String(row[2]).trim().toUpperCase() : '';
 
       if (nameCell.includes('TOTAL') || nameCell.includes('GRAND')) {
-        console.log(`Skipping total row ${i}: ${deptCode} ${nameCell}`);
+        logger.debug(`Skipping total row ${i}: ${deptCode} ${nameCell}`);
         continue;
       }
 
       employeeCount++;
-      console.log(`Processing employee row ${i}:`, row);
+      logger.debug(`Processing employee row ${i}:`, row);
 
       // Extract EID from column 1 (File/EID column)
       let eid = null;
@@ -290,8 +291,8 @@ const LaborReportForm = () => {
         weeklyTotal: employeeWeeklyTotal
       });
 
-      console.log(`  Row ${i} | EID: ${eid}, Dept: ${deptCode}, Shift: ${shift}, Type: ${laborType}, Weekly Total: ${employeeWeeklyTotal}h`);
-      console.log(`    Mon: ${monday.total}h, Tue: ${tuesday.total}h, Wed: ${wednesday.total}h, Thu: ${thursday.total}h, Fri: ${friday.total}h, Sat: ${saturday.total}h, Sun: ${sunday.total}h`);
+      logger.debug(`  Row ${i} | EID: ${eid}, Dept: ${deptCode}, Shift: ${shift}, Type: ${laborType}, Weekly Total: ${employeeWeeklyTotal}h`);
+      logger.debug(`    Mon: ${monday.total}h, Tue: ${tuesday.total}h, Wed: ${wednesday.total}h, Thu: ${thursday.total}h, Fri: ${friday.total}h, Sat: ${saturday.total}h, Sun: ${sunday.total}h`);
 
       // Update totals
       totalHours += employeeWeeklyTotal;
@@ -304,35 +305,35 @@ const LaborReportForm = () => {
       }
     }
 
-    console.log('\n=== Parse Results ===');
-    console.log('Employees found:', employeeCount);
-    console.log('Total hours:', totalHours);
-    console.log('Direct hours:', directHours);
-    console.log('Indirect hours:', indirectHours);
-    console.log('Employee IDs:', employeeIds);
+    logger.debug('\n=== Parse Results ===');
+    logger.debug('Employees found:', employeeCount);
+    logger.debug('Total hours:', totalHours);
+    logger.debug('Direct hours:', directHours);
+    logger.debug('Indirect hours:', indirectHours);
+    logger.debug('Employee IDs:', employeeIds);
 
-    console.log('\n=== Daily Breakdown (All Days) ===');
-    console.log('Monday:', dailyBreakdown.monday);
-    console.log('Tuesday:', dailyBreakdown.tuesday);
-    console.log('Wednesday:', dailyBreakdown.wednesday);
-    console.log('Thursday:', dailyBreakdown.thursday);
-    console.log('Friday:', dailyBreakdown.friday);
-    console.log('Saturday:', dailyBreakdown.saturday);
-    console.log('Sunday:', dailyBreakdown.sunday);
+    logger.debug('\n=== Daily Breakdown (All Days) ===');
+    logger.debug('Monday:', dailyBreakdown.monday);
+    logger.debug('Tuesday:', dailyBreakdown.tuesday);
+    logger.debug('Wednesday:', dailyBreakdown.wednesday);
+    logger.debug('Thursday:', dailyBreakdown.thursday);
+    logger.debug('Friday:', dailyBreakdown.friday);
+    logger.debug('Saturday:', dailyBreakdown.saturday);
+    logger.debug('Sunday:', dailyBreakdown.sunday);
 
-    console.log('\n=== Per-Shift Daily Breakdown ===');
+    logger.debug('\n=== Per-Shift Daily Breakdown ===');
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     days.forEach(day => {
       const dayData = dailyBreakdown[day];
       const dayName = day.charAt(0).toUpperCase() + day.slice(1);
-      console.log(`\n${dayName}:`);
-      console.log(`  1st Shift Direct:   ${dayData.shift1.direct.toFixed(2)}h`);
-      console.log(`  1st Shift Indirect: ${dayData.shift1.indirect.toFixed(2)}h`);
-      console.log(`  1st Shift Total:    ${dayData.shift1.total.toFixed(2)}h`);
-      console.log(`  2nd Shift Direct:   ${dayData.shift2.direct.toFixed(2)}h`);
-      console.log(`  2nd Shift Indirect: ${dayData.shift2.indirect.toFixed(2)}h`);
-      console.log(`  2nd Shift Total:    ${dayData.shift2.total.toFixed(2)}h`);
-      console.log(`  Day Total:          ${dayData.total.toFixed(2)}h (Direct: ${dayData.direct.toFixed(2)}h, Indirect: ${dayData.indirect.toFixed(2)}h)`);
+      logger.debug(`\n${dayName}:`);
+      logger.debug(`  1st Shift Direct:   ${dayData.shift1.direct.toFixed(2)}h`);
+      logger.debug(`  1st Shift Indirect: ${dayData.shift1.indirect.toFixed(2)}h`);
+      logger.debug(`  1st Shift Total:    ${dayData.shift1.total.toFixed(2)}h`);
+      logger.debug(`  2nd Shift Direct:   ${dayData.shift2.direct.toFixed(2)}h`);
+      logger.debug(`  2nd Shift Indirect: ${dayData.shift2.indirect.toFixed(2)}h`);
+      logger.debug(`  2nd Shift Total:    ${dayData.shift2.total.toFixed(2)}h`);
+      logger.debug(`  Day Total:          ${dayData.total.toFixed(2)}h (Direct: ${dayData.direct.toFixed(2)}h, Indirect: ${dayData.indirect.toFixed(2)}h)`);
     });
 
     return {
@@ -383,7 +384,7 @@ const LaborReportForm = () => {
         setMessage({ type: 'error', text: result.error || 'Failed to submit report' });
       }
     } catch (error) {
-      console.error('Submit error:', error);
+      logger.error('Submit error:', error);
       setMessage({ type: 'error', text: error.message || 'An error occurred during submission' });
     } finally {
       setLoading(false);

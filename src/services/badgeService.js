@@ -10,11 +10,11 @@ import {
   where,
   orderBy,
   Timestamp,
-  serverTimestamp,
-  runTransaction
+  serverTimestamp
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
+import logger from '../utils/logger';
 import { DEFAULT_BADGE_TEMPLATE } from '../config/badgeTemplate';
 
 // ============ BADGE MANAGEMENT ============
@@ -60,7 +60,7 @@ export const createBadge = async (badgeData, photoFile, userId) => {
 
     return { success: true, id: docRef.id, photoURL, badgeId };
   } catch (error) {
-    console.error('Error creating badge:', error);
+    logger.error('Error creating badge:', error);
     return { success: false, error: error.message };
   }
 };
@@ -134,7 +134,7 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
       // Double-check: Query again right before creating (race condition protection)
       const doubleCheck = await getBadgeByEID(eid);
       if (doubleCheck.success && doubleCheck.data) {
-        console.log(`Race condition avoided: Badge for EID ${eid} was created by another user`);
+        logger.info(`Race condition avoided: Badge for EID ${eid} was created by another user`);
         return {
           success: true,
           id: doubleCheck.data.id,
@@ -168,7 +168,7 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
       return { success: true, id: docRef.id, badgeId, photoURL, isNew: true };
     }
   } catch (error) {
-    console.error('Error creating/updating badge from applicant:', error);
+    logger.error('Error creating/updating badge from applicant:', error);
     return { success: false, error: error.message };
   }
 };
@@ -197,7 +197,7 @@ export const updateBadgePhoto = async (badgeId, photoFile) => {
 
     return { success: true, photoURL };
   } catch (error) {
-    console.error('Error updating badge photo:', error);
+    logger.error('Error updating badge photo:', error);
     return { success: false, error: error.message };
   }
 };
@@ -214,7 +214,7 @@ export const updateBadge = async (badgeId, updates) => {
     });
     return { success: true };
   } catch (error) {
-    console.error('Error updating badge:', error);
+    logger.error('Error updating badge:', error);
     return { success: false, error: error.message };
   }
 };
@@ -244,7 +244,7 @@ export const getBadgeByEID = async (eid) => {
       }
     };
   } catch (error) {
-    console.error('Error getting badge:', error);
+    logger.error('Error getting badge:', error);
     return { success: false, error: error.message };
   }
 };
@@ -348,7 +348,7 @@ export const searchBadges = async (searchTerm) => {
 
     return { success: true, data: allResults };
   } catch (error) {
-    console.error('Error searching badges:', error);
+    logger.error('Error searching badges:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -376,7 +376,7 @@ export const getAllBadges = async (statusFilter = null) => {
 
     return { success: true, data: badges };
   } catch (error) {
-    console.error('Error getting badges:', error);
+    logger.error('Error getting badges:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -408,7 +408,7 @@ export const addToPrintQueue = async (badgeId, badgeData, userId, priority = 'No
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error adding to print queue:', error);
+    logger.error('Error adding to print queue:', error);
     return { success: false, error: error.message };
   }
 };
@@ -435,7 +435,7 @@ export const getPrintQueue = async () => {
 
     return { success: true, data: queue };
   } catch (error) {
-    console.error('Error getting print queue:', error);
+    logger.error('Error getting print queue:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -461,7 +461,7 @@ export const markBadgePrinted = async (queueId, badgeId, userId) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error marking badge as printed:', error);
+    logger.error('Error marking badge as printed:', error);
     return { success: false, error: error.message };
   }
 };
@@ -479,7 +479,7 @@ export const markBadgeIssued = async (badgeId, userId) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error marking badge as issued:', error);
+    logger.error('Error marking badge as issued:', error);
     return { success: false, error: error.message };
   }
 };
@@ -498,7 +498,7 @@ export const updateBadgeStatus = async (badgeId, status, notes = '') => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error updating badge status:', error);
+    logger.error('Error updating badge status:', error);
     return { success: false, error: error.message };
   }
 };
@@ -511,7 +511,7 @@ export const deleteBadge = async (badgeId) => {
     await deleteDoc(doc(db, 'badges', badgeId));
     return { success: true };
   } catch (error) {
-    console.error('Error deleting badge:', error);
+    logger.error('Error deleting badge:', error);
     return { success: false, error: error.message };
   }
 };
@@ -546,7 +546,7 @@ export const getBadgeStats = async () => {
 
     return { success: true, data: stats };
   } catch (error) {
-    console.error('Error getting badge stats:', error);
+    logger.error('Error getting badge stats:', error);
     return { success: false, error: error.message };
   }
 };
@@ -578,7 +578,7 @@ export const getDefaultTemplate = async () => {
       data: DEFAULT_BADGE_TEMPLATE
     };
   } catch (error) {
-    console.error('Error getting default template:', error);
+    logger.error('Error getting default template:', error);
     return { success: false, error: error.message };
   }
 };
@@ -598,7 +598,7 @@ export const saveTemplate = async (templateData, userId) => {
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error saving template:', error);
+    logger.error('Error saving template:', error);
     return { success: false, error: error.message };
   }
 };
@@ -617,7 +617,7 @@ export const updateTemplate = async (templateId, templateData, userId) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error updating template:', error);
+    logger.error('Error updating template:', error);
     return { success: false, error: error.message };
   }
 };
@@ -635,7 +635,7 @@ export const getAllTemplates = async () => {
 
     return { success: true, data: templates };
   } catch (error) {
-    console.error('Error getting templates:', error);
+    logger.error('Error getting templates:', error);
     return { success: false, error: error.message };
   }
 };

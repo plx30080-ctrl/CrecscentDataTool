@@ -38,14 +38,14 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import {
   getShiftData,
-  getHoursData,
   getAggregateHours,
   getEarlyLeaveTrends,
   getApplicantPipeline,
   getOnPremiseData,
   getBranchDailyData
 } from '../services/firestoreService';
-import { generateForecast, getRecruitingTimeline } from '../services/forecastingService';
+import { generateForecast } from '../services/forecastingService';
+import logger from '../utils/logger';
 
 ChartJS.register(
   CategoryScale,
@@ -61,7 +61,6 @@ ChartJS.register(
 );
 
 const EnhancedDashboard = () => {
-  const [timeRange, setTimeRange] = useState('30'); // days
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -70,11 +69,7 @@ const EnhancedDashboard = () => {
   const [startDate, setStartDate] = useState(dayjs().subtract(30, 'days'));
   const [endDate, setEndDate] = useState(dayjs());
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [startDate, endDate]);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = React.useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -91,68 +86,90 @@ const EnhancedDashboard = () => {
         getBranchDailyData(start, end)
       ]);
 
-    console.log('Dashboard data loaded:', {
-      dateRange: { start: start, end: end },
-      shiftResult: {
-        success: shiftResult.success,
-        dataCount: shiftResult.data?.length || 0,
-        sample: shiftResult.data?.[0]
-      },
-      hoursResult: {
-        success: hoursResult.success,
-        dataKeys: Object.keys(hoursResult.data || {}).length
-      },
-      onPremiseResult: {
-        success: onPremiseResult.success,
-        dataCount: onPremiseResult.data?.length || 0
-      },
-      branchDailyResult: {
-        success: branchDailyResult.success,
-        dataCount: branchDailyResult.data?.length || 0
-      },
-      earlyLeavesResult: {
-        success: earlyLeavesResult.success,
-        total: earlyLeavesResult.data?.total
-      },
-      pipelineResult: {
-        success: pipelineResult.success,
-        total: pipelineResult.data?.total
+      // Also get consolidated new-starts summary (reconciles shifts, applicants, on-premise)
+      const newStartsSummary = await (async () => {
+        try {
+          const mod = await import('../services/firestoreService');
+          if (mod.getNewStartsSummary) {
+            const res = await mod.getNewStartsSummary(start, end);
+            return res.success ? res.data : null;
+          }
+        } catch (err) {
+          logger.error('Failed to load new starts summary:', err);
+        }
+        return null;
+      })();
+
+      logger.info('Dashboard data loaded:', {
+        dateRange: { start: start, end: end },
+        shiftResult: {
+          success: shiftResult.success,
+          dataCount: shiftResult.data?.length || 0,
+          sample: shiftResult.data?.[0]
+        },
+        hoursResult: {
+          success: hoursResult.success,
+          dataKeys: Object.keys(hoursResult.data || {}).length
+        },
+        onPremiseResult: {
+          success: onPremiseResult.success,
+          dataCount: onPremiseResult.data?.length || 0
+        },
+        branchDailyResult: {
+          success: branchDailyResult.success,
+          dataCount: branchDailyResult.data?.length || 0
+        },
+        earlyLeavesResult: {
+          success: earlyLeavesResult.success,
+          total: earlyLeavesResult.data?.total
+        },
+        pipelineResult: {
+          success: pipelineResult.success,
+          total: pipelineResult.data?.total
+        }
+      });
+
+      // Generate forecast
+      const forecastResult = await generateForecast(end, 30);
+
+      if (shiftResult.success && hoursResult.success) {
+        setDashboardData({
+          shifts: shiftResult.data || [],
+          hours: hoursResult.data || [],
+          onPremise: onPremiseResult.success ? onPremiseResult.data : [],
+          branchDaily: branchDailyResult.success ? branchDailyResult.data : [],
+          earlyLeaves: earlyLeavesResult.success ? earlyLeavesResult.data : null,
+          pipeline: pipelineResult.success ? pipelineResult.data : null,
+          newStartsSummary: newStartsSummary || null
+        });
+      } else {
+        logger.error('Shift or hours data failed:', { shiftResult, hoursResult });
+        setDashboardData({
+          shifts: [],
+          hours: [],
+          earlyLeaves: earlyLeavesResult.success ? earlyLeavesResult.data : null,
+          pipeline: pipelineResult.success ? pipelineResult.data : null,
+          newStartsSummary: newStartsSummary || null
+        });
       }
-    });
-
-    // Generate forecast
-    const forecastResult = await generateForecast(end, 30);
-
-    if (shiftResult.success && hoursResult.success) {
-      setDashboardData({
-        shifts: shiftResult.data || [],
-        hours: hoursResult.data || [],
-        onPremise: onPremiseResult.success ? onPremiseResult.data : [],
-        branchDaily: branchDailyResult.success ? branchDailyResult.data : [],
-        earlyLeaves: earlyLeavesResult.success ? earlyLeavesResult.data : null,
-        pipeline: pipelineResult.success ? pipelineResult.data : null
-      });
-    } else {
-      console.error('Shift or hours data failed:', { shiftResult, hoursResult });
-      setDashboardData({
-        shifts: [],
-        hours: [],
-        earlyLeaves: earlyLeavesResult.success ? earlyLeavesResult.data : null,
-        pipeline: pipelineResult.success ? pipelineResult.data : null
-      });
-    }
 
       if (forecastResult.success) {
         setForecast(forecastResult.forecast);
       }
 
-      setLoading(false);
     } catch (err) {
-      console.error('Error loading dashboard data:', err);
+      logger.error('Error loading dashboard data:', err);
       setError('Failed to load dashboard data. Please try again.');
+    } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+
 
   const calculateKPIs = () => {
     if (!dashboardData || !dashboardData.shifts.length) {
@@ -172,7 +189,13 @@ const EnhancedDashboard = () => {
     const totalWorking = shifts.reduce((sum, s) => sum + (s.numberWorking || 0), 0);
     const fillRate = totalRequested > 0 ? (totalWorking / totalRequested) * 100 : 0;
     const avgSendHomes = shifts.reduce((sum, s) => sum + (s.sendHomes || 0), 0) / totalShifts;
-    const totalNewStarts = shifts.reduce((sum, s) => sum + (s.newStarts?.length || 0), 0);
+    let totalNewStarts = 0;
+
+    if (dashboardData && dashboardData.newStartsSummary && typeof dashboardData.newStartsSummary.chosenCount === 'number') {
+      totalNewStarts = dashboardData.newStartsSummary.chosenCount;
+    } else {
+      totalNewStarts = shifts.reduce((sum, s) => sum + (s.newStarts?.length || 0), 0);
+    }
 
     return {
       avgAttendance: Math.round(avgAttendance),

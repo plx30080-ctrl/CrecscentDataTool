@@ -17,6 +17,7 @@ import {
   deleteObject
 } from 'firebase/storage';
 import { getAuth } from 'firebase/auth';
+import logger from '../utils/logger';
 
 /**
  * Upload a document for an applicant
@@ -70,7 +71,7 @@ export const uploadApplicantDocument = async (applicantId, file, documentType, n
       }
     };
   } catch (error) {
-    console.error('Error uploading document:', error);
+    logger.error('Error uploading document:', error);
     return { success: false, error: error.message };
   }
 };
@@ -101,7 +102,7 @@ export const getApplicantDocuments = async (applicantId) => {
 
     return { success: true, data: documents };
   } catch (error) {
-    console.error('Error getting applicant documents:', error);
+    logger.error('Error getting applicant documents:', error);
     return { success: false, error: error.message };
   }
 };
@@ -123,7 +124,7 @@ export const deleteApplicantDocument = async (documentId, storagePath) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error deleting document:', error);
+    logger.error('Error deleting document:', error);
     return { success: false, error: error.message };
   }
 };

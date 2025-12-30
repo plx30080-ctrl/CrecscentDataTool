@@ -35,14 +35,14 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import {
   addApplicant,
   updateApplicant,
   getApplicants,
   getApplicantPipeline
 } from '../services/firestoreService';
-import { createBadge, searchBadges, createOrUpdateBadgeFromApplicant, getBadgeByEID } from '../services/badgeService';
+import { createBadge, createOrUpdateBadgeFromApplicant, getBadgeByEID } from '../services/badgeService';
 import BadgePrintPreview from '../components/BadgePrintPreview';
 import ApplicantDocuments from '../components/ApplicantDocuments';
 
@@ -551,26 +551,6 @@ const ApplicantsPage = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      // Original statuses
-      'Applied': 'info',
-      'Interviewed': 'warning',
-      'Processed': 'secondary',
-      'Hired': 'success',
-      'Started': 'primary',
-      'Rejected': 'error',
-      // Bulk upload statuses
-      'CB Updated': 'info',
-      'BG Pending': 'warning',
-      'Adjudication Pending': 'warning',
-      'I-9 Pending': 'secondary',
-      'Declined': 'error',
-      'No Contact': 'default'
-    };
-    return colors[status] || 'default';
-  };
-
   const ALL_STATUSES = [
     'Applied', 'Interviewed', 'Processed', 'Hired', 'Started', 'Rejected',
     'CB Updated', 'BG Pending', 'Adjudication Pending', 'I-9 Pending', 'Declined', 'No Contact'
@@ -719,7 +699,7 @@ const ApplicantsPage = () => {
         {pipeline && (
           <Grid container spacing={2} sx={{ marginBottom: 4 }}>
             {Object.entries(pipeline.byStatus)
-              .filter(([_, count]) => count > 0)
+              .filter(([, count]) => count > 0)
               .map(([status, count]) => (
                 <Grid item xs={12} sm={6} md={3} lg={2} key={status}>
                   <Card>

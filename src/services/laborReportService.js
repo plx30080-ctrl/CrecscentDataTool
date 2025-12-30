@@ -1,4 +1,5 @@
 import { db } from '../firebase';
+import logger from '../utils/logger';
 import {
   collection,
   query,
@@ -38,7 +39,7 @@ export const getAllLaborReports = async (limitCount = null) => {
 
     return { success: true, data: reports };
   } catch (error) {
-    console.error('Error fetching labor reports:', error);
+    logger.error('Error fetching labor reports:', error);
     return { success: false, error: error.message };
   }
 };
@@ -72,7 +73,7 @@ export const getLaborReportsByDateRange = async (startDate, endDate) => {
 
     return { success: true, data: reports };
   } catch (error) {
-    console.error('Error fetching labor reports by date range:', error);
+    logger.error('Error fetching labor reports by date range:', error);
     return { success: false, error: error.message };
   }
 };
@@ -90,7 +91,7 @@ export const getRecentLaborReports = async (weeks = 12) => {
 
     return await getLaborReportsByDateRange(startDate, endDate);
   } catch (error) {
-    console.error('Error fetching recent labor reports:', error);
+    logger.error('Error fetching recent labor reports:', error);
     return { success: false, error: error.message };
   }
 };

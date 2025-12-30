@@ -9,9 +9,13 @@
  * 1. Install HID printer drivers on client machines
  * 2. Use HID SDK/API if available for your printer model
  * 3. Implement WebUSB or similar technology for direct browser communication
+ *
+ * TODO: Implement direct HID / WebUSB integration for card printers. See `FUTURE_WORK.md` for details;
+ * create gated code paths so the app gracefully falls back to browser print dialog when native drivers are unavailable.
  */
 
 import { DEFAULT_BADGE_TEMPLATE } from '../config/badgeTemplate';
+import logger from '../utils/logger';
 
 /**
  * Send badge to HID printer
@@ -51,7 +55,7 @@ export const sendToPrinter = async (badge, template) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Print error:', error);
+    logger.error('Print error:', error);
     return { success: false, error: error.message };
   }
 };
@@ -220,6 +224,8 @@ const buildPrintHTML = (badge, template) => {
 /**
  * Check if HID printer is available/connected
  * This is a placeholder - actual implementation would depend on HID SDK
+ * TODO: Replace this stub with real detection using WebUSB/HID SDK, and surface
+ * relevant status codes to the UI (connected, error, ready, offline, etc.).
  */
 export const checkPrinterStatus = async () => {
   // In production, this would query the HID printer driver/SDK
@@ -234,6 +240,8 @@ export const checkPrinterStatus = async () => {
 /**
  * Get list of available printers
  * This is a placeholder for future implementation
+ * TODO: Implement enumeration of attached card printers (HID/WebUSB/Local drivers) and
+ * return structured metadata the UI can use to present available printers.
  */
 export const getAvailablePrinters = async () => {
   // In production, this would enumerate available HID printers
@@ -244,3 +252,5 @@ export const getAvailablePrinters = async () => {
     ]
   };
 };
+
+

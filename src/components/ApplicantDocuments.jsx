@@ -53,11 +53,7 @@ const ApplicantDocuments = ({ applicantId, applicantName }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    loadDocuments();
-  }, [applicantId]);
-
-  const loadDocuments = async () => {
+  async function loadDocuments() {
     setLoading(true);
     const result = await getApplicantDocuments(applicantId);
     if (result.success) {
@@ -66,7 +62,28 @@ const ApplicantDocuments = ({ applicantId, applicantName }) => {
       setError(result.error || 'Failed to load documents');
     }
     setLoading(false);
-  };
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchDocuments = async () => {
+      if (!applicantId) return;
+      setLoading(true);
+      const result = await getApplicantDocuments(applicantId);
+      if (!mounted) return;
+      if (result.success) {
+        setDocuments(result.data);
+      } else {
+        setError(result.error || 'Failed to load documents');
+      }
+      setLoading(false);
+    };
+
+    fetchDocuments();
+    return () => {
+      mounted = false;
+    };
+  }, [applicantId]);
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];

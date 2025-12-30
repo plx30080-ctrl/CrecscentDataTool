@@ -23,6 +23,7 @@ Deploy the indexes to your Firebase project if you see errors in the console ind
 
 ## Notes
 - The `projectId` used by the app is visible in `src/firebase.js` (`projectId: "mid-states-00821676-61ebe"`). Make sure to select the correct Firebase project when running `firebase use` or when logging in.
+- Added index for `dnrDatabase` to support queries filtering by `status` and ordering by `dateAdded` — see `firestore.indexes.json`.
 - If you prefer, you can also create indexes through the Firebase Console UI (Firestore -> Indexes -> Add Index).
 
 If you want, I can also run the deployment here (I will need Firebase CLI access and to be authenticated — let me know if you want me to proceed).

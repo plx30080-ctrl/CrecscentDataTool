@@ -42,7 +42,7 @@ const RecruiterDashboard = () => {
     if (applicants.length > 0) {
       calculateRecruiterStats();
     }
-  }, [applicants, associates, dnrList, earlyLeaves, dateRange]);
+  }, [calculateRecruiterStats, applicants.length]);
 
   const loadData = async () => {
     setLoading(true);
@@ -82,14 +82,14 @@ const RecruiterDashboard = () => {
       setDnrList(dnrData);
       setEarlyLeaves(earlyLeavesData);
     } catch (err) {
-      console.error('Error loading data:', err);
+      logger.error('Error loading data:', err);
       setError('Failed to load recruiter data');
     } finally {
       setLoading(false);
     }
   };
 
-  const filterByDateRange = (date) => {
+  const filterByDateRange = React.useCallback((date) => {
     if (!date || dateRange === 'all') return true;
     
     const itemDate = date.toDate ? date.toDate() : new Date(date);
@@ -105,9 +105,9 @@ const RecruiterDashboard = () => {
       default:
         return true;
     }
-  };
+  }, [dateRange]);
 
-  const calculateRecruiterStats = () => {
+  const calculateRecruiterStats = React.useCallback(() => {
     const recruiterMap = new Map();
 
     // Filter applicants by date range
@@ -142,8 +142,8 @@ const RecruiterDashboard = () => {
       // Check if in DNR list
       const inDnr = dnrList.some(dnr => 
         dnr.eid === applicant.eid || 
-        dnr.name?.toLowerCase().includes(applicant.firstName?.toLowerCase()) && 
-        dnr.name?.toLowerCase().includes(applicant.lastName?.toLowerCase())
+        (dnr.name?.toLowerCase().includes(applicant.firstName?.toLowerCase()) && 
+        dnr.name?.toLowerCase().includes(applicant.lastName?.toLowerCase()))
       );
       if (inDnr) {
         stats.dnr++;
@@ -157,7 +157,6 @@ const RecruiterDashboard = () => {
       if (hasEarlyLeave) {
         stats.earlyLeaves++;
       }
-
       // Check for short-term (associates who worked 1-4 days)
       const associate = associates.find(a => a.eid === applicant.eid);
       if (associate) {
@@ -184,7 +183,7 @@ const RecruiterDashboard = () => {
     // Sort by total applicants
     statsArray.sort((a, b) => b.totalApplicants - a.totalApplicants);
     setRecruiterStats(statsArray);
-  };
+  }, [applicants, associates, dnrList, earlyLeaves, filterByDateRange]);
 
   const getRetentionColor = (score) => {
     const numScore = parseFloat(score);

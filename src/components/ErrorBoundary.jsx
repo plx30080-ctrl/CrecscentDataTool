@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Typography, Button, Paper, Container } from '@mui/material';
+import logger from '../utils/logger';
 import { Error as ErrorIcon } from '@mui/icons-material';
 
 class ErrorBoundary extends React.Component {
@@ -8,12 +9,12 @@ class ErrorBoundary extends React.Component {
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    logger.error('Error caught by boundary:', error, errorInfo);
     this.setState({
       error,
       errorInfo
@@ -56,7 +57,7 @@ class ErrorBoundary extends React.Component {
               <Typography variant="body1" color="text.secondary" sx={{ marginBottom: 3 }}>
                 {this.state.error?.message || 'An unexpected error occurred'}
               </Typography>
-              {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
+              {import.meta.env.DEV && this.state.errorInfo && (
                 <Box
                   sx={{
                     textAlign: 'left',

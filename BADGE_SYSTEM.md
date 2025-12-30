@@ -23,11 +23,13 @@ The Badge Management System integrates directly into the Crescent Management Pla
 - **Issue Tracking**: Track when badges are printed and issued
 
 ### 3. Print Queue Management
-- **Fargo DTC1250e Integration**: Ready for your badge printer
+- **Fargo DTC1250e Integration**: **Print queue supported; direct printer driver (HID/WebUSB) integration is planned and currently TODO**
 - **Priority Queue**: Normal or Urgent priority levels
-- **Print Tracking**: Monitor print status and completion
+- **Print Tracking**: Monitor print status and completion (manual acknowledgement)
 - **Batch Printing**: Queue multiple badges for printing
 - **Print History**: Track when each badge was printed and by whom
+
+> **Note:** The app currently supports a print queue and a browser-based print fallback; direct card-printer SDK/HID integration is a planned enhancement (see FUTURE_WORK.md and `src/services/printService.js` for TODOs).
 
 ## How to Use
 

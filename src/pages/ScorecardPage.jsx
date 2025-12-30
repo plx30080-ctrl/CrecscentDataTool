@@ -21,18 +21,16 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { TrendingUp, TrendingDown, TrendingFlat } from '@mui/icons-material';
 import { getShiftData, getHoursData, getRecruiterData, getEarlyLeaveTrends } from '../services/firestoreService';
+import logger from '../utils/logger';
 
 const ScorecardPage = () => {
   const [startDate, setStartDate] = useState(dayjs().startOf('month'));
   const [endDate, setEndDate] = useState(dayjs());
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState(null);
+  const [newStartsSummary, setNewStartsSummary] = useState(null);
 
-  useEffect(() => {
-    loadMetrics();
-  }, [startDate, endDate]);
-
-  const loadMetrics = async () => {
+  const loadMetrics = React.useCallback(async () => {
     setLoading(true);
     const start = startDate.toDate();
     const end = endDate.toDate();
@@ -44,25 +42,52 @@ const ScorecardPage = () => {
       getEarlyLeaveTrends(start, end)
     ]);
 
+    // Get reconciled new starts summary
+    let newStartsCount = null;
+    let nsSummary = null;
+    try {
+      const mod = await import('../services/firestoreService');
+      if (mod.getNewStartsSummary) {
+        const ns = await mod.getNewStartsSummary(start, end);
+        if (ns.success) {
+          newStartsCount = ns.data.chosenCount;
+          nsSummary = ns.data;
+        }
+      }
+    } catch (err) {
+      logger.error('Failed to compute new starts summary:', err);
+    }
+
     const calculatedMetrics = calculateMetrics(
       shiftResult.data || [],
       hoursResult.data || [],
       recruiterResult.data || [],
-      earlyLeavesResult.data
+      earlyLeavesResult.data,
+      newStartsCount
     );
+
+    setNewStartsSummary(nsSummary);
 
     setMetrics(calculatedMetrics);
     setLoading(false);
-  };
+  }, [startDate, endDate]);
 
-  const calculateMetrics = (shifts, hours, recruiter, earlyLeaves) => {
+  useEffect(() => {
+    loadMetrics();
+  }, [loadMetrics]);
+
+  const calculateMetrics = (shifts, hours, recruiter, earlyLeaves, reconciledNewStarts = null) => {
     const totalShifts = shifts.length;
     const avgAttendance = totalShifts > 0 ? shifts.reduce((sum, s) => sum + (s.numberWorking || 0), 0) / totalShifts : 0;
     const totalRequested = shifts.reduce((sum, s) => sum + (s.numberRequested || 0), 0);
     const totalWorking = shifts.reduce((sum, s) => sum + (s.numberWorking || 0), 0);
     const fillRate = totalRequested > 0 ? (totalWorking / totalRequested) * 100 : 0;
 
-    const totalNewStarts = shifts.reduce((sum, s) => sum + (s.newStarts?.length || 0), 0);
+    // Use reconciled count when available (applicants > shift EIDs > on-premise), otherwise fall back to counting shift arrays
+    const totalNewStarts = typeof reconciledNewStarts === 'number'
+      ? reconciledNewStarts
+      : shifts.reduce((sum, s) => sum + (s.newStarts?.length || 0), 0);
+
     const totalSendHomes = shifts.reduce((sum, s) => sum + (s.sendHomes || 0), 0);
     const totalLineCuts = shifts.reduce((sum, s) => sum + (s.lineCuts || 0), 0);
 
@@ -155,7 +180,13 @@ const ScorecardPage = () => {
               <Grid container spacing={2} sx={{ marginTop: 1 }}>
                 <Grid item xs={6}>
                   <Card variant="outlined" sx={{ background: '#e8f5e9' }}>
-                    <CardContent><Typography color="text.secondary" variant="caption">New Starts</Typography><Typography variant="h4" color="success.main">{metrics.staffing.newStarts}</Typography></CardContent>
+                    <CardContent>
+                      <Typography color="text.secondary" variant="caption">New Starts</Typography>
+                      <Typography variant="h4" color="success.main">{metrics.staffing.newStarts}</Typography>
+                      {newStartsSummary && newStartsSummary.perShift && (
+                        <Typography variant="caption" color="text.secondary">1st: {newStartsSummary.perShift['1st']?.uniqueCount || 0} • 2nd: {newStartsSummary.perShift['2nd']?.uniqueCount || 0}</Typography>
+                      )}
+                    </CardContent>
                   </Card>
                 </Grid>
                 <Grid item xs={6}>

@@ -4,7 +4,6 @@ import {
   updateDoc,
   doc,
   getDocs,
-  getDoc,
   query,
   where,
   orderBy,
@@ -12,6 +11,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import logger from '../utils/logger';
 
 // ============ USER MANAGEMENT ============
 
@@ -30,7 +30,7 @@ export const getAllUsers = async () => {
 
     return { success: true, data: users };
   } catch (error) {
-    console.error('Error getting users:', error);
+    logger.error('Error getting users:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -58,7 +58,7 @@ export const updateUserRole = async (userId, newRole, updatedBy) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error updating user role:', error);
+    logger.error('Error updating user role:', error);
     return { success: false, error: error.message };
   }
 };
@@ -97,7 +97,7 @@ export const saveBadgeTemplate = async (templateData, userId) => {
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error saving badge template:', error);
+    logger.error('Error saving badge template:', error);
     return { success: false, error: error.message };
   }
 };
@@ -126,7 +126,7 @@ export const getActiveBadgeTemplate = async () => {
       }
     };
   } catch (error) {
-    console.error('Error getting active badge template:', error);
+    logger.error('Error getting active badge template:', error);
     return { success: false, error: error.message };
   }
 };
@@ -146,7 +146,7 @@ export const getAllBadgeTemplates = async () => {
 
     return { success: true, data: templates };
   } catch (error) {
-    console.error('Error getting badge templates:', error);
+    logger.error('Error getting badge templates:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -164,7 +164,7 @@ export const logAuditAction = async (actionData) => {
     });
     return { success: true };
   } catch (error) {
-    console.error('Error logging audit action:', error);
+    logger.error('Error logging audit action:', error);
     return { success: false, error: error.message };
   }
 };
@@ -201,7 +201,7 @@ export const getAuditLogs = async (filters = {}) => {
 
     return { success: true, data: logs };
   } catch (error) {
-    console.error('Error getting audit logs:', error);
+    logger.error('Error getting audit logs:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -239,7 +239,7 @@ export const getUserActivitySummary = async (userId, startDate, endDate) => {
 
     return { success: true, data: summary };
   } catch (error) {
-    console.error('Error getting user activity summary:', error);
+    logger.error('Error getting user activity summary:', error);
     return { success: false, error: error.message };
   }
 };

@@ -1,4 +1,5 @@
-import React, { useEffect, useState, createContext, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
+import { AuthContext } from './AuthContext';
 import { auth } from '../firebase';
 import {
   onAuthStateChanged,
@@ -14,15 +15,8 @@ import {
   updateUserLastLogin
 } from '../services/firestoreService';
 
-const AuthContext = createContext();
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);

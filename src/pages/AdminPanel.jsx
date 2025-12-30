@@ -35,13 +35,15 @@ import {
   Edit,
   Refresh
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import {
   getAllUsers,
   updateUserRole,
   getAuditLogs
 } from '../services/adminService';
+import { checkPrinterStatus, getAvailablePrinters } from '../services/printService';
 import dayjs from 'dayjs';
+import logger from '../utils/logger';
 
 const AdminPanel = () => {
   const { currentUser, userProfile } = useAuth();
@@ -65,21 +67,14 @@ const AdminPanel = () => {
   // Check if user is authorized (Market Manager or Admin only)
   const isAuthorized = userProfile && (userProfile.role === 'Market Manager' || userProfile.role === 'admin');
 
-  useEffect(() => {
-    if (isAuthorized) {
-      loadUsers();
-      loadAuditLogs();
-    }
-  }, [isAuthorized]);
-
-  const loadUsers = async () => {
+  async function loadUsers() {
     const result = await getAllUsers();
     if (result.success) {
       setUsers(result.data);
     }
-  };
+  }
 
-  const loadAuditLogs = async () => {
+  async function loadAuditLogs() {
     const filters = {};
     if (filterUserId) filters.userId = filterUserId;
     if (filterAction) filters.action = filterAction;
@@ -88,7 +83,37 @@ const AdminPanel = () => {
     if (result.success) {
       setAuditLogs(result.data);
     }
-  };
+  }
+
+  const [printerStatus, setPrinterStatus] = useState(null);
+  const [printers, setPrinters] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const init = async () => {
+      if (!isAuthorized) return;
+      setLoading(true);
+      const usersResult = await getAllUsers();
+      if (mounted && usersResult.success) setUsers(usersResult.data);
+      const auditResult = await getAuditLogs({});
+      if (mounted && auditResult.success) setAuditLogs(auditResult.data);
+
+      // Load printer status (stubbed)
+      try {
+        const status = await checkPrinterStatus();
+        if (mounted) setPrinterStatus(status);
+        const list = await getAvailablePrinters();
+        if (mounted && list.success) setPrinters(list.printers || []);
+      } catch (err) {
+        logger.warn('Printer status unavailable:', err);
+      }
+
+      setLoading(false);
+    };
+
+    init();
+    return () => { mounted = false; };
+  }, [isAuthorized]);
 
   const handleOpenRoleDialog = (user) => {
     setSelectedUser(user);
@@ -233,6 +258,31 @@ const AdminPanel = () => {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Printer status (basic stub) */}
+          <Box sx={{ marginTop: 3 }}>
+            <Typography variant="h6">Printer Status</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ marginBottom: 1 }}>Status for card printer integration (stub)</Typography>
+            {printerStatus ? (
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Typography variant="body2">{printerStatus.printerName || 'Printer'}</Typography>
+                <Chip label={printerStatus.status} size="small" color={printerStatus.connected ? 'success' : 'default'} />
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary">Printer status unavailable</Typography>
+            )}
+
+            <Typography variant="subtitle2" sx={{ marginTop: 2 }}>Available Printers</Typography>
+            {printers.length > 0 ? (
+              <List dense>
+                {printers.map(p => (
+                  <ListItem key={p.id}><ListItemText primary={p.name} secondary={p.status} /></ListItem>
+                ))}
+              </List>
+            ) : (
+              <Typography variant="body2" color="text.secondary">No printers discovered</Typography>
+            )}
+          </Box>
         </Paper>
       )}
 

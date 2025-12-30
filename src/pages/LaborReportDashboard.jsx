@@ -32,23 +32,29 @@ const LaborReportDashboard = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadReports();
-  }, []);
+    let mounted = true;
+    const doLoad = async () => {
+      setLoading(true);
+      const result = await getAllLaborReports(12); // Get last 12 reports
 
-  const loadReports = async () => {
-    setLoading(true);
-    const result = await getAllLaborReports(12); // Get last 12 reports
+      if (mounted) {
+        if (result.success) {
+          setReports(result.data);
+          if (result.data.length > 0) {
+            setSelectedReport(result.data[0]); // Select most recent by default
+          }
+        } else {
+          setError(result.error || 'Failed to load labor reports');
+        }
 
-    if (result.success) {
-      setReports(result.data);
-      if (result.data.length > 0) {
-        setSelectedReport(result.data[0]); // Select most recent by default
+        setLoading(false);
       }
-    } else {
-      setError(result.error || 'Failed to load labor reports');
-    }
-    setLoading(false);
-  };
+    };
+    doLoad();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleReportChange = (event) => {
     const reportId = event.target.value;

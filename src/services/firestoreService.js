@@ -3,7 +3,6 @@ import {
   addDoc,
   setDoc,
   updateDoc,
-  deleteDoc,
   doc,
   getDocs,
   getDoc,
@@ -11,12 +10,12 @@ import {
   where,
   orderBy,
   limit,
-  startAfter,
   Timestamp,
   writeBatch,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import logger from '../utils/logger';
 
 // ============ SHIFT DATA ============
 export const addShiftData = async (shiftData, userId) => {
@@ -29,7 +28,7 @@ export const addShiftData = async (shiftData, userId) => {
     });
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error adding shift data:', error);
+    logger.error('Error adding shift data:', error);
     return { success: false, error: error.message };
   }
 };
@@ -63,7 +62,7 @@ export const getShiftData = async (startDate, endDate, shift = null) => {
     }));
     return { success: true, data };
   } catch (error) {
-    console.error('Error getting shift data:', error);
+    logger.error('Error getting shift data:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -79,7 +78,7 @@ export const addHoursData = async (hoursData, userId) => {
     });
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error adding hours data:', error);
+    logger.error('Error adding hours data:', error);
     return { success: false, error: error.message };
   }
 };
@@ -109,7 +108,7 @@ export const getHoursData = async (startDate, endDate) => {
     }));
     return { success: true, data };
   } catch (error) {
-    console.error('Error getting hours data:', error);
+    logger.error('Error getting hours data:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -152,7 +151,7 @@ export const getAggregateHours = async (startDate, endDate, groupBy = 'day') => 
 
     return { success: true, data: aggregated };
   } catch (error) {
-    console.error('Error aggregating hours:', error);
+    logger.error('Error aggregating hours:', error);
     return { success: false, error: error.message };
   }
 };
@@ -168,7 +167,7 @@ export const addRecruiterData = async (recruiterData, userId) => {
     });
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error adding recruiter data:', error);
+    logger.error('Error adding recruiter data:', error);
     return { success: false, error: error.message };
   }
 };
@@ -194,7 +193,7 @@ export const getRecruiterData = async (startDate, endDate, recruiterId = null) =
     }));
     return { success: true, data };
   } catch (error) {
-    console.error('Error getting recruiter data:', error);
+    logger.error('Error getting recruiter data:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -211,7 +210,7 @@ export const addEarlyLeave = async (earlyLeaveData, userId) => {
     });
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error adding early leave:', error);
+    logger.error('Error adding early leave:', error);
     return { success: false, error: error.message };
   }
 };
@@ -238,7 +237,7 @@ export const getEarlyLeaves = async (startDate, endDate, associateId = null) => 
     }));
     return { success: true, data };
   } catch (error) {
-    console.error('Error getting early leaves:', error);
+    logger.error('Error getting early leaves:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -285,7 +284,7 @@ export const getEarlyLeaveTrends = async (startDate, endDate) => {
 
     return { success: true, data: trends };
   } catch (error) {
-    console.error('Error calculating early leave trends:', error);
+    logger.error('Error calculating early leave trends:', error);
     return { success: false, error: error.message };
   }
 };
@@ -306,7 +305,7 @@ export const addApplicant = async (applicantData, userId) => {
     });
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error adding applicant:', error);
+    logger.error('Error adding applicant:', error);
     return { success: false, error: error.message };
   }
 };
@@ -320,7 +319,7 @@ export const updateApplicant = async (applicantId, updates) => {
     });
     return { success: true };
   } catch (error) {
-    console.error('Error updating applicant:', error);
+    logger.error('Error updating applicant:', error);
     return { success: false, error: error.message };
   }
 };
@@ -351,7 +350,7 @@ export const getApplicants = async (status = null) => {
     }));
     return { success: true, data };
   } catch (error) {
-    console.error('Error getting applicants:', error);
+    logger.error('Error getting applicants:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -404,7 +403,7 @@ export const getApplicantPipeline = async () => {
 
     return { success: true, data: pipeline };
   } catch (error) {
-    console.error('Error calculating applicant pipeline:', error);
+    logger.error('Error calculating applicant pipeline:', error);
     return { success: false, error: error.message };
   }
 };
@@ -470,7 +469,7 @@ export const bulkUploadApplicants = async (applicants, userId, replaceAll = fals
 
     return { success: true, count: applicants.length };
   } catch (error) {
-    console.error('Error bulk uploading applicants:', error);
+    logger.error('Error bulk uploading applicants:', error);
     return { success: false, error: error.message };
   }
 };
@@ -499,7 +498,7 @@ export const checkDuplicateApplicants = async (crmNumbers) => {
 
     return { success: true, duplicates };
   } catch (error) {
-    console.error('Error checking duplicates:', error);
+    logger.error('Error checking duplicates:', error);
     return { success: false, error: error.message, duplicates: [] };
   }
 };
@@ -517,7 +516,7 @@ export const addAssociate = async (associateData) => {
     });
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error adding associate:', error);
+    logger.error('Error adding associate:', error);
     return { success: false, error: error.message };
   }
 };
@@ -538,7 +537,7 @@ export const getAssociates = async (status = 'Active') => {
     }));
     return { success: true, data };
   } catch (error) {
-    console.error('Error getting associates:', error);
+    logger.error('Error getting associates:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -556,40 +555,40 @@ export const createUserProfile = async (uid, email, displayName, role = 'On-Site
     });
     return { success: true };
   } catch (error) {
-    console.error('Error creating user profile:', error);
+    logger.error('Error creating user profile:', error);
     return { success: false, error: error.message };
   }
 };
 
 export const getUserProfile = async (uid) => {
   try {
-    console.log('getUserProfile called with UID:', uid);
+    logger.debug('getUserProfile called with UID:', uid);
 
     // First try to get document by UID as document ID
     const docRef = doc(db, 'users', uid);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      console.log('Found user by direct UID lookup:', docSnap.data());
+      logger.debug('Found user by direct UID lookup:', docSnap.data());
       return { success: true, data: { id: docSnap.id, ...docSnap.data() } };
     }
 
-    console.log('User not found by direct UID, trying query...');
+    logger.debug('User not found by direct UID, trying query...');
 
     // Fall back to querying by uid field (for older user documents)
     const q = query(collection(db, 'users'), where('uid', '==', uid), limit(1));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
-      console.log('User not found by query either');
+      logger.debug('User not found by query either');
       return { success: false, error: 'User not found' };
     }
 
     const userData = querySnapshot.docs[0].data();
-    console.log('Found user by query:', userData);
+    logger.debug('Found user by query:', userData);
     return { success: true, data: { id: querySnapshot.docs[0].id, ...userData } };
   } catch (error) {
-    console.error('Error getting user profile:', error);
+    logger.error('Error getting user profile:', error);
     return { success: false, error: error.message };
   }
 };
@@ -619,7 +618,7 @@ export const updateUserLastLogin = async (uid) => {
     }
     return { success: true };
   } catch (error) {
-    console.error('Error updating last login:', error);
+    logger.error('Error updating last login:', error);
     return { success: false, error: error.message };
   }
 };
@@ -650,8 +649,112 @@ export const getOnPremiseData = async (startDate, endDate) => {
     }));
     return { success: true, data };
   } catch (error) {
-    console.error('Error getting on-premise data:', error);
+    logger.error('Error getting on-premise data:', error);
     return { success: false, error: error.message, data: [] };
+  }
+};
+
+// Consolidated New Starts Summary
+// TODO: Add unit tests for getNewStartsSummary covering edge cases: no applicants, duplicate shift EIDs, and on-premise fallbacks.
+export const computeNewStartsSummary = (shiftResult, onPremResult, applicantsCount) => {
+  // Compute shift-based new starts and collect EIDs when available
+  let shiftCount = 0;
+  const shiftEids = new Set();
+  const perShift = {}; // e.g., { '1st': { shiftCount: X, uniqueCount: Y, sampleEids: [] }, '2nd': {...} }
+
+  if (shiftResult && shiftResult.success) {
+    shiftResult.data.forEach(s => {
+      const ns = s.newStarts;
+      const shiftKey = s.shift || 'Unknown';
+      if (!perShift[shiftKey]) perShift[shiftKey] = { shiftCount: 0, eids: new Set() };
+
+      if (Array.isArray(ns)) {
+        shiftCount += ns.length;
+        perShift[shiftKey].shiftCount += ns.length;
+        ns.forEach(item => {
+          if (item && item.eid) {
+            shiftEids.add(item.eid);
+            perShift[shiftKey].eids.add(item.eid);
+          }
+        });
+      } else if (typeof ns === 'number') {
+        shiftCount += ns;
+        perShift[shiftKey].shiftCount += ns;
+      }
+    });
+  }
+
+  // Convert perShift eids sets to counts and samples
+  const perShiftSummary = {};
+  Object.keys(perShift).forEach(k => {
+    const eidsSet = perShift[k].eids || new Set();
+    perShiftSummary[k] = {
+      shiftCount: perShift[k].shiftCount,
+      uniqueCount: eidsSet.size,
+      sampleEids: Array.from(eidsSet).slice(0, 100)
+    };
+  });
+
+  const shiftUniqueCount = shiftEids.size;
+
+  // Sum numeric newStarts from on-premise data
+  let onPremCount = 0;
+  if (onPremResult && onPremResult.success) {
+    onPremCount = onPremResult.data.reduce((sum, d) => sum + (parseInt(d.newStarts) || 0), 0);
+  }
+
+  // Choose authoritative source: applicants (detailed start records) > shift EIDs > on-premise counts
+  let chosenBy = 'onPremise';
+  let chosenCount = onPremCount;
+  if (applicantsCount > 0) {
+    chosenBy = 'applicants';
+    chosenCount = applicantsCount;
+  } else if (shiftUniqueCount > 0) {
+    chosenBy = 'shifts';
+    chosenCount = shiftUniqueCount;
+  }
+
+  return {
+    applicantsCount,
+    shiftCount,
+    shiftUniqueCount,
+    onPremCount,
+    chosenCount,
+    chosenBy,
+    sampleShiftEids: Array.from(shiftEids).slice(0, 100),
+    perShift: perShiftSummary
+  };
+};
+
+export const getNewStartsSummary = async (startDate, endDate) => {
+  try {
+    // Normalize dates
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // Fetch shifts and on-premise in parallel
+    const [shiftResult, onPremResult] = await Promise.all([
+      getShiftData(start, end),
+      getOnPremiseData(start, end)
+    ]);
+
+    // Applicants with actualStartDate in range
+    const applicantsQuery = query(
+      collection(db, 'applicants'),
+      where('actualStartDate', '>=', Timestamp.fromDate(start)),
+      where('actualStartDate', '<=', Timestamp.fromDate(end))
+    );
+    const applicantsSnapshot = await getDocs(applicantsQuery);
+    const applicantsCount = applicantsSnapshot.size;
+
+    const summary = computeNewStartsSummary(shiftResult, onPremResult, applicantsCount);
+
+    return { success: true, data: summary };
+  } catch (error) {
+    logger.error('Error getting new starts summary:', error);
+    return { success: false, error: error.message };
   }
 };
 
@@ -681,7 +784,7 @@ export const getBranchDailyData = async (startDate, endDate) => {
     }));
     return { success: true, data };
   } catch (error) {
-    console.error('Error getting branch daily data:', error);
+    logger.error('Error getting branch daily data:', error);
     return { success: false, error: error.message, data: [] };
   }
 };

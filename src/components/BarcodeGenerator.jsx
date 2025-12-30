@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import JsBarcode from 'jsbarcode';
+import logger from '../utils/logger';
 
 const BarcodeGenerator = ({
   value,
@@ -25,7 +26,7 @@ const BarcodeGenerator = ({
           lineColor: '#000000'
         });
       } catch (error) {
-        console.error('Barcode generation error:', error);
+        logger.error('Barcode generation error:', error);
       }
     }
   }, [value, width, height, displayValue, fontSize, margin]);

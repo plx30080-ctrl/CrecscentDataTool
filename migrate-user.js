@@ -1,3 +1,4 @@
+/* global process */
 // Migration script to fix user document structure
 // Run this with: node migrate-user.js
 

@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
+import logger from '../../utils/logger';
 import { submitBranchDaily } from '../../services/dataEntryService';
 
 const BranchDailyForm = () => {
@@ -60,7 +61,7 @@ const BranchDailyForm = () => {
         setMessage({ type: 'error', text: result.error || 'Failed to submit data' });
       }
     } catch (error) {
-      console.error('Submit error:', error);
+      logger.error('Submit error:', error);
       setMessage({ type: 'error', text: error.message || 'An error occurred during submission' });
     } finally {
       setLoading(false);

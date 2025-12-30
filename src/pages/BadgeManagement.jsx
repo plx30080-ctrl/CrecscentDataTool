@@ -43,11 +43,10 @@ import {
   Person,
   Badge as BadgeIcon
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import {
   createBadge,
   searchBadges,
-  getBadgeByEID,
   updateBadgeStatus,
   addToPrintQueue,
   getPrintQueue,
@@ -100,11 +99,34 @@ const BadgeManagement = () => {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  useEffect(() => {
-    if (tabValue === 2) {
-      loadPrintQueue();
+  async function loadPrintQueue() {
+    const result = await getPrintQueue();
+    if (result.success) {
+      setPrintQueue(result.data);
     }
-    loadStats();
+  }
+
+  async function loadStats() {
+    const result = await getBadgeStats();
+    if (result.success) {
+      setBadgeStats(result.data);
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (tabValue === 2) {
+        const result = await getPrintQueue();
+        if (mounted && result.success) setPrintQueue(result.data);
+      }
+      const stats = await getBadgeStats();
+      if (mounted && stats.success) setBadgeStats(stats.data);
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
   }, [tabValue]);
 
   useEffect(() => {
@@ -114,20 +136,6 @@ const BadgeManagement = () => {
       }
     };
   }, []);
-
-  const loadPrintQueue = async () => {
-    const result = await getPrintQueue();
-    if (result.success) {
-      setPrintQueue(result.data);
-    }
-  };
-
-  const loadStats = async () => {
-    const result = await getBadgeStats();
-    if (result.success) {
-      setBadgeStats(result.data);
-    }
-  };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -141,7 +149,7 @@ const BadgeManagement = () => {
         streamRef.current = stream;
       }
       setUseWebcam(true);
-    } catch (err) {
+    } catch {
       setError('Failed to access webcam. Please check permissions.');
     }
   };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Typography, Grid, Card, CardContent, CardActions, Button, Paper, Box, Chip } from '@mui/material';
 import { Dashboard, Assessment, People, CloudUpload, AddCircle, TrendingUp, Badge } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import { getOnPremiseData, getApplicantPipeline } from '../services/firestoreService';
 import dayjs from 'dayjs';
 
@@ -13,25 +13,27 @@ const EnhancedHome = () => {
   const [pipeline, setPipeline] = useState(null);
 
   useEffect(() => {
-    loadQuickStats();
+    let mounted = true;
+    const doLoad = async () => {
+      const today = new Date();
+      const result = await getOnPremiseData(today, today);
+      const pipelineResult = await getApplicantPipeline();
+
+      if (mounted && result.success) {
+        const todayData = result.data;
+        const totalWorking = todayData.reduce((sum, s) => sum + (s.working || 0), 0);
+        setTodayStats({ shiftsRecorded: todayData.length, totalWorking });
+      }
+
+      if (mounted && pipelineResult.success) {
+        setPipeline(pipelineResult.data);
+      }
+    };
+    doLoad();
+    return () => {
+      mounted = false;
+    };
   }, []);
-
-  const loadQuickStats = async () => {
-    const today = new Date();
-    const result = await getOnPremiseData(today, today);
-    const pipelineResult = await getApplicantPipeline();
-
-    if (result.success) {
-      const todayData = result.data;
-      // onPremiseData uses 'working' field, not 'numberWorking'
-      const totalWorking = todayData.reduce((sum, s) => sum + (s.working || 0), 0);
-      setTodayStats({ shiftsRecorded: todayData.length, totalWorking });
-    }
-
-    if (pipelineResult.success) {
-      setPipeline(pipelineResult.data);
-    }
-  };
 
   const quickActions = [
     {

@@ -25,11 +25,12 @@ import {
 } from '@mui/material';
 import { Add, Delete, RestoreFromTrash, Block } from '@mui/icons-material';
 import dayjs from 'dayjs';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import {
   getDNRDatabase,
   addToDNR,
-  removeFromDNR
+  removeFromDNR,
+  restoreFromDNR
 } from '../services/earlyLeaveService';
 
 const DNRManagement = () => {
@@ -48,15 +49,25 @@ const DNRManagement = () => {
   });
 
   useEffect(() => {
-    loadData();
+    let mounted = true;
+    const doLoad = async () => {
+      const result = await getDNRDatabase(showRemoved);
+      if (mounted && result.success) {
+        setDnrEntries(result.data);
+      }
+    };
+    doLoad();
+    return () => {
+      mounted = false;
+    };
   }, [showRemoved]);
 
-  const loadData = async () => {
+  async function loadData() {
     const result = await getDNRDatabase(showRemoved);
     if (result.success) {
       setDnrEntries(result.data);
     }
-  };
+  }
 
   const handleOpenDialog = () => {
     setFormData({
@@ -125,9 +136,17 @@ const DNRManagement = () => {
   };
 
   const handleRestore = async (dnrId) => {
-    // To restore, we'd need to update status back to Active
-    // This would require a new service function
-    setError('Restore functionality not yet implemented');
+    // Restore the DNR entry back to Active
+    const notes = window.prompt('Optional: Enter a note about why you are restoring this entry (press Cancel to abort)');
+    if (notes === null) return; // user cancelled
+
+    const result = await restoreFromDNR(dnrId, currentUser.uid, notes || 'Restored by user');
+    if (result.success) {
+      setSuccess('DNR entry restored successfully');
+      loadData();
+    } else {
+      setError(result.error || 'Failed to restore DNR entry');
+    }
   };
 
   const activeEntries = dnrEntries.filter(entry => entry.status === 'Active');

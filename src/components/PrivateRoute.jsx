@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import { CircularProgress, Box } from '@mui/material';
 
 const PrivateRoute = ({ children, requiredRoles = null }) => {

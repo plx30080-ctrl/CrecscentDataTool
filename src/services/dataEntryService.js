@@ -1,4 +1,5 @@
 import { db } from '../firebase';
+import logger from '../utils/logger';
 import {
   collection,
   addDoc,
@@ -65,10 +66,10 @@ const syncApplicantStatuses = async (employeeIds) => {
       }
     }
 
-    console.log(`Updated ${updatedCount} applicant statuses to "Started"`);
+    logger.info(`Updated ${updatedCount} applicant statuses to "Started"`);
     return { success: true, updatedCount };
   } catch (error) {
-    console.error('Error syncing applicant statuses:', error);
+    logger.error('Error syncing applicant statuses:', error);
     return { success: false, error: error.message };
   }
 };
@@ -116,7 +117,7 @@ export const submitOnPremiseData = async (formData, file) => {
       employeesProcessed: employeeData ? employeeData.length : 0
     };
   } catch (error) {
-    console.error('Error submitting on premise data:', error);
+    logger.error('Error submitting on premise data:', error);
     return { success: false, error: error.message };
   }
 };
@@ -194,7 +195,7 @@ export const submitLaborReport = async (data) => {
 
     return { success: true, id: docRef.id, statusesUpdated };
   } catch (error) {
-    console.error('Error submitting labor report:', error);
+    logger.error('Error submitting labor report:', error);
     return { success: false, error: error.message };
   }
 };
@@ -229,7 +230,7 @@ export const submitBranchDaily = async (formData) => {
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error submitting branch daily:', error);
+    logger.error('Error submitting branch daily:', error);
     return { success: false, error: error.message };
   }
 };
@@ -261,7 +262,7 @@ export const submitBranchWeekly = async (formData) => {
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error submitting branch weekly:', error);
+    logger.error('Error submitting branch weekly:', error);
     return { success: false, error: error.message };
   }
 };

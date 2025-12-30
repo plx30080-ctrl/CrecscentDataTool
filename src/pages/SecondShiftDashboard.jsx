@@ -17,8 +17,9 @@ import {
 } from '@mui/material';
 import { TrendingUp, AccessTime, People } from '@mui/icons-material';
 import { Line } from 'react-chartjs-2';
-import { getShiftData, getOnPremiseData } from '../services/firestoreService';
+import { getOnPremiseData } from '../services/firestoreService';
 import dayjs from 'dayjs';
+import logger from '../utils/logger';
 
 const SecondShiftDashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -57,7 +58,7 @@ const SecondShiftDashboard = () => {
         setShiftData(mappedData);
       }
     } catch (err) {
-      console.error('Error loading 2nd shift data:', err);
+      logger.error('Error loading 2nd shift data:', err);
       setError('Failed to load 2nd shift data');
     } finally {
       setLoading(false);
@@ -83,6 +84,8 @@ const SecondShiftDashboard = () => {
 
   const onPremiseHours = onPremiseData.reduce((sum, d) => sum + (d.onPremise || 0), 0);
   const onPremiseAvg = onPremiseData.length > 0 ? (onPremiseHours / onPremiseData.length).toFixed(1) : 0;
+
+  const totalNewStarts = onPremiseData.reduce((sum, d) => sum + (parseInt(d.newStarts) || 0), 0);
 
   const chartLabels = shiftData.map(d => dayjs(d.date).format('MMM DD'));
   const chartData = {
@@ -154,6 +157,20 @@ const SecondShiftDashboard = () => {
               <Typography variant="h4">{totalHours.toFixed(0)}</Typography>
               <Typography variant="body2" color="text.secondary">
                 Avg: {avgHoursPerDay} hrs/day
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
+                <People sx={{ marginRight: 1, color: 'success.main' }} />
+                <Typography variant="h6">New Starts</Typography>
+              </Box>
+              <Typography variant="h4">{totalNewStarts}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                On-premise reported
               </Typography>
             </CardContent>
           </Card>

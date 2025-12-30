@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { Print as PrintIcon } from '@mui/icons-material';
 import BadgePreview from './BadgePreview';
+import logger from '../utils/logger';
 import { getDefaultTemplate, generateBadgeId } from '../services/badgeService';
 import { sendToPrinter } from '../services/printService';
 
@@ -59,7 +60,7 @@ const BadgePrintPreview = ({ open, onClose, badge, onPrintSuccess }) => {
       }
     } catch (err) {
       setError('An error occurred while printing');
-      console.error('Print error:', err);
+      logger.error('Print error:', err);
     } finally {
       setPrinting(false);
     }

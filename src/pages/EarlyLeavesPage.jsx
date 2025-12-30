@@ -25,19 +25,19 @@ import {
   InputLabel,
   Select,
   Card,
-  CardContent
+  CardContent,
+  CircularProgress
 } from '@mui/material';
 import { Add, Edit, Delete, Search, TrendingUp, Warning } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import {
   getEarlyLeaves,
   createEarlyLeave,
   updateEarlyLeave,
   deleteEarlyLeave,
-  searchEarlyLeaves,
   getEarlyLeaveStats
 } from '../services/earlyLeaveService';
 
@@ -82,15 +82,7 @@ const EarlyLeavesPage = () => {
     days90: 0
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [earlyLeaves, searchTerm, shiftFilter, actionFilter]);
-
-  const loadData = async () => {
+  async function loadData() {
     setLoading(true);
     const result = await getEarlyLeaves();
     const statsResult = await getEarlyLeaveStats();
@@ -104,9 +96,9 @@ const EarlyLeavesPage = () => {
     }
 
     setLoading(false);
-  };
+  }
 
-  const applyFilters = () => {
+  const applyFilters = React.useCallback(() => {
     let filtered = [...earlyLeaves];
 
     if (searchTerm) {
@@ -127,7 +119,35 @@ const EarlyLeavesPage = () => {
     }
 
     setFilteredLeaves(filtered);
-  };
+  }, [earlyLeaves, searchTerm, shiftFilter, actionFilter]);
+
+  useEffect(() => {
+    let mounted = true;
+    const doLoad = async () => {
+      setLoading(true);
+      const result = await getEarlyLeaves();
+      const statsResult = await getEarlyLeaveStats();
+
+      if (mounted && result.success) {
+        setEarlyLeaves(result.data);
+      }
+
+      if (mounted && statsResult.success) {
+        setStats(statsResult.data);
+      }
+
+      if (mounted) setLoading(false);
+    };
+    doLoad();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => applyFilters(), 0);
+    return () => clearTimeout(timer);
+  }, [applyFilters]);
 
   const handleOpenDialog = (leave = null) => {
     if (leave) {
@@ -228,6 +248,14 @@ const EarlyLeavesPage = () => {
       setError(result.error);
     }
   };
+
+  if (loading) {
+    return (
+      <Container maxWidth="xl" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
 
   const getActionColor = (action) => {
     switch (action) {

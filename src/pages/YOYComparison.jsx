@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { CompareArrows, TrendingUp, TrendingDown } from '@mui/icons-material';
 import { Line, Bar } from 'react-chartjs-2';
-import { getShiftData, getHoursData } from '../services/firestoreService';
+import { getHoursData } from '../services/firestoreService';
 import dayjs from 'dayjs';
 
 const YOYComparison = () => {
@@ -73,7 +73,7 @@ const YOYComparison = () => {
         setPriorYearData(priorResult.data || []);
       }
     } catch (err) {
-      console.error('Error loading YOY data:', err);
+      logger.error('Error loading YOY data:', err);
       setError('Failed to load year-over-year comparison data');
     } finally {
       setLoading(false);

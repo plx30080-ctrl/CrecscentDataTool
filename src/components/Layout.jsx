@@ -13,7 +13,7 @@ import {
   Chip
 } from '@mui/material';
 import { AccountCircle } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 
 const Layout = () => {
   const { currentUser, userProfile, logout } = useAuth();

@@ -13,6 +13,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import logger from '../utils/logger';
 
 // ============ EARLY LEAVES MANAGEMENT ============
 
@@ -42,7 +43,7 @@ export const createEarlyLeave = async (earlyLeaveData, userId) => {
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error creating early leave:', error);
+    logger.error('Error creating early leave:', error);
     return { success: false, error: error.message };
   }
 };
@@ -74,7 +75,7 @@ export const updateEarlyLeave = async (earlyLeaveId, updates, userId) => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error updating early leave:', error);
+    logger.error('Error updating early leave:', error);
     return { success: false, error: error.message };
   }
 };
@@ -87,7 +88,7 @@ export const deleteEarlyLeave = async (earlyLeaveId) => {
     await deleteDoc(doc(db, 'earlyLeaves', earlyLeaveId));
     return { success: true };
   } catch (error) {
-    console.error('Error deleting early leave:', error);
+    logger.error('Error deleting early leave:', error);
     return { success: false, error: error.message };
   }
 };
@@ -126,7 +127,7 @@ export const getEarlyLeaves = async (filters = {}) => {
 
     return { success: true, data: earlyLeaves };
   } catch (error) {
-    console.error('Error getting early leaves:', error);
+    logger.error('Error getting early leaves:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -175,7 +176,7 @@ export const searchEarlyLeaves = async (searchTerm) => {
 
     return { success: true, data: earlyLeaves };
   } catch (error) {
-    console.error('Error searching early leaves:', error);
+    logger.error('Error searching early leaves:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -221,7 +222,7 @@ export const getEarlyLeaveStats = async () => {
 
     return { success: true, data: stats };
   } catch (error) {
-    console.error('Error getting early leave stats:', error);
+    logger.error('Error getting early leave stats:', error);
     return { success: false, error: error.message };
   }
 };
@@ -257,7 +258,7 @@ export const addToDNR = async (dnrData, userId) => {
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    console.error('Error adding to DNR:', error);
+    logger.error('Error adding to DNR:', error);
     return { success: false, error: error.message };
   }
 };
@@ -277,7 +278,29 @@ export const removeFromDNR = async (dnrId, userId, notes = '') => {
 
     return { success: true };
   } catch (error) {
-    console.error('Error removing from DNR:', error);
+    logger.error('Error removing from DNR:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Restore DNR entry back to Active
+ */
+export const restoreFromDNR = async (dnrId, userId, notes = '') => {
+  try {
+    const docRef = doc(db, 'dnrDatabase', dnrId);
+    await updateDoc(docRef, {
+      status: 'Active',
+      removedAt: null,
+      removedBy: null,
+      restoredAt: serverTimestamp(),
+      restoredBy: userId,
+      notes: notes
+    });
+
+    return { success: true };
+  } catch (error) {
+    logger.error('Error restoring from DNR:', error);
     return { success: false, error: error.message };
   }
 };
@@ -308,7 +331,7 @@ export const getDNRDatabase = async (includeRemoved = false) => {
 
     return { success: true, data: dnrEntries };
   } catch (error) {
-    console.error('Error getting DNR database:', error);
+    logger.error('Error getting DNR database:', error);
     return { success: false, error: error.message, data: [] };
   }
 };
@@ -366,7 +389,7 @@ export const checkDNR = async (eid, name) => {
       matches: matches
     };
   } catch (error) {
-    console.error('Error checking DNR:', error);
+    logger.error('Error checking DNR:', error);
     return { success: false, error: error.message, isDNR: false, matches: [] };
   }
 };

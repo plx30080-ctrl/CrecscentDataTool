@@ -1,4 +1,5 @@
-import { getShiftData, getHoursData, getApplicants } from './firestoreService';
+import { getShiftData, getHoursData, getApplicants, getNewStartsSummary } from './firestoreService';
+import logger from '../utils/logger';
 
 /**
  * Generate staffing forecast based on historical data and trends
@@ -23,11 +24,20 @@ export const generateForecast = async (forecastStartDate, forecastDays = 30) => 
     }
 
     const shiftData = shiftResult.data;
-    const hoursData = hoursResult.data;
     const applicants = applicantsResult.data || [];
 
     // Calculate key metrics
-    const metrics = calculateMetrics(shiftData, hoursData);
+    const metrics = calculateMetrics(shiftData);
+
+    // Reconcile new starts across sources to compute a more accurate avgNewStarts
+    try {
+      const ns = await getNewStartsSummary(historicalStartDate, forecastStartDate);
+      if (ns.success) {
+        metrics.avgNewStarts = ns.data.chosenCount / Math.max(1, shiftData.length);
+      }
+    } catch (err) {
+      logger.warn('Unable to reconcile new starts for forecast:', err);
+    }
 
     // Detect seasonal trends
     const seasonalTrend = detectSeasonalTrend(shiftData);
@@ -75,7 +85,7 @@ export const generateForecast = async (forecastStartDate, forecastDays = 30) => 
       }
     };
   } catch (error) {
-    console.error('Error generating forecast:', error);
+    logger.error('Error generating forecast:', error);
     return {
       success: false,
       error: error.message
@@ -86,7 +96,7 @@ export const generateForecast = async (forecastStartDate, forecastDays = 30) => 
 /**
  * Calculate key metrics from historical shift data
  */
-function calculateMetrics(shiftData, hoursData) {
+function calculateMetrics(shiftData) {
   if (shiftData.length === 0) {
     return {
       avgHeadcount: 0,

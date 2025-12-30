@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Typography, Container, Button, Paper, Box, Alert, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab } from '@mui/material';
 import { CloudUpload, CheckCircle, People, BarChart } from '@mui/icons-material';
 import Papa from 'papaparse';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import { addShiftData, addHoursData } from '../services/firestoreService';
 import ApplicantBulkUpload from '../components/ApplicantBulkUpload';
+import logger from '../utils/logger';
 
 const EnhancedUpload = () => {
   const { currentUser } = useAuth();
@@ -68,7 +69,7 @@ const EnhancedUpload = () => {
     let failCount = 0;
     const errors = [];
 
-    console.log(`Starting bulk upload of ${data.length} rows...`);
+    logger.info(`Starting bulk upload of ${data.length} rows...`);
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
@@ -77,7 +78,7 @@ const EnhancedUpload = () => {
         const date = new Date(row.date);
         if (isNaN(date.getTime())) {
           const errorMsg = `Row ${i + 1}: Invalid date "${row.date}"`;
-          console.error(errorMsg);
+          logger.error(errorMsg);
           errors.push(errorMsg);
           failCount++;
           continue;
@@ -92,8 +93,8 @@ const EnhancedUpload = () => {
               if (!Array.isArray(newStarts)) {
                 newStarts = [];
               }
-            } catch (e) {
-              console.warn(`Row ${i + 1}: Failed to parse newStarts, using empty array:`, row.newStarts);
+            } catch (err) {
+              logger.warn(`Row ${i + 1}: Failed to parse newStarts, using empty array:`, row.newStarts, err);
               newStarts = [];
             }
           }
@@ -134,18 +135,18 @@ const EnhancedUpload = () => {
 
         successCount++;
         if (successCount % 10 === 0) {
-          console.log(`Uploaded ${successCount}/${data.length} rows...`);
+          logger.info(`Uploaded ${successCount}/${data.length} rows...`);
         }
       } catch (err) {
         const errorMsg = `Row ${i + 1} (${row.date} ${row.shift}): ${err.message}`;
-        console.error(errorMsg);
+        logger.error(errorMsg);
         errors.push(errorMsg);
         failCount++;
       }
     }
 
     setUploading(false);
-    console.log(`Upload complete: ${successCount} succeeded, ${failCount} failed`);
+    logger.info(`Upload complete: ${successCount} succeeded, ${failCount} failed`);
 
     if (successCount > 0) {
       let message = `✅ Successfully uploaded ${successCount} records!`;
@@ -157,7 +158,7 @@ const EnhancedUpload = () => {
 
       // Show first few errors if any
       if (errors.length > 0) {
-        console.error('Upload errors:', errors);
+        logger.error('Upload errors:', errors);
       }
     } else {
       setError(`❌ Failed to upload data. ${failCount} records failed. Check the console for details.`);

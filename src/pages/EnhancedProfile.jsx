@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Container, Typography, Paper, Box, TextField, Button, Alert, Avatar, Chip } from '@mui/material';
 import { AccountCircle, Email, Work } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import FixMyUserProfile from '../utils/FixMyUserProfile';
 
 const EnhancedProfile = () => {
@@ -18,7 +18,7 @@ const EnhancedProfile = () => {
       <FixMyUserProfile />
 
       {/* Debug info - remove this after fixing */}
-      {process.env.NODE_ENV === 'development' && (
+      {import.meta.env.DEV && (
         <Alert severity="info" sx={{ marginBottom: 2 }}>
           <Typography variant="caption" component="pre" sx={{ fontSize: '0.7rem' }}>
             {JSON.stringify(userProfile, null, 2)}

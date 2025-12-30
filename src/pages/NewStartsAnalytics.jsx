@@ -20,6 +20,7 @@ import { Bar } from 'react-chartjs-2';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import dayjs from 'dayjs';
+import logger from '../utils/logger';
 
 const NewStartsAnalytics = () => {
   const [loading, setLoading] = useState(true);
@@ -27,12 +28,9 @@ const NewStartsAnalytics = () => {
   const [applicants, setApplicants] = useState([]);
   const [associates, setAssociates] = useState([]);
   const [metrics, setMetrics] = useState(null);
+  const [newStartsSummary, setNewStartsSummary] = useState(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -60,15 +58,31 @@ const NewStartsAnalytics = () => {
 
       setApplicants(applicantsData);
       setAssociates(associatesData);
+
+      // Cross-source new starts reconciliation for debugging
+      try {
+        const mod = await import('../services/firestoreService');
+        if (mod.getNewStartsSummary) {
+          const ns = await mod.getNewStartsSummary(dayjs().subtract(90, 'day').toDate(), new Date());
+          if (ns.success) setNewStartsSummary(ns.data);
+        }
+      } catch (err) {
+        logger.error('Failed to get new starts summary:', err);
+      }
       
       calculateMetrics(applicantsData, associatesData);
     } catch (err) {
-      console.error('Error loading new starts data:', err);
+      logger.error('Error loading new starts data:', err);
       setError('Failed to load new starts analytics');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
 
   const calculateMetrics = (applicantsData, associatesData) => {
     const metrics = {
@@ -144,7 +158,7 @@ const NewStartsAnalytics = () => {
     metrics.secondDayEligible = secondDayEligible;
     metrics.secondWeekEligible = secondWeekEligible;
 
-    console.log('New Starts Debug:', {
+    logger.debug('New Starts Debug:', {
       totalApplicants: applicantsData.length,
       missingProcessDates: metrics.missingProcessDates,
       missingTentativeStartDates: metrics.missingTentativeStartDates,
@@ -301,6 +315,27 @@ const NewStartsAnalytics = () => {
         <Typography variant="h6" gutterBottom>
           Started Applicants ({applicants.length})
         </Typography>
+
+        {/* New starts reconciliation debug */}
+        {newStartsSummary && (
+          <Box sx={{ marginBottom: 2 }}>
+            <Alert severity="info">
+              <strong>New Starts Reconciliation (last 90 days):</strong>
+              <div>Applicants started: <strong>{newStartsSummary.applicantsCount}</strong></div>
+              <div>Shift new starts (total array items): <strong>{newStartsSummary.shiftCount}</strong></div>
+              <div>Shift unique EIDs: <strong>{newStartsSummary.shiftUniqueCount}</strong></div>
+              <div>On-premise reported new starts: <strong>{newStartsSummary.onPremCount}</strong></div>
+              <div>Authoritative count chosen: <strong>{newStartsSummary.chosenCount}</strong> (source: {newStartsSummary.chosenBy})</div>
+              {/* Per-shift breakdown */}
+              {newStartsSummary.perShift && Object.keys(newStartsSummary.perShift).map(shiftKey => (
+                <div key={shiftKey}>
+                  <strong>{shiftKey}:</strong> {newStartsSummary.perShift[shiftKey].shiftCount} new starts, unique: {newStartsSummary.perShift[shiftKey].uniqueCount}
+                </div>
+              ))}
+            </Alert>
+          </Box>
+        )}
+
         <TableContainer>
           <Table size="small">
             <TableHead>

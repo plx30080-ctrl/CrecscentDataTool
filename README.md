@@ -68,6 +68,13 @@ A comprehensive, production-ready workforce management system built with React, 
    npm run dev
    ```
 
+### Testing
+- Run unit tests with Vitest:
+  ```bash
+  npm test
+  ```
+- Note: Unit tests for `computeNewStartsSummary` exist under `src/services/__tests__` and are run by the `npm test` script.
+
 5. **First-time setup**
    - Sign up for an account
    - Go to Firebase Console → Firestore → `users` collection

@@ -10,7 +10,7 @@ import {
   Alert,
   Link
 } from '@mui/material';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 
 const Login = () => {
   const [email, setEmail] = useState('');

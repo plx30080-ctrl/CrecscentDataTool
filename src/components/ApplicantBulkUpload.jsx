@@ -29,9 +29,10 @@ import {
 import { CloudUpload, CheckCircle, Warning, Info, Block } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { parseISO, isValid, format } from 'date-fns';
-import { useAuth } from '../contexts/AuthProvider';
+import { useAuth } from '../hooks/useAuth';
 import { bulkUploadApplicants, checkDuplicateApplicants } from '../services/firestoreService';
 import { checkDNR } from '../services/earlyLeaveService';
+import logger from '../utils/logger';
 
 const ApplicantBulkUpload = () => {
   const { currentUser } = useAuth();
@@ -297,9 +298,9 @@ const ApplicantBulkUpload = () => {
           setStatusBreakdown(breakdown);
 
           setData(processedApplicants);
-          console.log(`Parsed ${processedApplicants.length} applicants from Excel`);
+          logger.info(`Parsed ${processedApplicants.length} applicants from Excel`);
         } catch (parseError) {
-          console.error('Error parsing Excel:', parseError);
+          logger.error('Error parsing Excel:', parseError);
           setError(`Failed to parse Excel file: ${parseError.message}`);
         }
       };
@@ -310,7 +311,7 @@ const ApplicantBulkUpload = () => {
 
       reader.readAsArrayBuffer(file);
     } catch (err) {
-      console.error('Error handling file:', err);
+      logger.error('Error handling file:', err);
       setError(`Error processing file: ${err.message}`);
     }
   };
@@ -325,8 +326,8 @@ const ApplicantBulkUpload = () => {
     setError('');
     setSuccess('');
 
-    console.log(`Starting bulk upload of ${data.length} applicants...`);
-    console.log(`Operation: ${replaceAll ? 'Replace All' : 'Append'}`);
+    logger.info(`Starting bulk upload of ${data.length} applicants...`);
+    logger.info(`Operation: ${replaceAll ? 'Replace All' : 'Append'}`);
 
     // Check for DNR matches first
     const dnrMatches = [];
@@ -372,12 +373,12 @@ const ApplicantBulkUpload = () => {
         setStatusBreakdown({});
         setDuplicates([]);
         setDnrWarnings([]);
-        console.log('Upload complete:', result);
+        logger.info('Upload complete:', result);
       } else {
         setError(`❌ Failed to upload applicants: ${result.error}`);
       }
     } catch (err) {
-      console.error('Upload error:', err);
+      logger.error('Upload error:', err);
       setError(`❌ Upload failed: ${err.message}`);
     } finally {
       setUploading(false);

@@ -18,6 +18,7 @@ import { Search } from '@mui/icons-material';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import dayjs from 'dayjs';
+import logger from '../utils/logger';
 
 const DataDebug = () => {
   const [loading, setLoading] = useState(false);
@@ -74,7 +75,7 @@ const DataDebug = () => {
       });
 
     } catch (error) {
-      console.error('Error checking data:', error);
+      logger.error('Error checking data:', error);
       setResult({ error: error.message });
     }
     setLoading(false);
