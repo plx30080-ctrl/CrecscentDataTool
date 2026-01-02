@@ -42,7 +42,8 @@ import {
   getEarlyLeaveTrends,
   getApplicantPipeline,
   getOnPremiseData,
-  getBranchDailyData
+  getBranchDailyData,
+  getNewStartsSummary
 } from '../services/firestoreService';
 import { generateForecast } from '../services/forecastingService';
 import logger from '../utils/logger';
@@ -87,18 +88,14 @@ const EnhancedDashboard = () => {
       ]);
 
       // Also get consolidated new-starts summary (reconciles shifts, applicants, on-premise)
-      const newStartsSummary = await (async () => {
-        try {
-          const mod = await import('../services/firestoreService');
-          if (mod.getNewStartsSummary) {
-            const res = await mod.getNewStartsSummary(start, end);
-            return res.success ? res.data : null;
-          }
-        } catch (err) {
-          logger.error('Failed to load new starts summary:', err);
-        }
-        return null;
-      })();
+      let newStartsSummary = null;
+      try {
+        const res = await getNewStartsSummary(start, end);
+        newStartsSummary = res.success ? res.data : null;
+      } catch (err) {
+        logger.error('Failed to load new starts summary:', err);
+        newStartsSummary = null;
+      }
 
       logger.info('Dashboard data loaded:', {
         dateRange: { start: start, end: end },

@@ -27,6 +27,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { updateUserPhoto, deleteUserPhoto } from '../services/firestoreService';
 import FixMyUserProfile from '../utils/FixMyUserProfile';
+import logger from '../utils/logger';
 
 const EnhancedProfile = () => {
   const { currentUser, userProfile, refreshUserProfile } = useAuth();
@@ -84,7 +85,7 @@ const EnhancedProfile = () => {
       }
     } catch (err) {
       setError('An error occurred while uploading your photo');
-      console.error('Upload error:', err);
+      logger.error('Upload error:', err);
     } finally {
       setLoading(false);
     }
@@ -113,7 +114,7 @@ const EnhancedProfile = () => {
       }
     } catch (err) {
       setError('An error occurred while deleting your photo');
-      console.error('Delete error:', err);
+      logger.error('Delete error:', err);
     } finally {
       setLoading(false);
     }

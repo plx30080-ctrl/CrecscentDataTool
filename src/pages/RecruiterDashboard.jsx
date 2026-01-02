@@ -41,7 +41,12 @@ const RecruiterDashboard = () => {
 
   useEffect(() => {
     if (applicants.length > 0) {
-      calculateRecruiterStats();
+      try {
+        calculateRecruiterStats();
+      } catch (err) {
+        logger.error('Error in calculateRecruiterStats (useEffect):', err);
+        setError('Failed to calculate recruiter stats');
+      }
     }
   }, [calculateRecruiterStats, applicants.length]);
 
@@ -109,81 +114,86 @@ const RecruiterDashboard = () => {
   }, [dateRange]);
 
   const calculateRecruiterStats = React.useCallback(() => {
-    const recruiterMap = new Map();
+    try {
+      const recruiterMap = new Map();
 
-    // Filter applicants by date range
-    const filteredApplicants = applicants.filter(app => 
-      filterByDateRange(app.createdAt || app.appliedDate)
-    );
-
-    // Process each applicant
-    filteredApplicants.forEach(applicant => {
-      const recruiter = applicant.recruiter || 'Unassigned';
-      
-      if (!recruiterMap.has(recruiter)) {
-        recruiterMap.set(recruiter, {
-          recruiterName: recruiter,
-          totalApplicants: 0,
-          started: 0,
-          earlyLeaves: 0,
-          shortTerm: 0,
-          dnr: 0,
-          active: 0
-        });
-      }
-
-      const stats = recruiterMap.get(recruiter);
-      stats.totalApplicants++;
-
-      // Check if started
-      if (applicant.status === 'Started') {
-        stats.started++;
-      }
-
-      // Check if in DNR list
-      const inDnr = dnrList.some(dnr => 
-        dnr.eid === applicant.eid || 
-        (dnr.name?.toLowerCase().includes(applicant.firstName?.toLowerCase()) && 
-        dnr.name?.toLowerCase().includes(applicant.lastName?.toLowerCase()))
+      // Filter applicants by date range
+      const filteredApplicants = applicants.filter(app => 
+        filterByDateRange(app.createdAt || app.appliedDate)
       );
-      if (inDnr) {
-        stats.dnr++;
-      }
 
-      // Check early leaves
-      const hasEarlyLeave = earlyLeaves.some(leave => 
-        leave.eid === applicant.eid ||
-        leave.name?.toLowerCase().includes(applicant.firstName?.toLowerCase())
-      );
-      if (hasEarlyLeave) {
-        stats.earlyLeaves++;
-      }
-      // Check for short-term (associates who worked 1-4 days)
-      const associate = associates.find(a => a.eid === applicant.eid);
-      if (associate) {
-        const daysWorked = associate.daysWorked || 0;
-        if (daysWorked >= 1 && daysWorked <= 4) {
-          stats.shortTerm++;
+      // Process each applicant
+      filteredApplicants.forEach(applicant => {
+        const recruiter = applicant.recruiter || 'Unassigned';
+        
+        if (!recruiterMap.has(recruiter)) {
+          recruiterMap.set(recruiter, {
+            recruiterName: recruiter,
+            totalApplicants: 0,
+            started: 0,
+            earlyLeaves: 0,
+            shortTerm: 0,
+            dnr: 0,
+            active: 0
+          });
         }
-        if (associate.status === 'Active') {
-          stats.active++;
+
+        const stats = recruiterMap.get(recruiter);
+        stats.totalApplicants++;
+
+        // Check if started
+        if (applicant.status === 'Started') {
+          stats.started++;
         }
-      }
-    });
 
-    // Convert to array and calculate percentages
-    const statsArray = Array.from(recruiterMap.values()).map(stat => ({
-      ...stat,
-      startRate: stat.totalApplicants > 0 ? ((stat.started / stat.totalApplicants) * 100).toFixed(1) : '0.0',
-      earlyLeaveRate: stat.started > 0 ? ((stat.earlyLeaves / stat.started) * 100).toFixed(1) : '0.0',
-      shortTermRate: stat.started > 0 ? ((stat.shortTerm / stat.started) * 100).toFixed(1) : '0.0',
-      dnrRate: stat.started > 0 ? ((stat.dnr / stat.started) * 100).toFixed(1) : '0.0',
-      retentionScore: stat.started > 0 ? (((stat.started - stat.earlyLeaves - stat.shortTerm - stat.dnr) / stat.started) * 100).toFixed(1) : '0.0'
-    }));
+        // Check if in DNR list
+        const inDnr = dnrList.some(dnr => 
+          dnr.eid === applicant.eid || 
+          (dnr.name?.toLowerCase().includes(applicant.firstName?.toLowerCase()) && 
+          dnr.name?.toLowerCase().includes(applicant.lastName?.toLowerCase()))
+        );
+        if (inDnr) {
+          stats.dnr++;
+        }
 
-    // Sort by total applicants
-    statsArray.sort((a, b) => b.totalApplicants - a.totalApplicants);
-    setRecruiterStats(statsArray);
+        // Check early leaves
+        const hasEarlyLeave = earlyLeaves.some(leave => 
+          leave.eid === applicant.eid ||
+          leave.name?.toLowerCase().includes(applicant.firstName?.toLowerCase())
+        );
+        if (hasEarlyLeave) {
+          stats.earlyLeaves++;
+        }
+        // Check for short-term (associates who worked 1-4 days)
+        const associate = associates.find(a => a.eid === applicant.eid);
+        if (associate) {
+          const daysWorked = associate.daysWorked || 0;
+          if (daysWorked >= 1 && daysWorked <= 4) {
+            stats.shortTerm++;
+          }
+          if (associate.status === 'Active') {
+            stats.active++;
+          }
+        }
+      });
+
+      // Convert to array and calculate percentages
+      const statsArray = Array.from(recruiterMap.values()).map(stat => ({
+        ...stat,
+        startRate: stat.totalApplicants > 0 ? ((stat.started / stat.totalApplicants) * 100).toFixed(1) : '0.0',
+        earlyLeaveRate: stat.started > 0 ? ((stat.earlyLeaves / stat.started) * 100).toFixed(1) : '0.0',
+        shortTermRate: stat.started > 0 ? ((stat.shortTerm / stat.started) * 100).toFixed(1) : '0.0',
+        dnrRate: stat.started > 0 ? ((stat.dnr / stat.started) * 100).toFixed(1) : '0.0',
+        retentionScore: stat.started > 0 ? (((stat.started - stat.earlyLeaves - stat.shortTerm - stat.dnr) / stat.started) * 100).toFixed(1) : '0.0'
+      }));
+
+      // Sort by total applicants
+      statsArray.sort((a, b) => b.totalApplicants - a.totalApplicants);
+      setRecruiterStats(statsArray);
+    } catch (err) {
+      logger.error('Error in calculateRecruiterStats:', err);
+      setError('Failed to calculate recruiter stats');
+    }
   }, [applicants, associates, dnrList, earlyLeaves, filterByDateRange]);
 
   const getRetentionColor = (score) => {

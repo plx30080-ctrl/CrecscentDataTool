@@ -867,6 +867,15 @@ const ApplicantsPage = () => {
                       Shift
                     </TableSortLabel>
                   </TableCell>
+                  <TableCell sx={{ width: '120px', minWidth: '120px' }}>
+                    <TableSortLabel
+                      active={sortField === 'recruiter'}
+                      direction={sortField === 'recruiter' ? sortDirection : 'asc'}
+                      onClick={() => handleSort('recruiter')}
+                    >
+                      Recruiter
+                    </TableSortLabel>
+                  </TableCell>
                   <TableCell sx={{ width: '110px', minWidth: '110px' }}>
                     <TableSortLabel
                       active={sortField === 'processDate'}
@@ -958,6 +967,11 @@ const ApplicantsPage = () => {
                         {applicant.shift || '-'}
                       </Typography>
                     </TableCell>
+                    <TableCell sx={{ width: '120px', minWidth: '120px' }}>
+                      <Typography variant="body2" noWrap title={applicant.recruiter || ''}>
+                        {applicant.recruiter || '-'}
+                      </Typography>
+                    </TableCell>
                     <TableCell sx={{ width: '110px', minWidth: '110px' }}>
                       <Typography variant="body2" noWrap>
                         {applicant.processDate
@@ -1005,7 +1019,7 @@ const ApplicantsPage = () => {
                 ))}
                 {filteredApplicants.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={10} align="center">
+                    <TableCell colSpan={11} align="center">
                       <Typography color="text.secondary" sx={{ padding: 4 }}>
                         {searchTerm ? 'No applicants found matching your search.' : 'No applicants yet. Click "Add Applicant" to get started.'}
                       </Typography>
@@ -1225,31 +1239,47 @@ const ApplicantsPage = () => {
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDialog}>Cancel</Button>
-            {editingApplicant && (
-              <>
+          <DialogActions sx={{ justifyContent: 'space-between' }}>
+            <Box>
+              {editingApplicant && (
                 <Button
-                  variant="outlined"
-                  startIcon={<Sync />}
-                  onClick={handleSyncToBadge}
-                  disabled={loading}
+                  color="error"
+                  startIcon={<Delete />}
+                  onClick={() => {
+                    handleCloseDialog();
+                    handleDeleteApplicant(editingApplicant);
+                  }}
                 >
-                  Sync to Badge
+                  Delete
                 </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<Print />}
-                  onClick={handlePrintBadge}
-                  disabled={loading}
-                >
-                  Print Badge
-                </Button>
-              </>
-            )}
-            <Button variant="contained" onClick={handleSubmit} disabled={loading}>
-              {editingApplicant ? 'Update' : 'Add'}
-            </Button>
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button onClick={handleCloseDialog}>Cancel</Button>
+              {editingApplicant && (
+                <>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Sync />}
+                    onClick={handleSyncToBadge}
+                    disabled={loading}
+                  >
+                    Sync to Badge
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Print />}
+                    onClick={handlePrintBadge}
+                    disabled={loading}
+                  >
+                    Print Badge
+                  </Button>
+                </>
+              )}
+              <Button variant="contained" onClick={handleSubmit} disabled={loading}>
+                {editingApplicant ? 'Update' : 'Add'}
+              </Button>
+            </Box>
           </DialogActions>
         </Dialog>
 

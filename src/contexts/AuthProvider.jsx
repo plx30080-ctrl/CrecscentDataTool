@@ -14,6 +14,7 @@ import {
   createUserProfile,
   updateUserLastLogin
 } from '../services/firestoreService';
+import logger from '../utils/logger';
 
 
 
@@ -133,7 +134,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: profileResult.error };
       }
     } catch (err) {
-      console.error('Error refreshing user profile:', err);
+      logger.error('Error refreshing user profile:', err);
       return { success: false, error: err.message };
     }
   };

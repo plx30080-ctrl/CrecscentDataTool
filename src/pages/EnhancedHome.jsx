@@ -3,7 +3,7 @@ import { Container, Typography, Grid, Card, CardContent, CardActions, Button, Pa
 import { Dashboard, Assessment, People, CloudUpload, AddCircle, TrendingUp, Badge } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getOnPremiseData, getApplicantPipeline } from '../services/firestoreService';
+import { getOnPremiseData, getApplicantPipeline, getApplicants } from '../services/firestoreService';
 import dayjs from 'dayjs';
 
 const EnhancedHome = () => {
@@ -11,6 +11,7 @@ const EnhancedHome = () => {
   const { userProfile } = useAuth();
   const [todayStats, setTodayStats] = useState(null);
   const [pipeline, setPipeline] = useState(null);
+  const [currentPool, setCurrentPool] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -18,6 +19,7 @@ const EnhancedHome = () => {
       const today = new Date();
       const result = await getOnPremiseData(today, today);
       const pipelineResult = await getApplicantPipeline();
+      const applicantsResult = await getApplicants();
 
       if (mounted && result.success) {
         const todayData = result.data;
@@ -27,6 +29,18 @@ const EnhancedHome = () => {
 
       if (mounted && pipelineResult.success) {
         setPipeline(pipelineResult.data);
+      }
+
+      if (mounted && applicantsResult.success) {
+        const twoWeeksAgo = dayjs().subtract(14, 'day').toDate();
+        // Count applicants processed in last 2 weeks and not yet started/hired/declined/rejected
+        const excluded = new Set(['Started', 'Hired', 'Declined', 'Rejected']);
+        const poolCount = applicantsResult.data.reduce((sum, a) => {
+          const processed = a.processedDate;
+          if (processed && !excluded.has(a.status) && processed >= twoWeeksAgo) return sum + 1;
+          return sum;
+        }, 0);
+        setCurrentPool(poolCount);
       }
     };
     doLoad();
@@ -93,7 +107,7 @@ const EnhancedHome = () => {
 
       {/* Quick Stats */}
       <Grid container spacing={3} sx={{ marginBottom: 4 }}>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={3}>
           <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
             <CardContent>
               <Typography variant="h6">Today's Attendance</Typography>
@@ -107,22 +121,36 @@ const EnhancedHome = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={3}>
           <Card sx={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
             <CardContent>
               <Typography variant="h6">Active Pipeline</Typography>
               <Typography variant="h3" sx={{ marginTop: 2 }}>
-                {pipeline ? pipeline.total : '-'}
+                {pipeline ? pipeline?.byStatus?.['CB Updated'] ?? 0 : '-'}
               </Typography>
               <Typography variant="body2" sx={{ marginTop: 1 }}>
-                {pipeline?.byStatus?.['Hired'] || 0} ready to start
+                CB Updated
               </Typography>
             </CardContent>
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={3}>
           <Card sx={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
+            <CardContent>
+              <Typography variant="h6">Current Pool</Typography>
+              <Typography variant="h3" sx={{ marginTop: 2 }}>
+                {typeof currentPool === 'number' ? currentPool : '-'}
+              </Typography>
+              <Typography variant="body2" sx={{ marginTop: 1 }}>
+                Processed in last 2 weeks, not started
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #ffd59a 0%, #ffb74d 100%)', color: 'black' }}>
             <CardContent>
               <Typography variant="h6">Conversion Rate</Typography>
               <Typography variant="h3" sx={{ marginTop: 2 }}>

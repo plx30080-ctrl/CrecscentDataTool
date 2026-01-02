@@ -19,6 +19,7 @@ import { Timeline, TrendingUp, Group, EventAvailable } from '@mui/icons-material
 import { Bar } from 'react-chartjs-2';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getNewStartsSummary } from '../services/firestoreService';
 import dayjs from 'dayjs';
 import logger from '../utils/logger';
 
@@ -61,11 +62,8 @@ const NewStartsAnalytics = () => {
 
       // Cross-source new starts reconciliation for debugging
       try {
-        const mod = await import('../services/firestoreService');
-        if (mod.getNewStartsSummary) {
-          const ns = await mod.getNewStartsSummary(dayjs().subtract(90, 'day').toDate(), new Date());
-          if (ns.success) setNewStartsSummary(ns.data);
-        }
+        const ns = await getNewStartsSummary(dayjs().subtract(90, 'day').toDate(), new Date());
+        if (ns && ns.success) setNewStartsSummary(ns.data);
       } catch (err) {
         logger.error('Failed to get new starts summary:', err);
       }

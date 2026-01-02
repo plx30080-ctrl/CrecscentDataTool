@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { CompareArrows, TrendingUp, TrendingDown } from '@mui/icons-material';
 import { Line, Bar } from 'react-chartjs-2';
-import { getHoursData } from '../services/firestoreService';
+import { getAggregateHours } from '../services/firestoreService';
 import dayjs from 'dayjs';
 import logger from '../utils/logger';
 
@@ -62,16 +62,20 @@ const YOYComparison = () => {
         priorEnd = now.subtract(1, 'year');
       }
 
+      const groupBy = dateRange === 'ytd' ? 'month' : 'day';
       const [currentResult, priorResult] = await Promise.all([
-        getHoursData(currentStart.toDate(), currentEnd.toDate()),
-        getHoursData(priorStart.toDate(), priorEnd.toDate())
+        getAggregateHours(currentStart.toDate(), currentEnd.toDate(), groupBy),
+        getAggregateHours(priorStart.toDate(), priorEnd.toDate(), groupBy)
       ]);
 
       if (currentResult.success) {
-        setCurrentYearData(currentResult.data || []);
+        // Convert aggregated map to array sorted by key
+        const arr = Object.keys(currentResult.data || {}).sort().map(k => ({ date: k, ...currentResult.data[k] }));
+        setCurrentYearData(arr);
       }
       if (priorResult.success) {
-        setPriorYearData(priorResult.data || []);
+        const arr = Object.keys(priorResult.data || {}).sort().map(k => ({ date: k, ...priorResult.data[k] }));
+        setPriorYearData(arr);
       }
     } catch (err) {
       logger.error('Error loading YOY data:', err);
@@ -98,12 +102,12 @@ const YOYComparison = () => {
   const priorTotal = priorYearData.reduce((sum, d) => sum + (d.totalHours || 0), 0);
   const percentChange = priorTotal > 0 ? (((currentTotal - priorTotal) / priorTotal) * 100).toFixed(1) : 0;
 
-  const currentDirect = currentYearData.reduce((sum, d) => sum + (d.directHours || 0), 0);
-  const priorDirect = priorYearData.reduce((sum, d) => sum + (d.directHours || 0), 0);
+  const currentDirect = currentYearData.reduce((sum, d) => sum + (d.totalDirect || 0), 0);
+  const priorDirect = priorYearData.reduce((sum, d) => sum + (d.totalDirect || 0), 0);
   const directChange = priorDirect > 0 ? (((currentDirect - priorDirect) / priorDirect) * 100).toFixed(1) : 0;
 
-  const currentIndirect = currentYearData.reduce((sum, d) => sum + (d.indirectHours || 0), 0);
-  const priorIndirect = priorYearData.reduce((sum, d) => sum + (d.indirectHours || 0), 0);
+  const currentIndirect = currentYearData.reduce((sum, d) => sum + (d.totalIndirect || 0), 0);
+  const priorIndirect = priorYearData.reduce((sum, d) => sum + (d.totalIndirect || 0), 0);
   const indirectChange = priorIndirect > 0 ? (((currentIndirect - priorIndirect) / priorIndirect) * 100).toFixed(1) : 0;
 
   //  Chart data

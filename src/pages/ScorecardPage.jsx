@@ -20,7 +20,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { TrendingUp, TrendingDown, TrendingFlat } from '@mui/icons-material';
-import { getShiftData, getHoursData, getRecruiterData, getEarlyLeaveTrends } from '../services/firestoreService';
+import { getShiftData, getAggregateHours, getRecruiterData, getEarlyLeaveTrends, getNewStartsSummary } from '../services/firestoreService';
 import logger from '../utils/logger';
 
 const ScorecardPage = () => {
@@ -37,7 +37,7 @@ const ScorecardPage = () => {
 
     const [shiftResult, hoursResult, recruiterResult, earlyLeavesResult] = await Promise.all([
       getShiftData(start, end),
-      getHoursData(start, end),
+      getAggregateHours(start, end, 'day'),
       getRecruiterData(start, end),
       getEarlyLeaveTrends(start, end)
     ]);
@@ -46,13 +46,10 @@ const ScorecardPage = () => {
     let newStartsCount = null;
     let nsSummary = null;
     try {
-      const mod = await import('../services/firestoreService');
-      if (mod.getNewStartsSummary) {
-        const ns = await mod.getNewStartsSummary(start, end);
-        if (ns.success) {
-          newStartsCount = ns.data.chosenCount;
-          nsSummary = ns.data;
-        }
+      const ns = await getNewStartsSummary(start, end);
+      if (ns && ns.success) {
+        newStartsCount = ns.data.chosenCount;
+        nsSummary = ns.data;
       }
     } catch (err) {
       logger.error('Failed to compute new starts summary:', err);
@@ -60,7 +57,7 @@ const ScorecardPage = () => {
 
     const calculatedMetrics = calculateMetrics(
       shiftResult.data || [],
-      hoursResult.data || [],
+      hoursResult.data || {},
       recruiterResult.data || [],
       earlyLeavesResult.data,
       newStartsCount
@@ -91,9 +88,14 @@ const ScorecardPage = () => {
     const totalSendHomes = shifts.reduce((sum, s) => sum + (s.sendHomes || 0), 0);
     const totalLineCuts = shifts.reduce((sum, s) => sum + (s.lineCuts || 0), 0);
 
-    const totalHours = hours.reduce((sum, h) => sum + (h.totalHours || 0), 0);
-    const shift1Hours = hours.reduce((sum, h) => sum + (h.shift1Hours || 0), 0);
-    const shift2Hours = hours.reduce((sum, h) => sum + (h.shift2Hours || 0), 0);
+    // `hours` is an aggregated map keyed by date/month/week, so sum values across keys
+    const hourValues = Object.values(hours || {});
+    const totalHours = hourValues.reduce((sum, h) => sum + (h.totalHours || 0), 0);
+    const totalDirect = hourValues.reduce((sum, h) => sum + (h.totalDirect || 0), 0);
+    const totalIndirect = hourValues.reduce((sum, h) => sum + (h.totalIndirect || 0), 0);
+    const shift1Hours = hourValues.reduce((sum, h) => sum + (h.shift1Hours || 0), 0);
+    const shift2Hours = hourValues.reduce((sum, h) => sum + (h.shift2Hours || 0), 0);
+    const daysCount = hourValues.length || 1;
 
     const totalInterviewsScheduled = recruiter.reduce((sum, r) => sum + (r.interviewsScheduled || 0), 0);
     const totalInterviewShows = recruiter.reduce((sum, r) => sum + (r.interviewShows || 0), 0);
@@ -106,7 +108,7 @@ const ScorecardPage = () => {
     return {
       attendance: { avg: Math.round(avgAttendance), fillRate: fillRate.toFixed(1), totalShifts },
       staffing: { newStarts: totalNewStarts, sendHomes: totalSendHomes, lineCuts: totalLineCuts, netStaffing, turnoverRate },
-      hours: { total: totalHours.toFixed(0), shift1: shift1Hours.toFixed(0), shift2: shift2Hours.toFixed(0), avgPerDay: totalShifts > 0 ? (totalHours / (totalShifts / 2)).toFixed(0) : 0 },
+      hours: { total: totalHours.toFixed(0), direct: totalDirect.toFixed(0), indirect: totalIndirect.toFixed(0), shift1: shift1Hours.toFixed(0), shift2: shift2Hours.toFixed(0), avgPerDay: daysCount > 0 ? (totalHours / daysCount).toFixed(0) : 0 },
       recruiting: { interviewsScheduled: totalInterviewsScheduled, interviewShows: totalInterviewShows, applicantsProcessed: totalApplicantsProcessed, showRate: showRate.toFixed(1) },
       earlyLeaves: earlyLeaves || { total: 0, avgPerWeek: 0, byShift: { '1st': 0, '2nd': 0 } }
     };
@@ -214,7 +216,9 @@ const ScorecardPage = () => {
               <TableContainer>
                 <Table size="small">
                   <TableBody>
-                    <TableRow><TableCell>Total Hours</TableCell><TableCell align="right"><strong>{metrics.hours.total}</strong></TableCell></TableRow>
+                      <TableRow><TableCell>Total Hours</TableCell><TableCell align="right"><strong>{metrics.hours.total}</strong></TableCell></TableRow>
+                    <TableRow><TableCell>Direct Hours</TableCell><TableCell align="right">{metrics.hours.direct}</TableCell></TableRow>
+                    <TableRow><TableCell>Indirect Hours</TableCell><TableCell align="right">{metrics.hours.indirect}</TableCell></TableRow>
                     <TableRow><TableCell>1st Shift</TableCell><TableCell align="right">{metrics.hours.shift1}</TableCell></TableRow>
                     <TableRow><TableCell>2nd Shift</TableCell><TableCell align="right">{metrics.hours.shift2}</TableCell></TableRow>
                     <TableRow><TableCell>Avg Per Day</TableCell><TableCell align="right">{metrics.hours.avgPerDay}</TableCell></TableRow>

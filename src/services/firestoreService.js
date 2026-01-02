@@ -18,6 +18,8 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import logger from '../utils/logger';
+import { withTimeout } from '../utils/timeout';
+import { logAuditAction } from './adminService';
 
 // ============ SHIFT DATA ============
 export const addShiftData = async (shiftData, userId) => {
@@ -115,10 +117,152 @@ export const getHoursData = async (startDate, endDate) => {
   }
 };
 
+import dayjs from 'dayjs';
+
+// Helper to merge labor reports dailyBreakdown or totals into an aggregated map
+export const mergeLaborReportsToAggregated = (aggregated, laborReports = [], groupBy = 'day') => {
+  const dayOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+
+  laborReports.forEach(report => {
+    const weekEnding = report.weekEnding ? (report.weekEnding instanceof Date ? report.weekEnding : new Date(report.weekEnding)) : null;
+
+    // Prefer dailyBreakdown if present
+    if (report.dailyBreakdown && weekEnding) {
+      // Compute week start (assume weekEnding is the last day of the week, commonly Sunday)
+      const weekStart = dayjs(weekEnding).subtract(6, 'day'); // Monday
+
+      dayOrder.forEach((dayName, idx) => {
+        const date = weekStart.add(idx, 'day').toDate();
+        let key;
+
+        if (groupBy === 'day') {
+          key = date.toISOString().split('T')[0];
+        } else if (groupBy === 'week') {
+          const w = weekStart.toDate();
+          key = w.toISOString().split('T')[0];
+        } else if (groupBy === 'month') {
+          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        if (!aggregated[key]) aggregated[key] = {
+          totalHours: 0,
+          shift1Hours: 0,
+          shift2Hours: 0,
+          shift1Direct: 0,
+          shift1Indirect: 0,
+          shift2Direct: 0,
+          shift2Indirect: 0,
+          totalDirect: 0,
+          totalIndirect: 0,
+          count: 0
+        };
+
+        const dayData = report.dailyBreakdown[dayName];
+        if (dayData) {
+          // Shift totals (existing behaviour)
+          aggregated[key].shift1Hours += (dayData.shift1?.total || 0);
+          aggregated[key].shift2Hours += (dayData.shift2?.total || 0);
+          aggregated[key].totalHours += (dayData.total || 0);
+
+          // Direct / Indirect breakdowns
+          const s1d = dayData.shift1?.direct || 0;
+          const s1i = dayData.shift1?.indirect || 0;
+          const s2d = dayData.shift2?.direct || 0;
+          const s2i = dayData.shift2?.indirect || 0;
+
+          aggregated[key].shift1Direct += s1d;
+          aggregated[key].shift1Indirect += s1i;
+          aggregated[key].shift2Direct += s2d;
+          aggregated[key].shift2Indirect += s2i;
+
+          aggregated[key].totalDirect += (dayData.direct || s1d + s2d);
+          aggregated[key].totalIndirect += (dayData.indirect || s1i + s2i);
+
+          aggregated[key].count += 1;
+        }
+      });
+    } else if (report.totalHours && weekEnding) {
+      // If no daily breakdown, use totalHours; for 'week' groupBy add to week bucket, otherwise distribute evenly to days
+      const weekStart = dayjs(weekEnding).subtract(6, 'day'); // Monday
+
+      if (groupBy === 'week') {
+        const key = weekStart.toDate().toISOString().split('T')[0];
+        if (!aggregated[key]) aggregated[key] = {
+          totalHours: 0,
+          shift1Hours: 0,
+          shift2Hours: 0,
+          shift1Direct: 0,
+          shift1Indirect: 0,
+          shift2Direct: 0,
+          shift2Indirect: 0,
+          totalDirect: 0,
+          totalIndirect: 0,
+          count: 0
+        };
+
+        aggregated[key].totalHours += report.totalHours || 0;
+
+        // If direct/indirect totals are provided, allocate to bucket
+        if (typeof report.directHours === 'number' || typeof report.indirectHours === 'number') {
+          aggregated[key].totalDirect += report.directHours || 0;
+          aggregated[key].totalIndirect += report.indirectHours || 0;
+        }
+
+        aggregated[key].count += 1;
+      } else {
+        // Distribute evenly across 7 days
+        const perDay = (report.totalHours || 0) / 7;
+        const directRatio = (report.directHours && report.totalHours) ? (report.directHours / report.totalHours) : null;
+
+        for (let i = 0; i < 7; i++) {
+          const date = weekStart.add(i, 'day').toDate();
+          let key;
+
+          if (groupBy === 'day') {
+            key = date.toISOString().split('T')[0];
+          } else if (groupBy === 'month') {
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          }
+
+          if (!aggregated[key]) aggregated[key] = {
+            totalHours: 0,
+            shift1Hours: 0,
+            shift2Hours: 0,
+            shift1Direct: 0,
+            shift1Indirect: 0,
+            shift2Direct: 0,
+            shift2Indirect: 0,
+            totalDirect: 0,
+            totalIndirect: 0,
+            count: 0
+          };
+
+          aggregated[key].totalHours += perDay;
+
+          // If direct/indirect totals are provided, distribute proportionally
+          if (directRatio !== null) {
+            const perDayDirect = perDay * directRatio;
+            aggregated[key].totalDirect += perDayDirect;
+            aggregated[key].totalIndirect += (perDay - perDayDirect);
+          }
+
+          aggregated[key].count += 1;
+        }
+      }
+    }
+  });
+
+  return aggregated;
+};
+
 // Calculate aggregate hours by period
+export const fetchHoursData = async (startDate, endDate) => {
+  return await getHoursData(startDate, endDate);
+};
+
 export const getAggregateHours = async (startDate, endDate, groupBy = 'day') => {
   try {
-    const result = await getHoursData(startDate, endDate);
+    const result = await fetchHoursData(startDate, endDate);
     if (!result.success) return result;
 
     const aggregated = {};
@@ -141,6 +285,12 @@ export const getAggregateHours = async (startDate, endDate, groupBy = 'day') => 
           totalHours: 0,
           shift1Hours: 0,
           shift2Hours: 0,
+          shift1Direct: 0,
+          shift1Indirect: 0,
+          shift2Direct: 0,
+          shift2Indirect: 0,
+          totalDirect: 0,
+          totalIndirect: 0,
           count: 0
         };
       }
@@ -148,8 +298,32 @@ export const getAggregateHours = async (startDate, endDate, groupBy = 'day') => 
       aggregated[key].totalHours += entry.totalHours || 0;
       aggregated[key].shift1Hours += entry.shift1Hours || 0;
       aggregated[key].shift2Hours += entry.shift2Hours || 0;
+
+      // Include direct/indirect if present on the hours entry
+      if (typeof entry.directHours === 'number') aggregated[key].totalDirect += entry.directHours;
+      if (typeof entry.indirectHours === 'number') aggregated[key].totalIndirect += entry.indirectHours;
+
+      if (typeof entry.shift1Direct === 'number') aggregated[key].shift1Direct += entry.shift1Direct;
+      if (typeof entry.shift1Indirect === 'number') aggregated[key].shift1Indirect += entry.shift1Indirect;
+      if (typeof entry.shift2Direct === 'number') aggregated[key].shift2Direct += entry.shift2Direct;
+      if (typeof entry.shift2Indirect === 'number') aggregated[key].shift2Indirect += entry.shift2Indirect;
+
       aggregated[key].count += 1;
     });
+
+    // Include labor reports (if any) in the aggregation via the laborReportService helper
+    try {
+      const { getLaborReportsByDateRange } = await import('./laborReportService');
+      const laborResult = await getLaborReportsByDateRange(new Date(startDate), new Date(endDate));
+      const laborReports = laborResult.success ? laborResult.data : [];
+
+      // Ensure the objects are in the shape expected by merging helper (weekEnding as Date)
+      const normalized = laborReports.map(r => ({ id: r.id, ...r, weekEnding: r.weekEnding instanceof Date ? r.weekEnding : new Date(r.weekEnding) }));
+
+      mergeLaborReportsToAggregated(aggregated, normalized, groupBy);
+    } catch (err) {
+      logger.warn('Failed to include labor reports in aggregation:', err);
+    }
 
     return { success: true, data: aggregated };
   } catch (error) {
@@ -326,10 +500,31 @@ export const updateApplicant = async (applicantId, updates) => {
   }
 };
 
-// Delete a single applicant
+// Delete a single applicant and associated badge
 export const deleteApplicant = async (applicantId) => {
   try {
     const docRef = doc(db, 'applicants', applicantId);
+
+    // Find and delete associated badge(s) if they exist
+    try {
+      const badgesQuery = query(
+        collection(db, 'badges'),
+        where('applicantId', '==', applicantId)
+      );
+      const badgeSnapshot = await getDocs(badgesQuery);
+      if (badgeSnapshot.docs.length > 0) {
+        const batch = writeBatch(db);
+        badgeSnapshot.docs.forEach(badgeDoc => {
+          batch.delete(badgeDoc.ref);
+        });
+        await batch.commit();
+        logger.info(`Deleted ${badgeSnapshot.docs.length} badges for applicant:`, applicantId);
+      }
+    } catch (badgeErr) {
+      logger.warn('Could not delete associated badges:', badgeErr);
+    }
+
+    // Delete the applicant
     await deleteDoc(docRef);
     logger.info('Applicant deleted:', applicantId);
     return { success: true };
@@ -339,19 +534,38 @@ export const deleteApplicant = async (applicantId) => {
   }
 };
 
-// Bulk delete applicants (for purging old records)
+// Bulk delete applicants and associated badges
 export const bulkDeleteApplicants = async (applicantIds) => {
   try {
     const batch = writeBatch(db);
+    let badgesDeletedCount = 0;
 
+    // Delete all associated badges first
+    for (const applicantId of applicantIds) {
+      try {
+        const badgesQuery = query(
+          collection(db, 'badges'),
+          where('applicantId', '==', applicantId)
+        );
+        const badgeSnapshot = await getDocs(badgesQuery);
+        badgeSnapshot.docs.forEach(badgeDoc => {
+          batch.delete(badgeDoc.ref);
+          badgesDeletedCount++;
+        });
+      } catch (badgeErr) {
+        logger.warn(`Could not delete badges for applicant ${applicantId}:`, badgeErr);
+      }
+    }
+
+    // Delete all applicants
     applicantIds.forEach(id => {
       const docRef = doc(db, 'applicants', id);
       batch.delete(docRef);
     });
 
     await batch.commit();
-    logger.info(`Bulk deleted ${applicantIds.length} applicants`);
-    return { success: true, deletedCount: applicantIds.length };
+    logger.info(`Bulk deleted ${applicantIds.length} applicants and ${badgesDeletedCount} associated badges`);
+    return { success: true, deletedCount: applicantIds.length, badgesDeleted: badgesDeletedCount };
   } catch (error) {
     logger.error('Error bulk deleting applicants:', error);
     return { success: false, error: error.message };
@@ -440,6 +654,18 @@ export const getApplicantPipeline = async () => {
     logger.error('Error calculating applicant pipeline:', error);
     return { success: false, error: error.message };
   }
+};
+
+// Compute the 'Current Pool' from a list of applicants
+export const computeCurrentPool = (applicants = [], days = 14, referenceDate = new Date()) => {
+  const twoWeeksAgo = dayjs(referenceDate).subtract(days, 'day').toDate();
+  const excluded = new Set(['Started', 'Hired', 'Declined', 'Rejected']);
+
+  return applicants.reduce((sum, a) => {
+    const processed = a.processedDate;
+    if (processed && !excluded.has(a.status) && processed >= twoWeeksAgo) return sum + 1;
+    return sum;
+  }, 0);
 };
 
 // Bulk upload applicants
@@ -688,7 +914,12 @@ export const updateUserPhoto = async (uid, photoFile) => {
 
     // Upload new photo
     const storageRef = ref(storage, `user-photos/${uid}`);
-    await uploadBytes(storageRef, photoFile);
+    try {
+      await withTimeout(uploadBytes(storageRef, photoFile), 15000);
+    } catch (err) {
+      logger.error('Error uploading photo in firestoreService:', err);
+      return { success: false, error: err.message || 'Photo upload failed' };
+    }
     const photoURL = await getDownloadURL(storageRef);
 
     // Update user document with new photo URL
@@ -822,6 +1053,49 @@ export const getOnPremiseData = async (startDate, endDate) => {
     logger.error('Error getting on-premise data:', error);
     return { success: false, error: error.message, data: [] };
   }
+};
+
+/**
+ * Aggregate on-premise entries by date and shift. Merges multiple submissions for the same date+shift.
+ * Returns an array of aggregated entries sorted by date ascending.
+ */
+export const aggregateOnPremiseByDateAndShift = (entries = []) => {
+  const map = new Map();
+
+  entries.forEach(e => {
+    const dateKey = e.date ? (e.date instanceof Date ? e.date.toISOString().split('T')[0] : new Date(e.date).toISOString().split('T')[0]) : null;
+    const shiftKey = e.shift || 'Unknown';
+    if (!dateKey) return;
+
+    const mapKey = `${dateKey}::${shiftKey}`;
+    if (!map.has(mapKey)) {
+      map.set(mapKey, {
+        date: new Date(dateKey),
+        shift: shiftKey,
+        requested: 0,
+        required: 0,
+        working: 0,
+        newStarts: 0,
+        sendHomes: 0,
+        lineCuts: 0,
+        onPremise: 0,
+        entries: []
+      });
+    }
+
+    const agg = map.get(mapKey);
+    agg.requested += parseInt(e.requested) || 0;
+    agg.required += parseInt(e.required) || 0;
+    agg.working += parseInt(e.working) || 0;
+    agg.newStarts += parseInt(e.newStarts) || 0;
+    agg.sendHomes += parseInt(e.sendHomes) || 0;
+    agg.lineCuts += parseInt(e.lineCuts) || 0;
+    agg.onPremise += parseFloat(e.onPremise) || 0;
+    agg.entries.push(e.id || null);
+  });
+
+  const result = Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+  return result;
 };
 
 // Consolidated New Starts Summary

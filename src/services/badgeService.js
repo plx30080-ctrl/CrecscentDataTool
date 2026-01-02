@@ -14,6 +14,8 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
+import { withTimeout } from '../utils/timeout';
+
 import logger from '../utils/logger';
 import { DEFAULT_BADGE_TEMPLATE } from '../config/badgeTemplate';
 
@@ -39,8 +41,13 @@ export const createBadge = async (badgeData, photoFile, userId) => {
     // Upload photo to Firebase Storage if provided
     if (photoFile) {
       const storageRef = ref(storage, `badges/${badgeData.eid}_${Date.now()}.jpg`);
-      await uploadBytes(storageRef, photoFile);
-      photoURL = await getDownloadURL(storageRef);
+      try {
+        await withTimeout(uploadBytes(storageRef, photoFile), 15000);
+        photoURL = await withTimeout(getDownloadURL(storageRef), 10000);
+      } catch (err) {
+        logger.error('Error uploading photo to Storage:', err);
+        return { success: false, error: err.message || 'Photo upload failed' };
+      }
     }
 
     // Generate badge ID
@@ -96,8 +103,13 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
     let photoURL = '';
     if (photoFile) {
       const storageRef = ref(storage, `badges/${eid}_${Date.now()}.jpg`);
-      await uploadBytes(storageRef, photoFile);
-      photoURL = await getDownloadURL(storageRef);
+      try {
+        await withTimeout(uploadBytes(storageRef, photoFile), 15000);
+        photoURL = await withTimeout(getDownloadURL(storageRef), 10000);
+      } catch (err) {
+        logger.error('Error uploading applicant photo to Storage:', err);
+        return { success: false, error: err.message || 'Photo upload failed' };
+      }
     }
 
     // Check if badge already exists for this EID
@@ -187,15 +199,20 @@ export const updateBadgePhoto = async (badgeId, photoFile) => {
 
     const eid = badgeDoc.data().eid;
     const storageRef = ref(storage, `badges/${eid}_${Date.now()}.jpg`);
-    await uploadBytes(storageRef, photoFile);
-    const photoURL = await getDownloadURL(storageRef);
+    try {
+      await withTimeout(uploadBytes(storageRef, photoFile), 15000);
+      const photoURL = await withTimeout(getDownloadURL(storageRef), 10000);
 
-    await updateDoc(badgeRef, {
-      photoURL,
-      updatedAt: serverTimestamp()
-    });
+      await updateDoc(badgeRef, {
+        photoURL,
+        updatedAt: serverTimestamp()
+      });
 
-    return { success: true, photoURL };
+      return { success: true, photoURL };
+    } catch (err) {
+      logger.error('Error uploading badge photo:', err);
+      return { success: false, error: err.message || 'Photo upload failed' };
+    }
   } catch (error) {
     logger.error('Error updating badge photo:', error);
     return { success: false, error: error.message };

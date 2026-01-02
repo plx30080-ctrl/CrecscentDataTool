@@ -16,6 +16,7 @@ import {
   getDownloadURL,
   deleteObject
 } from 'firebase/storage';
+import { withTimeout } from '../utils/timeout';
 import { getAuth } from 'firebase/auth';
 import logger from '../utils/logger';
 
@@ -42,7 +43,14 @@ export const uploadApplicantDocument = async (applicantId, file, documentType, n
     const storageRef = ref(storage, `applicant-documents/${applicantId}/${fileName}`);
 
     // Upload file
-    const snapshot = await uploadBytes(storageRef, file);
+    let snapshot;
+    try {
+      snapshot = await withTimeout(uploadBytes(storageRef, file), 15000);
+    } catch (err) {
+      logger.error('Error uploading document to Storage:', err);
+      return { success: false, error: err.message || 'Document upload failed' };
+    }
+
     const downloadURL = await getDownloadURL(snapshot.ref);
 
     // Create document record in Firestore

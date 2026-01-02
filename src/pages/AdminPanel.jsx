@@ -174,7 +174,7 @@ const AdminPanel = () => {
       }
     } catch (err) {
       setError('An error occurred while deleting the user profile');
-      console.error('Delete user error:', err);
+      logger.error('Delete user error:', err);
     } finally {
       setLoading(false);
     }
