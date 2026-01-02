@@ -41,7 +41,8 @@ import {
   CheckCircle,
   Cancel,
   Person,
-  Badge as BadgeIcon
+  Badge as BadgeIcon,
+  Delete
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -52,7 +53,8 @@ import {
   getPrintQueue,
   markBadgePrinted,
   markBadgeIssued,
-  getBadgeStats
+  getBadgeStats,
+  deleteBadge
 } from '../services/badgeService';
 import BadgePrintPreview from '../components/BadgePrintPreview';
 import BadgePlaceholder from '../components/BadgePlaceholder';
@@ -225,6 +227,24 @@ const BadgeManagement = () => {
       loadStats();
     } else {
       setError(result.error || 'Failed to create badge');
+    }
+  };
+
+  const handleDeleteBadge = async (badge) => {
+    if (!window.confirm(`Are you sure you want to delete the badge for ${badge.firstName} ${badge.lastName}?`)) {
+      return;
+    }
+
+    setLoading(true);
+    const result = await deleteBadge(badge.id);
+    setLoading(false);
+
+    if (result.success) {
+      setSuccess('Badge deleted successfully');
+      // Refresh search results
+      handleSearch();
+    } else {
+      setError('Failed to delete badge: ' + result.error);
     }
   };
 
@@ -661,6 +681,16 @@ const BadgeManagement = () => {
                         onClick={() => handleAddToPrintQueue(badge)}
                       >
                         Print
+                      </Button>
+                    )}
+                    {badge.source === 'badge' && (
+                      <Button
+                        size="small"
+                        color="error"
+                        startIcon={<Delete />}
+                        onClick={() => handleDeleteBadge(badge)}
+                      >
+                        Delete
                       </Button>
                     )}
                   </CardActions>

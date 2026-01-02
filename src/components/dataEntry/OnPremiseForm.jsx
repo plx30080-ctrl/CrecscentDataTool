@@ -36,8 +36,33 @@ const OnPremiseForm = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
+  const [newStartNames, setNewStartNames] = useState([]);
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+
+    if (field === 'newStarts') {
+      const count = parseInt(value) || 0;
+      setNewStartNames(prev => {
+        const newArr = [...prev];
+        if (count > prev.length) {
+          // Add empty strings
+          for (let i = prev.length; i < count; i++) newArr.push('');
+        } else {
+          // Trim array
+          newArr.length = count;
+        }
+        return newArr;
+      });
+    }
+  };
+
+  const handleNewStartNameChange = (index, value) => {
+    setNewStartNames(prev => {
+      const newArr = [...prev];
+      newArr[index] = value;
+      return newArr;
+    });
   };
 
   const handleFileUpload = (event) => {
@@ -63,7 +88,7 @@ const OnPremiseForm = () => {
     setMessage(null);
 
     try {
-      const result = await submitOnPremiseData(formData, uploadedFile);
+      const result = await submitOnPremiseData({ ...formData, newStartNames }, uploadedFile);
 
       if (result.success) {
         setMessage({
@@ -83,6 +108,7 @@ const OnPremiseForm = () => {
           lineCuts: '',
           notes: ''
         });
+        setNewStartNames([]);
         setUploadedFile(null);
         document.getElementById('file-upload').value = '';
       } else {
@@ -198,6 +224,29 @@ const OnPremiseForm = () => {
             placeholder="Number of line cuts"
           />
         </Grid>
+
+        {/* New Start Names */}
+        {newStartNames.length > 0 && (
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" gutterBottom>
+              Enter New Start Names (to update applicant status):
+            </Typography>
+            <Grid container spacing={2}>
+              {newStartNames.map((name, index) => (
+                <Grid item xs={12} sm={6} md={4} key={index}>
+                  <TextField
+                    label={`New Start #${index + 1} Name`}
+                    fullWidth
+                    size="small"
+                    value={name}
+                    onChange={(e) => handleNewStartNameChange(index, e.target.value)}
+                    placeholder="First Last"
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Grid>
+        )}
 
         {/* Notes */}
         <Grid item xs={12}>

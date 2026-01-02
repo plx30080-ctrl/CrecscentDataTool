@@ -198,9 +198,9 @@ const buildPrintHTML = (badge, template) => {
         </div>
         <div class="first-name">${badge.firstName || 'FIRST NAME'}</div>
         <div class="last-name">${badge.lastName || 'LAST NAME'}</div>
-        <div class="eid">EID: ${badge.eid || '000000'}</div>
+        ${!t.elements.eid.hidden ? `<div class="eid">EID: ${badge.eid || '000000'}</div>` : ''}
         ${badge.position ? `<div class="position">${badge.position}</div>` : ''}
-        ${badge.shift ? `<div class="shift">Shift: ${badge.shift}</div>` : ''}
+        ${badge.shift && !t.elements.shift.hidden ? `<div class="shift">Shift: ${badge.shift}</div>` : ''}
         <div class="barcode">
           <svg id="barcode"></svg>
         </div>
@@ -213,7 +213,9 @@ const buildPrintHTML = (badge, template) => {
           height: 35,
           displayValue: true,
           fontSize: 10,
-          margin: 0
+          margin: 0,
+          textAlign: "center",
+          textPosition: "bottom"
         });
       </script>
     </body>

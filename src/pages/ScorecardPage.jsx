@@ -75,9 +75,9 @@ const ScorecardPage = () => {
 
   const calculateMetrics = (shifts, hours, recruiter, earlyLeaves, reconciledNewStarts = null) => {
     const totalShifts = shifts.length;
-    const avgAttendance = totalShifts > 0 ? shifts.reduce((sum, s) => sum + (s.numberWorking || 0), 0) / totalShifts : 0;
-    const totalRequested = shifts.reduce((sum, s) => sum + (s.numberRequested || 0), 0);
-    const totalWorking = shifts.reduce((sum, s) => sum + (s.numberWorking || 0), 0);
+    const avgAttendance = totalShifts > 0 ? shifts.reduce((sum, s) => sum + (s.numberWorking || s.working || 0), 0) / totalShifts : 0;
+    const totalRequested = shifts.reduce((sum, s) => sum + (s.numberRequested || s.requested || 0), 0);
+    const totalWorking = shifts.reduce((sum, s) => sum + (s.numberWorking || s.working || 0), 0);
     const fillRate = totalRequested > 0 ? (totalWorking / totalRequested) * 100 : 0;
 
     // Use reconciled count when available (applicants > shift EIDs > on-premise), otherwise fall back to counting shift arrays

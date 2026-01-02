@@ -13,8 +13,12 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Button
 } from '@mui/material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Timeline, TrendingUp, Group, EventAvailable } from '@mui/icons-material';
 import { Bar } from 'react-chartjs-2';
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -30,6 +34,8 @@ const NewStartsAnalytics = () => {
   const [associates, setAssociates] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [newStartsSummary, setNewStartsSummary] = useState(null);
+  const [startDate, setStartDate] = useState(dayjs().subtract(30, 'days'));
+  const [endDate, setEndDate] = useState(dayjs());
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -62,7 +68,7 @@ const NewStartsAnalytics = () => {
 
       // Cross-source new starts reconciliation for debugging
       try {
-        const ns = await getNewStartsSummary(dayjs().subtract(90, 'day').toDate(), new Date());
+        const ns = await getNewStartsSummary(startDate.toDate(), endDate.toDate());
         if (ns && ns.success) setNewStartsSummary(ns.data);
       } catch (err) {
         logger.error('Failed to get new starts summary:', err);
@@ -75,7 +81,7 @@ const NewStartsAnalytics = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [startDate, endDate]);
 
   useEffect(() => {
     loadData();
@@ -83,11 +89,19 @@ const NewStartsAnalytics = () => {
 
 
   const calculateMetrics = (applicantsData, associatesData) => {
+    // Filter applicants by date range
+    const filteredApplicants = applicantsData.filter(app => {
+      const start = app.actualStartDate || app.tentativeStartDate;
+      if (!start) return false;
+      const date = dayjs(start);
+      return date.isAfter(startDate.startOf('day')) && date.isBefore(endDate.endOf('day'));
+    });
+
     const metrics = {
       avgProcessToStart: 0,
       secondDayReturnRate: 0,
       secondWeekReturnRate: 0,
-      totalStarts: applicantsData.length,
+      totalStarts: filteredApplicants.length,
       activeAfter2Days: 0,
       activeAfter2Weeks: 0,
       processTimeDistribution: {},
@@ -103,14 +117,15 @@ const NewStartsAnalytics = () => {
     let secondWeekReturns = 0;
     let secondWeekEligible = 0;
 
-    applicantsData.forEach(applicant => {
+    filteredApplicants.forEach(applicant => {
       // Track missing dates for debugging
       if (!applicant.processDate) metrics.missingProcessDates++;
-      if (!applicant.tentativeStartDate) metrics.missingTentativeStartDates++;
+      if (!applicant.tentativeStartDate && !applicant.actualStartDate) metrics.missingTentativeStartDates++;
 
       // Calculate process to start time
-      if (applicant.processDate && applicant.tentativeStartDate) {
-        const processTime = dayjs(applicant.tentativeStartDate).diff(dayjs(applicant.processDate), 'day');
+      const start = applicant.actualStartDate || applicant.tentativeStartDate;
+      if (applicant.processDate && start) {
+        const processTime = dayjs(start).diff(dayjs(applicant.processDate), 'day');
         if (processTime >= 0 && processTime < 90) {
           totalProcessTime += processTime;
           validProcessCount++;
@@ -122,7 +137,10 @@ const NewStartsAnalytics = () => {
       }
 
       // Find matching associate
-      const associate = associatesData.find(a => a.eid === applicant.eid);
+      const associate = associatesData.find(a => 
+        String(a.eid) === String(applicant.eid) || 
+        String(a.eid) === String(applicant.crmNumber)
+      );
       if (associate) {
         metrics.matchedAssociates++;
 
@@ -202,6 +220,30 @@ const NewStartsAnalytics = () => {
       <Typography variant="h5" gutterBottom sx={{ marginBottom: 3 }}>
         New Starts Analytics
       </Typography>
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center' }}>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            label="Start Date"
+            value={startDate}
+            onChange={(newValue) => setStartDate(newValue)}
+            slotProps={{ textField: { size: 'small' } }}
+          />
+          <DatePicker
+            label="End Date"
+            value={endDate}
+            onChange={(newValue) => setEndDate(newValue)}
+            slotProps={{ textField: { size: 'small' } }}
+          />
+        </LocalizationProvider>
+        <Button 
+          variant="contained" 
+          onClick={loadData}
+          disabled={loading}
+        >
+          Refresh Data
+        </Button>
+      </Box>
 
       <Grid container spacing={3} sx={{ marginBottom: 3 }}>
         <Grid item xs={12} md={3}>

@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { CompareArrows, TrendingUp, TrendingDown } from '@mui/icons-material';
 import { Line, Bar } from 'react-chartjs-2';
-import { getAggregateHours } from '../services/firestoreService';
+import { getAggregateHours, getOnPremiseData } from '../services/firestoreService';
 import dayjs from 'dayjs';
 import logger from '../utils/logger';
 
@@ -63,19 +63,57 @@ const YOYComparison = () => {
       }
 
       const groupBy = dateRange === 'ytd' ? 'month' : 'day';
-      const [currentResult, priorResult] = await Promise.all([
+      const [currentResult, priorResult, currentOnPrem, priorOnPrem] = await Promise.all([
         getAggregateHours(currentStart.toDate(), currentEnd.toDate(), groupBy),
-        getAggregateHours(priorStart.toDate(), priorEnd.toDate(), groupBy)
+        getAggregateHours(priorStart.toDate(), priorEnd.toDate(), groupBy),
+        getOnPremiseData(currentStart.toDate(), currentEnd.toDate()),
+        getOnPremiseData(priorStart.toDate(), priorEnd.toDate())
       ]);
 
+      const processData = (hoursData, onPremData) => {
+        const merged = { ...hoursData };
+        
+        if (onPremData && onPremData.success) {
+          onPremData.data.forEach(entry => {
+            const date = dayjs(entry.date);
+            let key;
+            if (groupBy === 'day') {
+              key = date.format('YYYY-MM-DD');
+            } else {
+              key = date.format('YYYY-MM');
+            }
+
+            if (!merged[key]) {
+              merged[key] = {
+                totalHours: 0,
+                totalDirect: 0,
+                totalIndirect: 0,
+                requested: 0,
+                working: 0,
+                count: 0
+              };
+            }
+            
+            merged[key].requested = (merged[key].requested || 0) + (parseInt(entry.requested) || 0);
+            merged[key].working = (merged[key].working || 0) + (parseInt(entry.working) || 0);
+          });
+        }
+        
+        return Object.keys(merged).sort().map(k => {
+          const item = merged[k];
+          return {
+            date: k,
+            ...item,
+            fillRate: item.requested > 0 ? (item.working / item.requested) * 100 : 0
+          };
+        });
+      };
+
       if (currentResult.success) {
-        // Convert aggregated map to array sorted by key
-        const arr = Object.keys(currentResult.data || {}).sort().map(k => ({ date: k, ...currentResult.data[k] }));
-        setCurrentYearData(arr);
+        setCurrentYearData(processData(currentResult.data || {}, currentOnPrem));
       }
       if (priorResult.success) {
-        const arr = Object.keys(priorResult.data || {}).sort().map(k => ({ date: k, ...priorResult.data[k] }));
-        setPriorYearData(arr);
+        setPriorYearData(processData(priorResult.data || {}, priorOnPrem));
       }
     } catch (err) {
       logger.error('Error loading YOY data:', err);
@@ -109,6 +147,18 @@ const YOYComparison = () => {
   const currentIndirect = currentYearData.reduce((sum, d) => sum + (d.totalIndirect || 0), 0);
   const priorIndirect = priorYearData.reduce((sum, d) => sum + (d.totalIndirect || 0), 0);
   const indirectChange = priorIndirect > 0 ? (((currentIndirect - priorIndirect) / priorIndirect) * 100).toFixed(1) : 0;
+
+  const currentRequested = currentYearData.reduce((sum, d) => sum + (d.requested || 0), 0);
+  const priorRequested = priorYearData.reduce((sum, d) => sum + (d.requested || 0), 0);
+  const requestedChange = priorRequested > 0 ? (((currentRequested - priorRequested) / priorRequested) * 100).toFixed(1) : 0;
+
+  const currentWorking = currentYearData.reduce((sum, d) => sum + (d.working || 0), 0);
+  const priorWorking = priorYearData.reduce((sum, d) => sum + (d.working || 0), 0);
+  const workingChange = priorWorking > 0 ? (((currentWorking - priorWorking) / priorWorking) * 100).toFixed(1) : 0;
+
+  const currentFillRate = currentRequested > 0 ? (currentWorking / currentRequested) * 100 : 0;
+  const priorFillRate = priorRequested > 0 ? (priorWorking / priorRequested) * 100 : 0;
+  const fillRateChange = (currentFillRate - priorFillRate).toFixed(1);
 
   //  Chart data
   const currentLabels = currentYearData.map(d => dayjs(d.date).format('MMM DD'));
@@ -299,6 +349,33 @@ const YOYComparison = () => {
                 <TableCell align="right">{(currentIndirect - priorIndirect).toFixed(0)}</TableCell>
                 <TableCell align="right" sx={{ color: parseFloat(indirectChange) >= 0 ? 'success.main' : 'error.main' }}>
                   {indirectChange}%
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Requested</TableCell>
+                <TableCell align="right">{currentRequested.toFixed(0)}</TableCell>
+                <TableCell align="right">{priorRequested.toFixed(0)}</TableCell>
+                <TableCell align="right">{(currentRequested - priorRequested).toFixed(0)}</TableCell>
+                <TableCell align="right" sx={{ color: parseFloat(requestedChange) >= 0 ? 'success.main' : 'error.main' }}>
+                  {requestedChange}%
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Working</TableCell>
+                <TableCell align="right">{currentWorking.toFixed(0)}</TableCell>
+                <TableCell align="right">{priorWorking.toFixed(0)}</TableCell>
+                <TableCell align="right">{(currentWorking - priorWorking).toFixed(0)}</TableCell>
+                <TableCell align="right" sx={{ color: parseFloat(workingChange) >= 0 ? 'success.main' : 'error.main' }}>
+                  {workingChange}%
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Fill Rate</TableCell>
+                <TableCell align="right">{currentFillRate.toFixed(1)}%</TableCell>
+                <TableCell align="right">{priorFillRate.toFixed(1)}%</TableCell>
+                <TableCell align="right">{fillRateChange}%</TableCell>
+                <TableCell align="right" sx={{ color: parseFloat(fillRateChange) >= 0 ? 'success.main' : 'error.main' }}>
+                  {fillRateChange}%
                 </TableCell>
               </TableRow>
               <TableRow>

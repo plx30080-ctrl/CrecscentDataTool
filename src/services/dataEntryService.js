@@ -98,7 +98,8 @@ export const submitOnPremiseData = async (formData, file) => {
       notes: formData.notes || '',
       submittedAt: serverTimestamp(),
       submittedBy: user.email,
-      submittedByUid: user.uid
+      submittedByUid: user.uid,
+      newStartNames: formData.newStartNames || []
     };
 
     // If file is provided, parse employee data
@@ -110,6 +111,45 @@ export const submitOnPremiseData = async (formData, file) => {
     }
 
     const docRef = await addDoc(collection(db, 'onPremiseData'), dataToSubmit);
+
+    // Attempt to update applicants by name
+    if (formData.newStartNames && formData.newStartNames.length > 0) {
+      try {
+        // Dynamic import to avoid circular dependency
+        const { getApplicants } = await import('./firestoreService');
+        const result = await getApplicants();
+        
+        if (result.success) {
+          const applicants = result.data;
+          const date = formData.date.toDate();
+          let updatedCount = 0;
+          
+          for (const name of formData.newStartNames) {
+            if (!name || !name.trim()) continue;
+            
+            const searchName = name.trim().toLowerCase();
+            const match = applicants.find(a => {
+               const appName = (a.firstName && a.lastName) ? `${a.firstName} ${a.lastName}` : a.name;
+               return appName && appName.toLowerCase() === searchName;
+            });
+            
+            if (match && match.status !== 'Started') {
+               await updateDoc(doc(db, 'applicants', match.id), {
+                 status: 'Started',
+                 actualStartDate: Timestamp.fromDate(date),
+                 lastModified: serverTimestamp()
+               });
+               updatedCount++;
+            }
+          }
+          if (updatedCount > 0) {
+            logger.info(`Updated ${updatedCount} applicants to Started based on new start names`);
+          }
+        }
+      } catch (err) {
+        logger.error('Error updating applicants from new start names:', err);
+      }
+    }
 
     return {
       success: true,

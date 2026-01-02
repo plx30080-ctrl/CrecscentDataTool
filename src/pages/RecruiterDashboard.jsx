@@ -39,17 +39,6 @@ const RecruiterDashboard = () => {
     loadData();
   }, []);
 
-  useEffect(() => {
-    if (applicants.length > 0) {
-      try {
-        calculateRecruiterStats();
-      } catch (err) {
-        logger.error('Error in calculateRecruiterStats (useEffect):', err);
-        setError('Failed to calculate recruiter stats');
-      }
-    }
-  }, [calculateRecruiterStats, applicants.length]);
-
   const loadData = async () => {
     setLoading(true);
     setError('');
@@ -195,6 +184,17 @@ const RecruiterDashboard = () => {
       setError('Failed to calculate recruiter stats');
     }
   }, [applicants, associates, dnrList, earlyLeaves, filterByDateRange]);
+
+  useEffect(() => {
+    if (applicants.length > 0) {
+      try {
+        calculateRecruiterStats();
+      } catch (err) {
+        logger.error('Error in calculateRecruiterStats (useEffect):', err);
+        setError('Failed to calculate recruiter stats');
+      }
+    }
+  }, [calculateRecruiterStats, applicants.length]);
 
   const getRetentionColor = (score) => {
     const numScore = parseFloat(score);

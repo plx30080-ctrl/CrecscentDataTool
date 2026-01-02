@@ -57,7 +57,7 @@ export const getShiftData = async (startDate, endDate, shift = null) => {
       constraints.push(where('shift', '==', shift));
     }
 
-    const q = query(collection(db, 'shiftData'), ...constraints);
+    const q = query(collection(db, 'onPremiseData'), ...constraints);
     const querySnapshot = await getDocs(q);
     const data = querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -128,8 +128,13 @@ export const mergeLaborReportsToAggregated = (aggregated, laborReports = [], gro
 
     // Prefer dailyBreakdown if present
     if (report.dailyBreakdown && weekEnding) {
-      // Compute week start (assume weekEnding is the last day of the week, commonly Sunday)
-      const weekStart = dayjs(weekEnding).subtract(6, 'day'); // Monday
+      // Compute week start (align to Monday)
+      // If weekEnding is Sunday, we want the Monday 6 days prior.
+      // If weekEnding is mid-week, we assume it belongs to the week starting the previous Monday.
+      let weekStart = dayjs(weekEnding).day(1); // Monday of the week (Sun-Sat)
+      if (weekStart.isAfter(dayjs(weekEnding))) {
+        weekStart = weekStart.subtract(1, 'week');
+      }
 
       dayOrder.forEach((dayName, idx) => {
         const date = weekStart.add(idx, 'day').toDate();
@@ -260,69 +265,91 @@ export const fetchHoursData = async (startDate, endDate) => {
   return await getHoursData(startDate, endDate);
 };
 
+export const getLaborReports = async (startDate, endDate) => {
+  try {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const queryStart = new Date(start);
+    queryStart.setDate(queryStart.getDate() - 7);
+    const queryEnd = new Date(end);
+    queryEnd.setDate(queryEnd.getDate() + 7);
+
+    const q = query(
+      collection(db, 'laborReports'),
+      where('weekEnding', '>=', Timestamp.fromDate(queryStart)),
+      where('weekEnding', '<=', Timestamp.fromDate(queryEnd)),
+      orderBy('weekEnding', 'asc')
+    );
+
+    const querySnapshot = await getDocs(q);
+    const data = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      weekEnding: doc.data().weekEnding?.toDate()
+    }));
+    return { success: true, data };
+  } catch (error) {
+    logger.error('Error getting labor reports:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
 export const getAggregateHours = async (startDate, endDate, groupBy = 'day') => {
   try {
-    const result = await fetchHoursData(startDate, endDate);
-    if (!result.success) return result;
-
     const aggregated = {};
-    result.data.forEach(entry => {
-      let key;
-      const date = new Date(entry.date);
 
-      if (groupBy === 'day') {
-        key = date.toISOString().split('T')[0];
-      } else if (groupBy === 'week') {
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        key = weekStart.toISOString().split('T')[0];
-      } else if (groupBy === 'month') {
-        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      }
+    // Fetch legacy hours data
+    const hoursResult = await fetchHoursData(startDate, endDate);
+    if (hoursResult.success) {
+      hoursResult.data.forEach(entry => {
+        let key;
+        const date = new Date(entry.date);
 
-      if (!aggregated[key]) {
-        aggregated[key] = {
-          totalHours: 0,
-          shift1Hours: 0,
-          shift2Hours: 0,
-          shift1Direct: 0,
-          shift1Indirect: 0,
-          shift2Direct: 0,
-          shift2Indirect: 0,
-          totalDirect: 0,
-          totalIndirect: 0,
-          count: 0
-        };
-      }
+        if (groupBy === 'day') {
+          key = date.toISOString().split('T')[0];
+        } else if (groupBy === 'week') {
+          const weekStart = new Date(date);
+          weekStart.setDate(date.getDate() - date.getDay());
+          key = weekStart.toISOString().split('T')[0];
+        } else if (groupBy === 'month') {
+          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
 
-      aggregated[key].totalHours += entry.totalHours || 0;
-      aggregated[key].shift1Hours += entry.shift1Hours || 0;
-      aggregated[key].shift2Hours += entry.shift2Hours || 0;
+        if (!aggregated[key]) {
+          aggregated[key] = {
+            totalHours: 0,
+            shift1Hours: 0,
+            shift2Hours: 0,
+            shift1Direct: 0,
+            shift1Indirect: 0,
+            shift2Direct: 0,
+            shift2Indirect: 0,
+            totalDirect: 0,
+            totalIndirect: 0,
+            count: 0
+          };
+        }
 
-      // Include direct/indirect if present on the hours entry
-      if (typeof entry.directHours === 'number') aggregated[key].totalDirect += entry.directHours;
-      if (typeof entry.indirectHours === 'number') aggregated[key].totalIndirect += entry.indirectHours;
+        aggregated[key].totalHours += entry.totalHours || 0;
+        aggregated[key].shift1Hours += entry.shift1Hours || 0;
+        aggregated[key].shift2Hours += entry.shift2Hours || 0;
+        aggregated[key].shift1Direct += entry.shift1Direct || 0;
+        aggregated[key].shift1Indirect += entry.shift1Indirect || 0;
+        aggregated[key].shift2Direct += entry.shift2Direct || 0;
+        aggregated[key].shift2Indirect += entry.shift2Indirect || 0;
+        aggregated[key].totalDirect += entry.totalDirect || 0;
+        aggregated[key].totalIndirect += entry.totalIndirect || 0;
+        aggregated[key].count += 1;
+      });
+    }
 
-      if (typeof entry.shift1Direct === 'number') aggregated[key].shift1Direct += entry.shift1Direct;
-      if (typeof entry.shift1Indirect === 'number') aggregated[key].shift1Indirect += entry.shift1Indirect;
-      if (typeof entry.shift2Direct === 'number') aggregated[key].shift2Direct += entry.shift2Direct;
-      if (typeof entry.shift2Indirect === 'number') aggregated[key].shift2Indirect += entry.shift2Indirect;
-
-      aggregated[key].count += 1;
-    });
-
-    // Include labor reports (if any) in the aggregation via the laborReportService helper
-    try {
-      const { getLaborReportsByDateRange } = await import('./laborReportService');
-      const laborResult = await getLaborReportsByDateRange(new Date(startDate), new Date(endDate));
-      const laborReports = laborResult.success ? laborResult.data : [];
-
-      // Ensure the objects are in the shape expected by merging helper (weekEnding as Date)
-      const normalized = laborReports.map(r => ({ id: r.id, ...r, weekEnding: r.weekEnding instanceof Date ? r.weekEnding : new Date(r.weekEnding) }));
-
-      mergeLaborReportsToAggregated(aggregated, normalized, groupBy);
-    } catch (err) {
-      logger.warn('Failed to include labor reports in aggregation:', err);
+    // Fetch labor reports
+    const laborResult = await getLaborReports(startDate, endDate);
+    if (laborResult.success) {
+      mergeLaborReportsToAggregated(aggregated, laborResult.data, groupBy);
     }
 
     return { success: true, data: aggregated };
@@ -331,6 +358,8 @@ export const getAggregateHours = async (startDate, endDate, groupBy = 'day') => 
     return { success: false, error: error.message };
   }
 };
+
+
 
 // ============ RECRUITER DATA ============
 export const addRecruiterData = async (recruiterData, userId) => {
@@ -1068,30 +1097,21 @@ export const aggregateOnPremiseByDateAndShift = (entries = []) => {
     if (!dateKey) return;
 
     const mapKey = `${dateKey}::${shiftKey}`;
-    if (!map.has(mapKey)) {
-      map.set(mapKey, {
-        date: new Date(dateKey),
-        shift: shiftKey,
-        requested: 0,
-        required: 0,
-        working: 0,
-        newStarts: 0,
-        sendHomes: 0,
-        lineCuts: 0,
-        onPremise: 0,
-        entries: []
-      });
-    }
-
-    const agg = map.get(mapKey);
-    agg.requested += parseInt(e.requested) || 0;
-    agg.required += parseInt(e.required) || 0;
-    agg.working += parseInt(e.working) || 0;
-    agg.newStarts += parseInt(e.newStarts) || 0;
-    agg.sendHomes += parseInt(e.sendHomes) || 0;
-    agg.lineCuts += parseInt(e.lineCuts) || 0;
-    agg.onPremise += parseFloat(e.onPremise) || 0;
-    agg.entries.push(e.id || null);
+    
+    // Overwrite existing entry for the same date/shift to avoid double counting
+    // This assumes the last entry processed is the most recent/correct one
+    map.set(mapKey, {
+      date: new Date(dateKey),
+      shift: shiftKey,
+      requested: parseInt(e.requested) || 0,
+      required: parseInt(e.required) || 0,
+      working: parseInt(e.working) || 0,
+      newStarts: parseInt(e.newStarts) || 0,
+      sendHomes: parseInt(e.sendHomes) || 0,
+      lineCuts: parseInt(e.lineCuts) || 0,
+      onPremise: parseFloat(e.onPremise) || 0,
+      entries: [e.id]
+    });
   });
 
   const result = Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));

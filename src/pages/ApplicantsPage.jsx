@@ -48,6 +48,11 @@ import { createBadge, createOrUpdateBadgeFromApplicant, getBadgeByEID } from '..
 import BadgePrintPreview from '../components/BadgePrintPreview';
 import ApplicantDocuments from '../components/ApplicantDocuments';
 
+const ALL_STATUSES = [
+  'Started', 'Rejected', 'Declined', 'No Contact', 'BG Pending',
+  'Adjudication Pending', 'I-9 Pending', 'CB Updated', 'Terminated'
+];
+
 const ApplicantsPage = () => {
   const { currentUser, userProfile } = useAuth();
   const [applicants, setApplicants] = useState([]);
@@ -615,10 +620,54 @@ const ApplicantsPage = () => {
     }
   };
 
-  const ALL_STATUSES = [
-    'Applied', 'Interviewed', 'Processed', 'Hired', 'Started', 'Rejected',
-    'CB Updated', 'BG Pending', 'Adjudication Pending', 'I-9 Pending', 'Declined', 'No Contact'
-  ];
+  // Update pipeline based on date filters
+  useEffect(() => {
+    if (!applicants.length) return;
+
+    let dateFiltered = [...applicants];
+
+    // Apply date range filter (processDate)
+    if (filterDateFrom) {
+      dateFiltered = dateFiltered.filter(applicant => {
+        if (!applicant.processDate) return false;
+        const processDate = applicant.processDate instanceof Date
+          ? applicant.processDate
+          : new Date(applicant.processDate);
+        return processDate >= filterDateFrom.toDate();
+      });
+    }
+
+    if (filterDateTo) {
+      dateFiltered = dateFiltered.filter(applicant => {
+        if (!applicant.processDate) return false;
+        const processDate = applicant.processDate instanceof Date
+          ? applicant.processDate
+          : new Date(applicant.processDate);
+        return processDate <= filterDateTo.toDate();
+      });
+    }
+
+    // Calculate pipeline stats
+    const stats = {
+      total: dateFiltered.length,
+      byStatus: {}
+    };
+
+    // Initialize all statuses with 0
+    ALL_STATUSES.forEach(status => {
+      stats.byStatus[status] = 0;
+    });
+
+    // Count statuses
+    dateFiltered.forEach(app => {
+      const status = app.status;
+      if (status) {
+         stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
+      }
+    });
+
+    setPipeline(stats);
+  }, [applicants, filterDateFrom, filterDateTo]);
 
   if (loading) {
     return (
@@ -693,13 +742,14 @@ const ApplicantsPage = () => {
                   onChange={(e) => setFilterStatus(e.target.value)}
                 >
                   <MenuItem value="All">All Statuses</MenuItem>
-                  <MenuItem value="Applied">Applied</MenuItem>
-                  <MenuItem value="Interviewed">Interviewed</MenuItem>
-                  <MenuItem value="Offered">Offered</MenuItem>
-                  <MenuItem value="Accepted">Accepted</MenuItem>
                   <MenuItem value="Started">Started</MenuItem>
-                  <MenuItem value="No Show">No Show</MenuItem>
+                  <MenuItem value="Rejected">Rejected</MenuItem>
                   <MenuItem value="Declined">Declined</MenuItem>
+                  <MenuItem value="No Contact">No Contact</MenuItem>
+                  <MenuItem value="BG Pending">BG Pending</MenuItem>
+                  <MenuItem value="Adjudication Pending">Adjudication Pending</MenuItem>
+                  <MenuItem value="I-9 Pending">I-9 Pending</MenuItem>
+                  <MenuItem value="CB Updated">CB Updated</MenuItem>
                   <MenuItem value="Terminated">Terminated</MenuItem>
                 </Select>
               </FormControl>
@@ -895,7 +945,7 @@ const ApplicantsPage = () => {
                     </TableSortLabel>
                   </TableCell>
                   <TableCell sx={{ width: '120px', minWidth: '120px' }}>Notes</TableCell>
-                  <TableCell sx={{ width: '100px', minWidth: '100px' }}>Actions</TableCell>
+                  <TableCell sx={{ width: '100px', minWidth: '100px', position: 'sticky', right: 0, background: 'white', zIndex: 2 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -993,18 +1043,9 @@ const ApplicantsPage = () => {
                         {applicant.notes || '-'}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ width: '100px', minWidth: '100px' }}>
+                    <TableCell sx={{ width: '100px', minWidth: '100px', position: 'sticky', right: 0, background: 'white', zIndex: 1 }}>
                       <Stack direction="row" spacing={0.5}>
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSelectedApplicantForDocs(applicant);
-                            setDocumentsDialogOpen(true);
-                          }}
-                          title="View Documents"
-                        >
-                          <Folder fontSize="small" />
-                        </IconButton>
+
                         <IconButton
                           size="small"
                           color="error"
