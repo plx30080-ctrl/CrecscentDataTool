@@ -19,6 +19,7 @@ import AdminPanel from './pages/AdminPanel';
 import DataDebug from './pages/DataDebug';
 import EarlyLeavesPage from './pages/EarlyLeavesPage';
 import DNRManagement from './pages/DNRManagement';
+import DataBackup from './pages/DataBackup';
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
             <Route path="dnr" element={<DNRManagement />} />
             <Route path="admin" element={<AdminPanel />} />
             <Route path="upload" element={<Upload />} />
+            <Route path="backup" element={<DataBackup />} />
             <Route path="debug" element={<DataDebug />} />
             <Route path="profile" element={<ProfilePage />} />
           </Route>

@@ -10,13 +10,18 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Chip,
+  InputAdornment
 } from '@mui/material';
+import { CheckCircle, Error as ErrorIcon, Warning, Search as SearchIcon } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import logger from '../../utils/logger';
 import { Upload as UploadIcon } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import { submitOnPremiseData } from '../../services/dataEntryService';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 const SHIFTS = ['1st', '2nd'];
 
@@ -36,14 +41,16 @@ const OnPremiseForm = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const [newStartNames, setNewStartNames] = useState([]);
+  const [newStartEIDs, setNewStartEIDs] = useState([]);
+  const [eidValidation, setEidValidation] = useState([]); // Array of { eid, status, message, applicantData }
+  const [validatingEID, setValidatingEID] = useState(null);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
 
     if (field === 'newStarts') {
       const count = parseInt(value) || 0;
-      setNewStartNames(prev => {
+      setNewStartEIDs(prev => {
         const newArr = [...prev];
         if (count > prev.length) {
           // Add empty strings
@@ -54,15 +61,120 @@ const OnPremiseForm = () => {
         }
         return newArr;
       });
+      setEidValidation(prev => {
+        const newArr = [...prev];
+        if (count > prev.length) {
+          for (let i = prev.length; i < count; i++) newArr.push(null);
+        } else {
+          newArr.length = count;
+        }
+        return newArr;
+      });
     }
   };
 
-  const handleNewStartNameChange = (index, value) => {
-    setNewStartNames(prev => {
+  const validateAndSetEID = async (index, value) => {
+    // Update the EID value
+    setNewStartEIDs(prev => {
       const newArr = [...prev];
       newArr[index] = value;
       return newArr;
     });
+
+    // Clear validation for empty value
+    if (!value || !value.trim()) {
+      setEidValidation(prev => {
+        const newArr = [...prev];
+        newArr[index] = null;
+        return newArr;
+      });
+      return;
+    }
+
+    // Start validation
+    setValidatingEID(index);
+
+    try {
+      // Search for applicant by EID
+      const eidQuery = query(
+        collection(db, 'applicants'),
+        where('eid', '==', value.trim())
+      );
+      const eidSnapshot = await getDocs(eidQuery);
+
+      // Also check crmNumber as fallback
+      let applicantData = null;
+      if (!eidSnapshot.empty) {
+        applicantData = { id: eidSnapshot.docs[0].id, ...eidSnapshot.docs[0].data() };
+      } else {
+        const crmQuery = query(
+          collection(db, 'applicants'),
+          where('crmNumber', '==', value.trim())
+        );
+        const crmSnapshot = await getDocs(crmQuery);
+        if (!crmSnapshot.empty) {
+          applicantData = { id: crmSnapshot.docs[0].id, ...crmSnapshot.docs[0].data() };
+        }
+      }
+
+      if (!applicantData) {
+        // EID not found
+        setEidValidation(prev => {
+          const newArr = [...prev];
+          newArr[index] = {
+            eid: value.trim(),
+            status: 'error',
+            message: 'EID not found in applicant system',
+            applicantData: null
+          };
+          return newArr;
+        });
+      } else {
+        // EID found - check status
+        const finalizedStatuses = ['CB Updated', 'Finalized'];
+        const name = applicantData.firstName && applicantData.lastName
+          ? `${applicantData.firstName} ${applicantData.lastName}`
+          : applicantData.name || 'N/A';
+
+        if (finalizedStatuses.includes(applicantData.status)) {
+          setEidValidation(prev => {
+            const newArr = [...prev];
+            newArr[index] = {
+              eid: value.trim(),
+              status: 'success',
+              message: `${name} - Status: ${applicantData.status}`,
+              applicantData
+            };
+            return newArr;
+          });
+        } else {
+          setEidValidation(prev => {
+            const newArr = [...prev];
+            newArr[index] = {
+              eid: value.trim(),
+              status: 'warning',
+              message: `${name} - Status: ${applicantData.status} (Not finalized)`,
+              applicantData
+            };
+            return newArr;
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Error validating EID:', error);
+      setEidValidation(prev => {
+        const newArr = [...prev];
+        newArr[index] = {
+          eid: value.trim(),
+          status: 'error',
+          message: 'Error validating EID',
+          applicantData: null
+        };
+        return newArr;
+      });
+    } finally {
+      setValidatingEID(null);
+    }
   };
 
   const handleFileUpload = (event) => {
@@ -88,7 +200,15 @@ const OnPremiseForm = () => {
     setMessage(null);
 
     try {
-      const result = await submitOnPremiseData({ ...formData, newStartNames }, uploadedFile);
+      // Validate all EIDs before submission
+      const hasErrors = eidValidation.some(v => v && v.status === 'error');
+      if (hasErrors) {
+        setMessage({ type: 'error', text: 'Please fix all EID errors before submitting' });
+        setLoading(false);
+        return;
+      }
+
+      const result = await submitOnPremiseData({ ...formData, newStartEIDs, eidValidation }, uploadedFile);
 
       if (result.success) {
         setMessage({
@@ -108,7 +228,8 @@ const OnPremiseForm = () => {
           lineCuts: '',
           notes: ''
         });
-        setNewStartNames([]);
+        setNewStartEIDs([]);
+        setEidValidation([]);
         setUploadedFile(null);
         document.getElementById('file-upload').value = '';
       } else {
@@ -225,25 +346,62 @@ const OnPremiseForm = () => {
           />
         </Grid>
 
-        {/* New Start Names */}
-        {newStartNames.length > 0 && (
+        {/* New Start EIDs */}
+        {newStartEIDs.length > 0 && (
           <Grid item xs={12}>
             <Typography variant="subtitle2" gutterBottom>
-              Enter New Start Names (to update applicant status):
+              Enter New Start EIDs (to update applicant status):
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+              System will validate each EID and display the applicant's current status
             </Typography>
             <Grid container spacing={2}>
-              {newStartNames.map((name, index) => (
-                <Grid item xs={12} sm={6} md={4} key={index}>
-                  <TextField
-                    label={`New Start #${index + 1} Name`}
-                    fullWidth
-                    size="small"
-                    value={name}
-                    onChange={(e) => handleNewStartNameChange(index, e.target.value)}
-                    placeholder="First Last"
-                  />
-                </Grid>
-              ))}
+              {newStartEIDs.map((eid, index) => {
+                const validation = eidValidation[index];
+                const isValidating = validatingEID === index;
+                
+                return (
+                  <Grid item xs={12} sm={6} md={4} key={index}>
+                    <TextField
+                      label={`New Start #${index + 1} EID`}
+                      fullWidth
+                      size="small"
+                      value={eid}
+                      onChange={(e) => validateAndSetEID(index, e.target.value)}
+                      placeholder="Enter EID"
+                      error={validation?.status === 'error'}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            {isValidating ? (
+                              <CircularProgress size={20} />
+                            ) : validation?.status === 'success' ? (
+                              <CheckCircle color="success" />
+                            ) : validation?.status === 'warning' ? (
+                              <Warning color="warning" />
+                            ) : validation?.status === 'error' ? (
+                              <ErrorIcon color="error" />
+                            ) : null}
+                          </InputAdornment>
+                        )
+                      }}
+                    />
+                    {validation && validation.message && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'block',
+                          mt: 0.5,
+                          color: validation.status === 'success' ? 'success.main' :
+                                 validation.status === 'warning' ? 'warning.main' : 'error.main'
+                        }}
+                      >
+                        {validation.message}
+                      </Typography>
+                    )}
+                  </Grid>
+                );
+              })}
             </Grid>
           </Grid>
         )}

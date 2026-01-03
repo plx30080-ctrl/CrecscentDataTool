@@ -100,7 +100,8 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
     }
 
     // Upload photo first if provided (before any database operations)
-    let photoURL = '';
+    // Fallback to existing applicant photoURL when no new upload is supplied so printing uses the stored image.
+    let photoURL = applicant.photoURL || '';
     if (photoFile) {
       const storageRef = ref(storage, `badges/${eid}_${Date.now()}.jpg`);
       try {
@@ -127,7 +128,7 @@ export const createOrUpdateBadgeFromApplicant = async (applicant, photoFile, use
         updatedAt: serverTimestamp()
       };
 
-      if (photoURL) {
+      if (photoURL && photoURL !== existingBadge.data.photoURL) {
         updates.photoURL = photoURL;
       }
 

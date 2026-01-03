@@ -111,7 +111,8 @@ export const submitOnPremiseData = async (formData, file) => {
       submittedAt: serverTimestamp(),
       submittedBy: user.email,
       submittedByUid: user.uid,
-      newStartNames: formData.newStartNames || []
+      newStartEIDs: formData.newStartEIDs || [],
+      eidValidation: formData.eidValidation || []
     };
 
     // If file is provided, parse employee data
@@ -124,42 +125,34 @@ export const submitOnPremiseData = async (formData, file) => {
 
     const docRef = await addDoc(collection(db, 'onPremiseData'), dataToSubmit);
 
-    // Attempt to update applicants by name
-    if (formData.newStartNames && formData.newStartNames.length > 0) {
+    // Update applicants by EID
+    if (formData.newStartEIDs && formData.newStartEIDs.length > 0 && formData.eidValidation) {
       try {
-        // Dynamic import to avoid circular dependency
-        const { getApplicants } = await import('./firestoreService');
-        const result = await getApplicants();
+        const date = formData.date.toDate();
+        let updatedCount = 0;
         
-        if (result.success) {
-          const applicants = result.data;
-          const date = formData.date.toDate();
-          let updatedCount = 0;
+        for (let i = 0; i < formData.newStartEIDs.length; i++) {
+          const eid = formData.newStartEIDs[i];
+          const validation = formData.eidValidation[i];
           
-          for (const name of formData.newStartNames) {
-            if (!name || !name.trim()) continue;
-            
-            const searchName = name.trim().toLowerCase();
-            const match = applicants.find(a => {
-               const appName = (a.firstName && a.lastName) ? `${a.firstName} ${a.lastName}` : a.name;
-               return appName && appName.toLowerCase() === searchName;
+          if (!eid || !eid.trim() || !validation || !validation.applicantData) continue;
+          
+          // Only update if not already "Started"
+          if (validation.applicantData.status !== 'Started') {
+            await updateDoc(doc(db, 'applicants', validation.applicantData.id), {
+              status: 'Started',
+              actualStartDate: Timestamp.fromDate(date),
+              lastModified: serverTimestamp()
             });
-            
-            if (match && match.status !== 'Started') {
-               await updateDoc(doc(db, 'applicants', match.id), {
-                 status: 'Started',
-                 actualStartDate: Timestamp.fromDate(date),
-                 lastModified: serverTimestamp()
-               });
-               updatedCount++;
-            }
-          }
-          if (updatedCount > 0) {
-            logger.info(`Updated ${updatedCount} applicants to Started based on new start names`);
+            updatedCount++;
           }
         }
+        
+        if (updatedCount > 0) {
+          logger.info(`Updated ${updatedCount} applicants to Started based on new start EIDs`);
+        }
       } catch (err) {
-        logger.error('Error updating applicants from new start names:', err);
+        logger.error('Error updating applicants from new start EIDs:', err);
       }
     }
 

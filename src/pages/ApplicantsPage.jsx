@@ -379,8 +379,18 @@ const ApplicantsPage = () => {
       const existingBadge = await getBadgeByEID(employeeId);
 
       if (existingBadge.success && existingBadge.data) {
-        // Badge exists - use it directly
-        setBadgeToPrint(existingBadge.data);
+        // If badge is missing a photo but applicant has one, sync it before printing
+        if (!existingBadge.data.photoURL && editingApplicant.photoURL) {
+          await createOrUpdateBadgeFromApplicant(editingApplicant, null, currentUser.uid);
+          const refreshed = await getBadgeByEID(employeeId);
+          if (refreshed.success && refreshed.data) {
+            setBadgeToPrint(refreshed.data);
+          } else {
+            setBadgeToPrint({ ...existingBadge.data, photoURL: editingApplicant.photoURL });
+          }
+        } else {
+          setBadgeToPrint(existingBadge.data);
+        }
         setPrintPreviewOpen(true);
       } else {
         // No badge yet - create one from applicant data

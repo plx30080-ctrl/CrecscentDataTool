@@ -1,0 +1,74 @@
+{
+  "backupDate": "2026-01-03T13:20:42.233Z",
+  "backupVersion": "1.0",
+  "collections": [],
+  "totalDocuments": 0,
+  "successful": 0,
+  "failed": 16,
+  "failedCollections": [
+    {
+      "name": "applicants",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "associates",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "badges",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "earlyLeaves",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "dnrDatabase",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "laborReports",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "onPremiseData",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "branchDaily",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "branchWeekly",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "hoursData",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "shiftData",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "recruiterData",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "applicantDocuments",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "users",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "auditLog",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    },
+    {
+      "name": "badgeTemplates",
+      "error": "Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information."
+    }
+  ]
+}
