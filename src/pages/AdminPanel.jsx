@@ -34,7 +34,11 @@ import {
   Assessment,
   Edit,
   Refresh,
-  Delete
+  Delete,
+  Storage,
+  Backup,
+  DeleteSweep,
+  Upload as UploadIcon
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -46,9 +50,11 @@ import { deleteUserProfile } from '../services/firestoreService';
 import { checkPrinterStatus, getAvailablePrinters } from '../services/printService';
 import dayjs from 'dayjs';
 import logger from '../utils/logger';
+import { useNavigate } from 'react-router-dom';
 
 const AdminPanel = () => {
   const { currentUser, userProfile } = useAuth();
+    const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
 
   // User Management State
@@ -231,6 +237,7 @@ const AdminPanel = () => {
         <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
           <Tab label="User Management" icon={<People />} iconPosition="start" />
           <Tab label="Audit Logs" icon={<Assessment />} iconPosition="start" />
+                  <Tab label="Data Management" icon={<Storage />} iconPosition="start" />
         </Tabs>
       </Box>
 
@@ -330,6 +337,107 @@ const AdminPanel = () => {
               <Typography variant="body2" color="text.secondary">No printers discovered</Typography>
             )}
           </Box>
+        </Paper>
+      )}
+
+      {/* Tab 2: Data Management */}
+      {tabValue === 2 && (
+        <Paper sx={{ padding: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Data Management Tools
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ marginBottom: 3 }}>
+            Backup, restore, and manage system data
+          </Typography>
+
+          <Grid container spacing={3}>
+            {/* Backup Data Card */}
+            <Grid item xs={12} md={4}>
+              <Paper
+                elevation={3}
+                sx={{
+                  padding: 3,
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6
+                  }
+                }}
+                onClick={() => navigate('/backup')}
+              >
+                <Backup sx={{ fontSize: 60, color: 'primary.main', marginBottom: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Backup Data
+                </Typography>
+                <Typography variant="body2" color="text.secondary" paragraph>
+                  Download a complete backup of all system data as a JSON file
+                </Typography>
+                <Button variant="contained" startIcon={<Backup />}>
+                  Go to Backup
+                </Button>
+              </Paper>
+            </Grid>
+
+            {/* Clear All Data Card */}
+            <Grid item xs={12} md={4}>
+              <Paper
+                elevation={3}
+                sx={{
+                  padding: 3,
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6
+                  }
+                }}
+                onClick={() => navigate('/clear-data')}
+              >
+                <DeleteSweep sx={{ fontSize: 60, color: 'error.main', marginBottom: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Clear All Data
+                </Typography>
+                <Typography variant="body2" color="text.secondary" paragraph>
+                  Remove all data from the system (requires confirmation)
+                </Typography>
+                <Button variant="contained" color="error" startIcon={<DeleteSweep />}>
+                  Go to Clear Data
+                </Button>
+              </Paper>
+            </Grid>
+
+            {/* Bulk Historical Import Card */}
+            <Grid item xs={12} md={4}>
+              <Paper
+                elevation={3}
+                sx={{
+                  padding: 3,
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6
+                  }
+                }}
+                onClick={() => navigate('/bulk-import')}
+              >
+                <UploadIcon sx={{ fontSize: 60, color: 'success.main', marginBottom: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Bulk Historical Import
+                </Typography>
+                <Typography variant="body2" color="text.secondary" paragraph>
+                  Upload and import historical data from CSV or Excel files
+                </Typography>
+                <Button variant="contained" color="success" startIcon={<UploadIcon />}>
+                  Go to Import
+                </Button>
+              </Paper>
+            </Grid>
+          </Grid>
         </Paper>
       )}
 

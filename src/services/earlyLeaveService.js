@@ -428,3 +428,70 @@ function calculateNameSimilarity(str1, str2) {
   const distance = matrix[len1][len2];
   return 1 - distance / maxLen;
 }
+
+/**
+ * Bulk upload early leaves from imported data
+ */
+export const bulkUploadEarlyLeaves = async (data) => {
+  try {
+    const batch = [];
+    const userId = 'system'; // System import user
+
+    for (const row of data) {
+      const earlyLeaveData = {
+        eid: row.eid || row.EID || '',
+        associateName: row.associateName || row.name || row.Name || '',
+        date: row.date || row.Date || new Date().toISOString(),
+        timeLeft: row.timeLeft || row['Time Left'] || '',
+        reason: row.reason || row.Reason || '',
+        correctiveAction: row.correctiveAction || row['Corrective Action'] || ''
+      };
+
+      if (earlyLeaveData.eid && earlyLeaveData.date) {
+        batch.push(createEarlyLeave(earlyLeaveData, userId));
+      }
+    }
+
+    const results = await Promise.allSettled(batch);
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    
+    logger.info(`Bulk uploaded ${successful} early leave records`);
+    return { success: true, count: successful };
+  } catch (error) {
+    logger.error('Error bulk uploading early leaves:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Bulk upload DNR records from imported data
+ */
+export const bulkUploadDNR = async (data) => {
+  try {
+    const batch = [];
+    const userId = 'system'; // System import user
+
+    for (const row of data) {
+      const dnrData = {
+        eid: row.eid || row.EID || '',
+        associateName: row.name || row.Name || row.associateName || '',
+        reason: row.reason || row.Reason || '',
+        dateAdded: row.dateAdded || row['Date Added'] || new Date().toISOString(),
+        source: 'Bulk Import'
+      };
+
+      if (dnrData.eid || dnrData.associateName) {
+        batch.push(addToDNR(dnrData, userId));
+      }
+    }
+
+    const results = await Promise.allSettled(batch);
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    
+    logger.info(`Bulk uploaded ${successful} DNR records`);
+    return { success: true, count: successful };
+  } catch (error) {
+    logger.error('Error bulk uploading DNR records:', error);
+    return { success: false, error: error.message };
+  }
+};

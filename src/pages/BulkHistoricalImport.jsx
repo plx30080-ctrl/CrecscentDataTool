@@ -42,7 +42,7 @@ import {
   Refresh
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
-import { parseCSV } from '../utils/csvParser';
+import Papa from 'papaparse';
 import { bulkUploadApplicants } from '../services/firestoreService';
 import { bulkUploadEarlyLeaves, bulkUploadDNR } from '../services/earlyLeaveService';
 import {
@@ -51,7 +51,6 @@ import {
   bulkImportLaborReports,
   bulkImportBadges
 } from '../services/bulkImportService';
-import { uploadProfilePhoto } from '../services/userService';
 import dayjs from 'dayjs';
 
 const DATA_TYPES = {
@@ -127,7 +126,8 @@ const BulkHistoricalImport = () => {
       let data;
 
       if (file.name.endsWith('.csv')) {
-        data = parseCSV(text);
+        const results = Papa.parse(text, { header: true });
+        data = results.data.filter(row => Object.values(row).some(v => v)); // Remove empty rows
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer);

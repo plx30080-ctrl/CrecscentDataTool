@@ -21,6 +21,7 @@ import EarlyLeavesPage from './pages/EarlyLeavesPage';
 import DNRManagement from './pages/DNRManagement';
 import DataBackup from './pages/DataBackup';
 import BulkHistoricalImport from './pages/BulkHistoricalImport';
+import DataCleaner from './pages/DataCleaner';
 
 function App() {
   return (
@@ -54,6 +55,7 @@ function App() {
             <Route path="upload" element={<Upload />} />
             <Route path="bulk-import" element={<BulkHistoricalImport />} />
             <Route path="backup" element={<DataBackup />} />
+            <Route path="clear-data" element={<DataCleaner />} />
             <Route path="debug" element={<DataDebug />} />
             <Route path="profile" element={<ProfilePage />} />
           </Route>
