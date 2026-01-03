@@ -787,7 +787,7 @@ const ApplicantsPage = () => {
           />
 
           {/* Advanced Filters */}
-          <Grid container spacing={2}>
+          <Grid container spacing={2} sx={{ marginTop: 1 }}>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
                 <InputLabel>Status</InputLabel>
@@ -818,25 +818,38 @@ const ApplicantsPage = () => {
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  label="Process Date From"
-                  value={filterDateFrom}
-                  onChange={(newValue) => setFilterDateFrom(newValue)}
-                 <Button
-                  size="small"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setFilterStatus('All');
-                    setFilterShift('All');
-                    setFilterDateFrom(null);
-                    setFilterDateTo(null);
-                 }}
-                >
-                  Clear All Filters
-                </Button>
-            )}
-          </Box>
+              <DatePicker
+                label="Process Date From"
+                value={filterDateFrom}
+                onChange={(newValue) => setFilterDateFrom(newValue)}
+                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <DatePicker
+                label="Process Date To"
+                value={filterDateTo}
+                onChange={(newValue) => setFilterDateTo(newValue)}
+                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Button
+                fullWidth
+                size="small"
+                variant="outlined"
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterStatus('All');
+                  setFilterShift('All');
+                  setFilterDateFrom(null);
+                  setFilterDateTo(null);
+                }}
+              >
+                Clear All Filters
+              </Button>
+            </Grid>
+          </Grid>
         </Paper>
 
         {/* Pipeline Overview */}

@@ -549,19 +549,6 @@ export const updateBadgeStatus = async (badgeId, status, notes = '') => {
 };
 
 /**
- * Delete badge
- */
-export const deleteBadge = async (badgeId) => {
-  try {
-    await deleteDoc(doc(db, 'badges', badgeId));
-    return { success: true };
-  } catch (error) {
-    logger.error('Error deleting badge:', error);
-    return { success: false, error: error.message };
-  }
-};
-
-/**
  * Get badge statistics
  */
 export const getBadgeStats = async () => {
