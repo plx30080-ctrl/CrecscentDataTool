@@ -411,6 +411,20 @@ export const deleteBadge = async (badgeId) => {
   }
 };
 
+export const deleteBadgesByEid = async (eid) => {
+  try {
+    const q = query(collection(db, 'badges'), where('eid', '==', eid));
+    const snapshot = await getDocs(q);
+    for (const docSnap of snapshot.docs) {
+      await deleteDoc(doc(db, 'badges', docSnap.id));
+    }
+    return { success: true, deleted: snapshot.size };
+  } catch (error) {
+    logger.error('Error deleting badges by EID:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 
 // ============ PRINT QUEUE ============
 

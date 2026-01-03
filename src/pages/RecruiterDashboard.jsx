@@ -35,11 +35,7 @@ const RecruiterDashboard = () => {
   const [recruiterStats, setRecruiterStats] = useState([]);
   const [dateRange, setDateRange] = useState('all');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -82,7 +78,11 @@ const RecruiterDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const filterByDateRange = (date) => {
     if (!date || dateRange === 'all') return true;

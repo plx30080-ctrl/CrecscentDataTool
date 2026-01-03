@@ -92,8 +92,8 @@ const NewStartsAnalytics = () => {
   const calculateMetrics = (applicantsData, associatesData) => {
     // Filter applicants by date range
     const filteredApplicants = applicantsData.filter(app => {
-      const start = app.actualStartDate || app.tentativeStartDate;
-      if (!start) return false;
+      const start = app.actualStartDate || null;
+      if (!start) return false; // Only trust actual starts to avoid skew
       const date = dayjs(start);
       return date.isAfter(startDate.startOf('day')) && date.isBefore(endDate.endOf('day'));
     });
@@ -121,10 +121,10 @@ const NewStartsAnalytics = () => {
     filteredApplicants.forEach(applicant => {
       // Track missing dates for debugging
       if (!applicant.processDate) metrics.missingProcessDates++;
-      if (!applicant.tentativeStartDate && !applicant.actualStartDate) metrics.missingTentativeStartDates++;
+      if (!applicant.actualStartDate) metrics.missingTentativeStartDates++;
 
-      // Calculate process to start time (use actualStartDate if available, otherwise tentative)
-      const start = applicant.actualStartDate || applicant.tentativeStartDate;
+      // Calculate process to start time using actual start only to avoid optimistic skew
+      const start = applicant.actualStartDate;
       if (applicant.processDate && start) {
         const processTime = dayjs(start).diff(dayjs(applicant.processDate), 'day');
         if (processTime >= 0 && processTime < 365) {  // Expanded from 90 to 365 days

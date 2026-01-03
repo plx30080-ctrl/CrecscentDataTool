@@ -1,5 +1,6 @@
 import { db } from '../firebase';
 import logger from '../utils/logger';
+import dayjs from 'dayjs';
 import {
   collection,
   addDoc,
@@ -17,9 +18,12 @@ import * as XLSX from 'xlsx';
 /**
  * Sync applicant statuses to "Started" when they appear in labor reports
  */
-const syncApplicantStatuses = async (employeeIds) => {
+const syncApplicantStatuses = async (employeeIds, weekEnding = null) => {
   try {
     let updatedCount = 0;
+    const candidateStart = weekEnding
+      ? Timestamp.fromDate(dayjs(weekEnding).subtract(6, 'day').toDate())
+      : null;
 
     for (const eid of employeeIds) {
       // Find applicant by EID or crmNumber
@@ -43,10 +47,14 @@ const syncApplicantStatuses = async (employeeIds) => {
           const currentStatus = document.data().status;
           // Only update if not already "Started"
           if (currentStatus !== 'Started') {
-            await updateDoc(doc(db, 'applicants', document.id), {
+            const updatePayload = {
               status: 'Started',
               lastModified: serverTimestamp()
-            });
+            };
+            if (candidateStart) {
+              updatePayload.actualStartDate = candidateStart;
+            }
+            await updateDoc(doc(db, 'applicants', document.id), updatePayload);
             updatedCount++;
           }
         }
@@ -56,10 +64,14 @@ const syncApplicantStatuses = async (employeeIds) => {
           const currentStatus = document.data().status;
           // Only update if not already "Started"
           if (currentStatus !== 'Started') {
-            await updateDoc(doc(db, 'applicants', document.id), {
+            const updatePayload = {
               status: 'Started',
               lastModified: serverTimestamp()
-            });
+            };
+            if (candidateStart) {
+              updatePayload.actualStartDate = candidateStart;
+            }
+            await updateDoc(doc(db, 'applicants', document.id), updatePayload);
             updatedCount++;
           }
         }
@@ -229,7 +241,7 @@ export const submitLaborReport = async (data) => {
     // Auto-update applicant statuses to "Started" for EIDs in labor report
     let statusesUpdated = 0;
     if (data.employeeIds && data.employeeIds.length > 0) {
-      const syncResult = await syncApplicantStatuses(data.employeeIds);
+      const syncResult = await syncApplicantStatuses(data.employeeIds, data.weekEnding?.toDate ? data.weekEnding.toDate() : data.weekEnding);
       statusesUpdated = syncResult.updatedCount || 0;
     }
 

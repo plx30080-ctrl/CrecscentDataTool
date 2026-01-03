@@ -236,7 +236,7 @@ const SecondShiftDashboard = () => {
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
-                  <AccessTime sx={{ marginRight": 1, color: 'warning.main' }} />
+                  <AccessTime sx={{ marginRight: 1, color: 'warning.main' }} />
                   <Typography variant="h6">Avg Hrs/Person</Typography>
                 </Box>
                 <Typography variant="h4">{avgHoursPerPerson}</Typography>

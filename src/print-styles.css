@@ -34,12 +34,6 @@
     width: 100% !important;
   }
   
-  /* Prevent EID from appearing below name - keep in correct position */
-  .MuiTypography-root {
-    position: absolute !important;
-    /* Each typography element should maintain its own positioning */
-  }
-  
   /* Ensure barcode display value is properly centered */
   svg text {
     text-anchor: middle !important;

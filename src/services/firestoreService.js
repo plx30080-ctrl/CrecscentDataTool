@@ -119,9 +119,26 @@ export const getHoursData = async (startDate, endDate) => {
 
 import dayjs from 'dayjs';
 
+const createEmptyHoursBucket = () => ({
+  totalHours: 0,
+  shift1Hours: 0,
+  shift2Hours: 0,
+  shift1Direct: 0,
+  shift1Indirect: 0,
+  shift2Direct: 0,
+  shift2Indirect: 0,
+  totalDirect: 0,
+  totalIndirect: 0,
+  count: 0
+});
+
 // Helper to merge labor reports dailyBreakdown or totals into an aggregated map
-export const mergeLaborReportsToAggregated = (aggregated, laborReports = [], groupBy = 'day') => {
+// startDate/endDate are optional clamps to avoid adding dates outside the selected range
+export const mergeLaborReportsToAggregated = (aggregated, laborReports = [], groupBy = 'day', startDate = null, endDate = null) => {
   const dayOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+
+  const startMs = startDate ? new Date(startDate).getTime() : null;
+  const endMs = endDate ? new Date(endDate).getTime() : null;
 
   laborReports.forEach(report => {
     const weekEnding = report.weekEnding ? (report.weekEnding instanceof Date ? report.weekEnding : new Date(report.weekEnding)) : null;
@@ -140,6 +157,11 @@ export const mergeLaborReportsToAggregated = (aggregated, laborReports = [], gro
         const date = weekStart.add(idx, 'day').toDate();
         let key;
 
+        const dateMs = date.getTime();
+        if ((startMs && dateMs < startMs) || (endMs && dateMs > endMs)) {
+          return; // Ignore out-of-range dates to avoid future/previous bleed
+        }
+
         if (groupBy === 'day') {
           key = date.toISOString().split('T')[0];
         } else if (groupBy === 'week') {
@@ -149,18 +171,8 @@ export const mergeLaborReportsToAggregated = (aggregated, laborReports = [], gro
           key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         }
 
-        if (!aggregated[key]) aggregated[key] = {
-          totalHours: 0,
-          shift1Hours: 0,
-          shift2Hours: 0,
-          shift1Direct: 0,
-          shift1Indirect: 0,
-          shift2Direct: 0,
-          shift2Indirect: 0,
-          totalDirect: 0,
-          totalIndirect: 0,
-          count: 0
-        };
+        // Prefer labor report data over legacy hoursData if it exists to prevent double counting
+        aggregated[key] = createEmptyHoursBucket();
 
         const dayData = report.dailyBreakdown[dayName];
         if (dayData) {
@@ -192,18 +204,7 @@ export const mergeLaborReportsToAggregated = (aggregated, laborReports = [], gro
 
       if (groupBy === 'week') {
         const key = weekStart.toDate().toISOString().split('T')[0];
-        if (!aggregated[key]) aggregated[key] = {
-          totalHours: 0,
-          shift1Hours: 0,
-          shift2Hours: 0,
-          shift1Direct: 0,
-          shift1Indirect: 0,
-          shift2Direct: 0,
-          shift2Indirect: 0,
-          totalDirect: 0,
-          totalIndirect: 0,
-          count: 0
-        };
+        aggregated[key] = aggregated[key] ? aggregated[key] : createEmptyHoursBucket();
 
         aggregated[key].totalHours += report.totalHours || 0;
 
@@ -221,6 +222,10 @@ export const mergeLaborReportsToAggregated = (aggregated, laborReports = [], gro
 
         for (let i = 0; i < 7; i++) {
           const date = weekStart.add(i, 'day').toDate();
+          const dateMs = date.getTime();
+          if ((startMs && dateMs < startMs) || (endMs && dateMs > endMs)) {
+            continue; // Skip dates outside the selected range
+          }
           let key;
 
           if (groupBy === 'day') {
@@ -229,18 +234,7 @@ export const mergeLaborReportsToAggregated = (aggregated, laborReports = [], gro
             key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
           }
 
-          if (!aggregated[key]) aggregated[key] = {
-            totalHours: 0,
-            shift1Hours: 0,
-            shift2Hours: 0,
-            shift1Direct: 0,
-            shift1Indirect: 0,
-            shift2Direct: 0,
-            shift2Indirect: 0,
-            totalDirect: 0,
-            totalIndirect: 0,
-            count: 0
-          };
+          aggregated[key] = aggregated[key] ? aggregated[key] : createEmptyHoursBucket();
 
           aggregated[key].totalHours += perDay;
 
@@ -301,7 +295,7 @@ export const getAggregateHours = async (startDate, endDate, groupBy = 'day') => 
   try {
     const aggregated = {};
 
-    // Fetch legacy hours data
+    // Fetch legacy hours data (dedupe by date; prefer latest submission per date)
     const hoursResult = await fetchHoursData(startDate, endDate);
     if (hoursResult.success) {
       hoursResult.data.forEach(entry => {
@@ -318,39 +312,42 @@ export const getAggregateHours = async (startDate, endDate, groupBy = 'day') => 
           key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         }
 
-        if (!aggregated[key]) {
-          aggregated[key] = {
-            totalHours: 0,
-            shift1Hours: 0,
-            shift2Hours: 0,
-            shift1Direct: 0,
-            shift1Indirect: 0,
-            shift2Direct: 0,
-            shift2Indirect: 0,
-            totalDirect: 0,
-            totalIndirect: 0,
-            count: 0
-          };
+        const submittedMs = entry.submittedAt?.toDate ? entry.submittedAt.toDate().getTime() : (entry.submittedAt instanceof Date ? entry.submittedAt.getTime() : 0);
+        const candidate = {
+          totalHours: entry.totalHours || 0,
+          shift1Hours: entry.shift1Hours || 0,
+          shift2Hours: entry.shift2Hours || 0,
+          shift1Direct: entry.shift1Direct || 0,
+          shift1Indirect: entry.shift1Indirect || 0,
+          shift2Direct: entry.shift2Direct || 0,
+          shift2Indirect: entry.shift2Indirect || 0,
+          totalDirect: entry.totalDirect || 0,
+          totalIndirect: entry.totalIndirect || 0,
+          count: 1,
+          __submittedMs: submittedMs
+        };
+
+        const existing = aggregated[key];
+        if (existing && typeof existing.__submittedMs === 'number' && existing.__submittedMs > submittedMs) {
+          return; // keep newer submission
         }
 
-        aggregated[key].totalHours += entry.totalHours || 0;
-        aggregated[key].shift1Hours += entry.shift1Hours || 0;
-        aggregated[key].shift2Hours += entry.shift2Hours || 0;
-        aggregated[key].shift1Direct += entry.shift1Direct || 0;
-        aggregated[key].shift1Indirect += entry.shift1Indirect || 0;
-        aggregated[key].shift2Direct += entry.shift2Direct || 0;
-        aggregated[key].shift2Indirect += entry.shift2Indirect || 0;
-        aggregated[key].totalDirect += entry.totalDirect || 0;
-        aggregated[key].totalIndirect += entry.totalIndirect || 0;
-        aggregated[key].count += 1;
+        aggregated[key] = { ...createEmptyHoursBucket(), ...candidate };
       });
     }
 
     // Fetch labor reports
     const laborResult = await getLaborReports(startDate, endDate);
     if (laborResult.success) {
-      mergeLaborReportsToAggregated(aggregated, laborResult.data, groupBy);
+      mergeLaborReportsToAggregated(aggregated, laborResult.data, groupBy, startDate, endDate);
     }
+
+    // Strip helper metadata
+    Object.keys(aggregated).forEach(key => {
+      if (aggregated[key].__submittedMs !== undefined) {
+        delete aggregated[key].__submittedMs;
+      }
+    });
 
     return { success: true, data: aggregated };
   } catch (error) {
@@ -1097,10 +1094,9 @@ export const aggregateOnPremiseByDateAndShift = (entries = []) => {
     if (!dateKey) return;
 
     const mapKey = `${dateKey}::${shiftKey}`;
-    
-    // Overwrite existing entry for the same date/shift to avoid double counting
-    // This assumes the last entry processed is the most recent/correct one
-    map.set(mapKey, {
+    const submittedMs = e.submittedAt?.toDate ? e.submittedAt.toDate().getTime() : (e.submittedAt instanceof Date ? e.submittedAt.getTime() : null);
+
+    const candidate = {
       date: new Date(dateKey),
       shift: shiftKey,
       requested: parseInt(e.requested) || 0,
@@ -1109,13 +1105,27 @@ export const aggregateOnPremiseByDateAndShift = (entries = []) => {
       newStarts: parseInt(e.newStarts) || 0,
       sendHomes: parseInt(e.sendHomes) || 0,
       lineCuts: parseInt(e.lineCuts) || 0,
-      onPremise: parseFloat(e.onPremise) || 0,
+      onPremise: e.onPremise !== undefined && e.onPremise !== null
+        ? parseFloat(e.onPremise)
+        : (parseFloat(e.working) || 0),
+      submittedMs: submittedMs || 0,
       entries: [e.id]
-    });
+    };
+
+    // Prefer the latest submission for a given date/shift to avoid double counting duplicates
+    if (map.has(mapKey)) {
+      const existing = map.get(mapKey);
+      if ((candidate.submittedMs || 0) >= (existing.submittedMs || 0)) {
+        map.set(mapKey, candidate);
+      }
+    } else {
+      map.set(mapKey, candidate);
+    }
   });
 
-  const result = Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
-  return result;
+  return Array.from(map.values())
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .map(({ submittedMs, ...rest }) => rest); // Strip helper field
 };
 
 // Consolidated New Starts Summary

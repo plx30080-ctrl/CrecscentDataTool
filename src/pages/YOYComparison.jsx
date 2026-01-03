@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -32,12 +32,7 @@ const YOYComparison = () => {
   const [priorYearData, setPriorYearData] = useState([]);
   const [dateRange, setDateRange] = useState('month');
 
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]); // loadData is stable and doesn't need to be in deps
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -127,7 +122,11 @@ const YOYComparison = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   if (loading) {
     return (
@@ -167,26 +166,82 @@ const YOYComparison = () => {
   const fillRateChange = (currentFillRate - priorFillRate).toFixed(1);
 
   //  Chart data
-  const currentLabels = currentYearData.map(d => dayjs(d.date).format('MMM DD'));
-  const priorLabels = priorYearData.map(d => dayjs(d.date).format('MMM DD'));
-  
+  const allLabelKeys = Array.from(new Set([
+    ...currentYearData.map(d => d.date),
+    ...priorYearData.map(d => d.date)
+  ])).sort();
+
+  const currentLabels = allLabelKeys.map(key => dayjs(key).format('MMM DD'));
+  const priorLabels = currentLabels; // keep same length to avoid misalignment
+
+  const currentHoursSeries = allLabelKeys.map(key => {
+    const found = currentYearData.find(d => d.date === key);
+    return found ? (found.totalHours || 0) : 0;
+  });
+  const priorHoursSeries = allLabelKeys.map(key => {
+    const found = priorYearData.find(d => d.date === key);
+    return found ? (found.totalHours || 0) : 0;
+  });
+
+  const requestedSeries = allLabelKeys.map(key => {
+    const found = currentYearData.find(d => d.date === key);
+    return found ? (found.requested || 0) : 0;
+  });
+
+  const workingSeries = allLabelKeys.map(key => {
+    const found = currentYearData.find(d => d.date === key);
+    return found ? (found.working || 0) : 0;
+  });
+
+  const fillRateSeries = allLabelKeys.map(key => {
+    const found = currentYearData.find(d => d.date === key);
+    return found && found.requested > 0 ? (found.working / found.requested) * 100 : 0;
+  });
+
   const chartData = {
-    labels: currentLabels.length >= priorLabels.length ? currentLabels : priorLabels,
+    labels: currentLabels,
     datasets: [
       {
         label: 'Current Year',
-        data: currentYearData.map(d => d.totalHours || 0),
+        data: currentHoursSeries,
         borderColor: 'rgb(75, 192, 192)',
         backgroundColor: 'rgba(75, 192, 192, 0.2)',
         tension: 0.1
       },
       {
         label: 'Prior Year',
-        data: priorYearData.map(d => d.totalHours || 0),
+        data: priorHoursSeries,
         borderColor: 'rgb(255, 99, 132)',
         backgroundColor: 'rgba(255, 99, 132, 0.2)',
         tension: 0.1,
         borderDash: [5, 5]
+      }
+    ]
+  };
+
+  const staffingChartData = {
+    labels: currentLabels,
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Requested',
+        data: requestedSeries,
+        backgroundColor: 'rgba(255, 159, 64, 0.5)'
+      },
+      {
+        type: 'bar',
+        label: 'Working',
+        data: workingSeries,
+        backgroundColor: 'rgba(75, 192, 192, 0.5)'
+      },
+      {
+        type: 'line',
+        label: 'Fill Rate %',
+        data: fillRateSeries,
+        yAxisID: 'y1',
+        borderColor: 'rgb(99, 132, 255)',
+        backgroundColor: 'rgba(99, 132, 255, 0.2)',
+        tension: 0.2
       }
     ]
   };
@@ -380,6 +435,30 @@ const YOYComparison = () => {
           Hours Trend Comparison
         </Typography>
         <Line data={chartData} options={{ responsive: true }} />
+      </Paper>
+
+      <Paper sx={{ padding: 3, marginBottom: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Requested vs Working & Fill Rate
+        </Typography>
+        <Bar
+          data={staffingChartData}
+          options={{
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            stacked: false,
+            scales: {
+              y: { stacked: false, title: { display: true, text: 'Headcount' } },
+              y1: {
+                position: 'right',
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: 'Fill Rate %' },
+                min: 0,
+                max: 120
+              }
+            }
+          }}
+        />
       </Paper>
 
       <Paper sx={{ padding: 3, marginBottom: 3 }}>

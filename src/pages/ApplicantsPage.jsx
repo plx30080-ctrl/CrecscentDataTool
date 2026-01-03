@@ -44,13 +44,23 @@ import {
   getApplicants,
   getApplicantPipeline
 } from '../services/firestoreService';
-import { createBadge, createOrUpdateBadgeFromApplicant, getBadgeByEID } from '../services/badgeService';
+import { createBadge, createOrUpdateBadgeFromApplicant, getBadgeByEID, deleteBadgesByEid } from '../services/badgeService';
 import BadgePrintPreview from '../components/BadgePrintPreview';
-import ApplicantDocuments from '../components/ApplicantDocuments';
+
+const STATUS_ALIASES = {
+  'CB Updated': 'Finalized'
+};
 
 const ALL_STATUSES = [
-  'Started', 'Rejected', 'Declined', 'No Contact', 'BG Pending',
-  'Adjudication Pending', 'I-9 Pending', 'CB Updated', 'Terminated'
+  'Started',
+  'Rejected',
+  'Declined',
+  'No Contact',
+  'BG Pending',
+  'Adjudication Pending',
+  'I-9 Pending',
+  'Finalized',
+  'Terminated'
 ];
 
 const ApplicantsPage = () => {
@@ -84,7 +94,7 @@ const ApplicantsPage = () => {
     eid: '',
     email: '',
     phone: '',
-    status: 'Applied',
+    status: 'No Contact',
     shift: '1st',
     recruiter: '',
     projectedStartDate: null,
@@ -93,6 +103,8 @@ const ApplicantsPage = () => {
   });
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+
+  const normalizeStatus = (status) => STATUS_ALIASES[status] || status || 'Unknown';
 
   // Photo capture state
   const [photoFile, setPhotoFile] = useState(null);
@@ -107,8 +119,6 @@ const ApplicantsPage = () => {
   const [badgeToPrint, setBadgeToPrint] = useState(null);
 
   // Documents dialog state
-  const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
-  const [selectedApplicantForDocs, setSelectedApplicantForDocs] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -157,7 +167,7 @@ const ApplicantsPage = () => {
 
     // Apply status filter
     if (filterStatus && filterStatus !== 'All') {
-      filtered = filtered.filter(applicant => applicant.status === filterStatus);
+      filtered = filtered.filter(applicant => normalizeStatus(applicant.status) === filterStatus);
     }
 
     // Apply shift filter
@@ -228,7 +238,7 @@ const ApplicantsPage = () => {
     
     // Count filtered applicants by status
     filtered.forEach(applicant => {
-      const status = applicant.status || 'Unknown';
+      const status = normalizeStatus(applicant.status);
       newPipeline.byStatus[status] = (newPipeline.byStatus[status] || 0) + 1;
     });
     
@@ -264,7 +274,7 @@ const ApplicantsPage = () => {
         eid: applicant.eid || applicant.crmNumber || '',
         email: applicant.email || '',
         phone: applicant.phoneNumber || applicant.phone || '',
-        status: applicant.status || 'Applied',
+        status: normalizeStatus(applicant.status) || 'No Contact',
         shift: applicant.shift || '1st',
         processDate: applicant.processDate ? dayjs(applicant.processDate) : null,
         tentativeStartDate: applicant.tentativeStartDate ? dayjs(applicant.tentativeStartDate) : null,
@@ -281,7 +291,7 @@ const ApplicantsPage = () => {
         eid: '',
         email: '',
         phone: '',
-        status: 'Applied',
+        status: 'No Contact',
         shift: '1st',
         processDate: null,
         tentativeStartDate: null,
@@ -587,6 +597,10 @@ const ApplicantsPage = () => {
     const result = await deleteApplicant(applicant.id);
     if (result.success) {
       setSuccess(`${applicant.firstName} ${applicant.lastName} has been deleted`);
+      const eid = applicant.eid || applicant.crmNumber;
+      if (eid) {
+        deleteBadgesByEid(eid);
+      }
       loadData();
       setTimeout(() => setSuccess(''), 3000);
     } else {
@@ -679,7 +693,7 @@ const ApplicantsPage = () => {
 
     // Count statuses
     dateFiltered.forEach(app => {
-      const status = app.status;
+      const status = normalizeStatus(app.status);
       if (status) {
          stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
       }
@@ -761,15 +775,9 @@ const ApplicantsPage = () => {
                   onChange={(e) => setFilterStatus(e.target.value)}
                 >
                   <MenuItem value="All">All Statuses</MenuItem>
-                  <MenuItem value="Started">Started</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                  <MenuItem value="Declined">Declined</MenuItem>
-                  <MenuItem value="No Contact">No Contact</MenuItem>
-                  <MenuItem value="BG Pending">BG Pending</MenuItem>
-                  <MenuItem value="Adjudication Pending">Adjudication Pending</MenuItem>
-                  <MenuItem value="I-9 Pending">I-9 Pending</MenuItem>
-                  <MenuItem value="CB Updated">CB Updated</MenuItem>
-                  <MenuItem value="Terminated">Terminated</MenuItem>
+                  {ALL_STATUSES.map(status => (
+                    <MenuItem key={status} value={status}>{status}</MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>
@@ -784,7 +792,6 @@ const ApplicantsPage = () => {
                   <MenuItem value="All">All Shifts</MenuItem>
                   <MenuItem value="1st">1st Shift</MenuItem>
                   <MenuItem value="2nd">2nd Shift</MenuItem>
-                  <MenuItem value="3rd">3rd Shift</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -796,33 +803,6 @@ const ApplicantsPage = () => {
                   onChange={(newValue) => setFilterDateFrom(newValue)}
                   slotProps={{
                     textField: { fullWidth: true, size: 'small' },
-                    actionBar: { actions: ['clear'] }
-                  }}
-                />
-              </LocalizationProvider>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  label="Process Date To"
-                  value={filterDateTo}
-                  onChange={(newValue) => setFilterDateTo(newValue)}
-                  slotProps={{
-                    textField: { fullWidth: true, size: 'small' },
-                    actionBar: { actions: ['clear'] }
-                  }}
-                />
-              </LocalizationProvider>
-            </Grid>
-          </Grid>
-
-          {/* Filter Results Summary */}
-          <Box sx={{ marginTop: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="caption" color="text.secondary">
-              Showing {filteredApplicants.length} of {applicants.length} applicants
-            </Typography>
-            {(searchTerm || filterStatus !== 'All' || filterShift !== 'All' || filterDateFrom || filterDateTo) && (
-              <Button
                 size="small"
                 onClick={() => {
                   setSearchTerm('');
@@ -1019,7 +999,7 @@ const ApplicantsPage = () => {
                     <TableCell sx={{ width: '140px', minWidth: '140px', padding: '0 8px !important' }}>
                       <FormControl size="small" fullWidth variant="standard">
                         <Select
-                          value={applicant.status}
+                          value={normalizeStatus(applicant.status)}
                           onChange={(e) => handleQuickStatusUpdate(applicant.id, e.target.value)}
                           sx={{ fontSize: '0.875rem' }}
                         >
@@ -1351,32 +1331,6 @@ const ApplicantsPage = () => {
           onPrintSuccess={handlePrintSuccess}
         />
 
-        {/* Documents Dialog */}
-        <Dialog
-          open={documentsDialogOpen}
-          onClose={() => setDocumentsDialogOpen(false)}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle>
-            Applicant Documents
-          </DialogTitle>
-          <DialogContent>
-            {selectedApplicantForDocs && (
-              <ApplicantDocuments
-                applicantId={selectedApplicantForDocs.id}
-                applicantName={
-                  selectedApplicantForDocs.firstName && selectedApplicantForDocs.lastName
-                    ? `${selectedApplicantForDocs.firstName} ${selectedApplicantForDocs.lastName}`
-                    : selectedApplicantForDocs.name || 'Unknown'
-                }
-              />
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDocumentsDialogOpen(false)}>Close</Button>
-          </DialogActions>
-        </Dialog>
       </Container>
     </LocalizationProvider>
   );
