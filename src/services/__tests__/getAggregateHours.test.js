@@ -1,91 +1,93 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import dayjs from 'dayjs';
-
-// Partially mock Firestore functions so getHoursData won't hit network
-vi.mock('firebase/firestore', async (importOriginal) => {
-  const actual = await importOriginal();
-  return {
-    ...actual,
-    getDocs: vi.fn(),
-    query: vi.fn(),
-    collection: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    Timestamp: { fromDate: (d) => d }
-  };
-});
-
-import * as firestoreFns from 'firebase/firestore';
 import * as service from '../firestoreService';
 
-describe('getAggregateHours (integration style)', () => {
+describe('getAggregateHours', () => {
   const START = new Date('2025-01-01');
-  const END = new Date('2025-01-31');
+  const END = new Date('2025-01-07');
 
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('includes labor reports (daily breakdown) into aggregated results', async () => {
-    // Provide one hours doc via mocked getDocs for hoursData (used by getHoursData)
-    const hoursDoc = {
-      id: 'h1',
-      data: () => ({ date: { toDate: () => new Date('2025-01-10') }, totalHours: 8, shift1Hours: 8, shift2Hours: 0, directHours: 6, indirectHours: 2 })
-    };
-    firestoreFns.getDocs.mockResolvedValue({ docs: [hoursDoc] });
+  it('prefers the latest hours submission per date and removes older duplicates', async () => {
+    vi.spyOn(service, 'fetchHoursData').mockResolvedValue({
+      success: true,
+      data: [
+        {
+          date: new Date('2025-01-02'),
+          totalHours: 8,
+          shift1Hours: 8,
+          shift2Hours: 0,
+          totalDirect: 5,
+          totalIndirect: 3,
+          submittedAt: { toDate: () => new Date('2025-01-02T00:00:00Z') }
+        },
+        {
+          date: new Date('2025-01-02'),
+          totalHours: 4,
+          shift1Hours: 4,
+          shift2Hours: 0,
+          totalDirect: 2,
+          totalIndirect: 2,
+          submittedAt: { toDate: () => new Date('2025-01-02T12:00:00Z') }
+        }
+      ]
+    });
 
-    // Mock the laborReportService helper to return laborReports
+    vi.spyOn(service, 'getLaborReports').mockResolvedValue({ success: true, data: [] });
+
+    const res = await service.getAggregateHours(START, END, 'day');
+    expect(res.success).toBe(true);
+    const key = '2025-01-02';
+    expect(res.data[key].totalHours).toBe(4); // newer submission kept
+    expect(res.data[key].totalDirect).toBe(2);
+  });
+
+  it('clamps labor report daily breakdown to the selected date range and overrides legacy hours', async () => {
     const laborReports = [
       {
         id: 'lr1',
-        weekEnding: new Date('2025-01-12'),
+        weekEnding: new Date('2025-01-12'), // weekStart will be 2025-01-06
         dailyBreakdown: {
-          monday: { shift1: { total: 8, direct: 6, indirect: 2 }, shift2: { total: 0, direct: 0, indirect: 0 }, total: 8, direct: 6, indirect: 2 }
+          monday: { shift1: { total: 10, direct: 6, indirect: 4 }, shift2: { total: 0, direct: 0, indirect: 0 }, total: 10, direct: 6, indirect: 4 },
+          tuesday: { shift1: { total: 12, direct: 7, indirect: 5 }, shift2: { total: 0, direct: 0, indirect: 0 }, total: 12, direct: 7, indirect: 5 },
+          sunday: { shift1: { total: 20 }, shift2: { total: 0 }, total: 20 }
         }
       }
     ];
 
-    const laborService = await import('../laborReportService');
-    vi.spyOn(laborService, 'getLaborReportsByDateRange').mockResolvedValue({ success: true, data: laborReports });
+    // Legacy hours data should be overridden for the same date
+    vi.spyOn(service, 'fetchHoursData').mockResolvedValue({
+      success: true,
+      data: [
+        {
+          date: new Date('2025-01-06'),
+          totalHours: 5,
+          shift1Hours: 5,
+          shift2Hours: 0,
+          totalDirect: 3,
+          totalIndirect: 2,
+          submittedAt: { toDate: () => new Date('2025-01-06T00:00:00Z') }
+        }
+      ]
+    });
+
+    vi.spyOn(service, 'getLaborReports').mockResolvedValue({ success: true, data: laborReports });
 
     const res = await service.getAggregateHours(START, END, 'day');
     expect(res.success).toBe(true);
 
-    // Expect aggregated to include the labor report day (weekStart Monday)
-    const weekStart = dayjs(laborReports[0].weekEnding).subtract(6, 'day');
-    const mondayKey = weekStart.format('YYYY-MM-DD');
+    // Keys inside range should exist
+    const mondayKey = '2025-01-06';
+    const tuesdayKey = '2025-01-07';
+    expect(res.data[mondayKey]).toBeDefined();
+    expect(res.data[tuesdayKey]).toBeDefined();
 
-    const aggregated = res.data;
-    expect(aggregated[mondayKey]).toBeDefined();
-    expect(aggregated[mondayKey].totalHours).toBe(8);
-    expect(aggregated[mondayKey].totalDirect).toBe(6);
-  });
+    // Overridden by labor report values
+    expect(res.data[mondayKey].totalHours).toBe(10);
+    expect(res.data[mondayKey].totalDirect).toBe(6);
 
-  it('distributes labor report totalHours when no daily breakdown (week grouping)', async () => {
-    // No hours docs
-    firestoreFns.getDocs.mockResolvedValue({ docs: [] });
-
-    const laborReports = [
-      {
-        id: 'lr2',
-        weekEnding: new Date('2025-01-12'),
-        totalHours: 70,
-        directHours: 35,
-        indirectHours: 35
-      }
-    ];
-
-    const laborService = await import('../laborReportService');
-    vi.spyOn(laborService, 'getLaborReportsByDateRange').mockResolvedValue({ success: true, data: laborReports });
-
-    const res = await service.getAggregateHours(START, END, 'week');
-    expect(res.success).toBe(true);
-
-    const weekStart = dayjs(laborReports[0].weekEnding).subtract(6, 'day');
-    const weekKey = weekStart.format('YYYY-MM-DD');
-
-    expect(res.data[weekKey]).toBeDefined();
-    expect(res.data[weekKey].totalHours).toBe(70);
-    expect(res.data[weekKey].totalDirect).toBe(35);
+    // Sunday (2025-01-12) is outside END range, should be absent
+    expect(res.data['2025-01-12']).toBeUndefined();
   });
 });

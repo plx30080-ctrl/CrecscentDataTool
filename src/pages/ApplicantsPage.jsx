@@ -521,12 +521,26 @@ const ApplicantsPage = () => {
       }
     }
 
+    const normalizedStatus = normalizeStatus(formData.status);
+    const processDate = formData.processDate ? formData.processDate.toDate() : null;
+    const tentativeStartDate = formData.tentativeStartDate ? formData.tentativeStartDate.toDate() : null;
+
     const applicantData = {
       ...formData,
       phoneNumber: formData.phone, // Normalize to phoneNumber
-      processDate: formData.processDate ? formData.processDate.toDate() : null,
-      tentativeStartDate: formData.tentativeStartDate ? formData.tentativeStartDate.toDate() : null
+      processDate,
+      tentativeStartDate
     };
+
+    if (normalizedStatus === 'Started') {
+      const startCandidate = editingApplicant?.actualStartDate || tentativeStartDate || processDate || new Date();
+      applicantData.actualStartDate = startCandidate instanceof Date ? startCandidate : new Date(startCandidate);
+    } else if (editingApplicant?.actualStartDate) {
+      // Preserve any previously set actual start date when not changing to Started
+      applicantData.actualStartDate = editingApplicant.actualStartDate;
+    }
+
+    applicantData.status = normalizedStatus;
     delete applicantData.phone; // Remove phone, use phoneNumber
 
     let result;
@@ -577,7 +591,15 @@ const ApplicantsPage = () => {
   };
 
   const handleQuickStatusUpdate = async (applicantId, newStatus) => {
-    const result = await updateApplicant(applicantId, { status: newStatus });
+    const target = applicants.find((a) => a.id === applicantId);
+    const updatePayload = { status: newStatus };
+
+    if (normalizeStatus(newStatus) === 'Started') {
+      const startCandidate = target?.actualStartDate || target?.tentativeStartDate || target?.processDate || new Date();
+      updatePayload.actualStartDate = startCandidate instanceof Date ? startCandidate : new Date(startCandidate);
+    }
+
+    const result = await updateApplicant(applicantId, updatePayload);
     if (result.success) {
       setSuccess(`Status updated to ${newStatus}`);
       loadData();
@@ -801,19 +823,18 @@ const ApplicantsPage = () => {
                   label="Process Date From"
                   value={filterDateFrom}
                   onChange={(newValue) => setFilterDateFrom(newValue)}
-                  slotProps={{
-                    textField: { fullWidth: true, size: 'small' },
-                size="small"
-                onClick={() => {
-                  setSearchTerm('');
-                  setFilterStatus('All');
-                  setFilterShift('All');
-                  setFilterDateFrom(null);
-                  setFilterDateTo(null);
-                }}
-              >
-                Clear All Filters
-              </Button>
+                 <Button
+                  size="small"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterStatus('All');
+                    setFilterShift('All');
+                    setFilterDateFrom(null);
+                    setFilterDateTo(null);
+                 }}
+                >
+                  Clear All Filters
+                </Button>
             )}
           </Box>
         </Paper>
