@@ -20,7 +20,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import { TrendingUp, TrendingDown, TrendingFlat } from '@mui/icons-material';
-import { getShiftData, getAggregateHours, getRecruiterData, getEarlyLeaveTrends, getNewStartsSummary } from '../services/firestoreService';
+import { getShiftData, getAggregateHours, aggregateOnPremiseByDateAndShift } from '../services/firestoreService';
 import logger from '../utils/logger';
 
 const ScorecardPage = () => {
@@ -75,7 +75,6 @@ const ScorecardPage = () => {
 
   const calculateMetrics = (onPremiseData, hours, recruiter, earlyLeaves, reconciledNewStarts = null) => {
     // Import aggregation helper
-    const { aggregateOnPremiseByDateAndShift } = require('../services/firestoreService');
     const shifts = aggregateOnPremiseByDateAndShift(onPremiseData);
     
     const totalShifts = shifts.length;

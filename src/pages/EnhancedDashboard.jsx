@@ -43,7 +43,8 @@ import {
   getApplicantPipeline,
   getOnPremiseData,
   getBranchDailyData,
-  getNewStartsSummary
+  getNewStartsSummary,
+  aggregateOnPremiseByDateAndShift
 } from '../services/firestoreService';
 import { generateForecast } from '../services/forecastingService';
 import logger from '../utils/logger';
@@ -183,8 +184,6 @@ const EnhancedDashboard = () => {
       ? dashboardData.onPremise 
       : dashboardData.shifts;
 
-    // Import aggregation helper
-    const { aggregateOnPremiseByDateAndShift } = require('../services/firestoreService');
     const shifts = aggregateOnPremiseByDateAndShift(sourceData);
     
     const totalShifts = shifts.length;
@@ -220,8 +219,6 @@ const EnhancedDashboard = () => {
       ? dashboardData.onPremise 
       : dashboardData.shifts;
 
-    // Import aggregation helper
-    const { aggregateOnPremiseByDateAndShift } = require('../services/firestoreService');
     const aggregated = aggregateOnPremiseByDateAndShift(sourceData);
 
     // Group by date

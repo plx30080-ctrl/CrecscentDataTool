@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { TrendingUp, AccessTime, People } from '@mui/icons-material';
 import { Line, Bar } from 'react-chartjs-2';
-import { getOnPremiseData, aggregateOnPremiseByDateAndShift } from '../services/firestoreService';
+import { getOnPremiseData, aggregateOnPremiseByDateAndShift, getAggregateHours } from '../services/firestoreService';
 import dayjs from 'dayjs';
 import logger from '../utils/logger';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -47,7 +47,7 @@ const FirstShiftDashboard = () => {
 
       const [onPremiseResult, hoursResult] = await Promise.all([
         getOnPremiseData(start, end),
-        require('../services/firestoreService').getAggregateHours(start, end, 'day')
+        getAggregateHours(start, end, 'day')
       ]);
 
       if (onPremiseResult.success) {

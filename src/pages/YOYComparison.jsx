@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { CompareArrows, TrendingUp, TrendingDown } from '@mui/icons-material';
 import { Line, Bar } from 'react-chartjs-2';
-import { getAggregateHours, getOnPremiseData } from '../services/firestoreService';
+import { getAggregateHours, getOnPremiseData, aggregateOnPremiseByDateAndShift } from '../services/firestoreService';
 import dayjs from 'dayjs';
 import logger from '../utils/logger';
 
@@ -67,9 +67,6 @@ const YOYComparison = () => {
 
       const processData = (hoursData, onPremData) => {
         const merged = { ...hoursData };
-        
-        // Import aggregation function
-        const { aggregateOnPremiseByDateAndShift } = require('../services/firestoreService');
         
         if (onPremData && onPremData.success) {
           const aggregated = aggregateOnPremiseByDateAndShift(onPremData.data);
