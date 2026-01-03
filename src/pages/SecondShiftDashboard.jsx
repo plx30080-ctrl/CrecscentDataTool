@@ -45,7 +45,10 @@ const SecondShiftDashboard = () => {
       const start = startDate.toDate();
       const end = endDate.toDate();
 
-      const onPremiseResult = await getOnPremiseData(start, end);
+      const [onPremiseResult, hoursResult] = await Promise.all([
+        getOnPremiseData(start, end),
+        require('../services/firestoreService').getAggregateHours(start, end, 'day')
+      ]);
 
       if (onPremiseResult.success) {
         const aggregated = aggregateOnPremiseByDateAndShift(onPremiseResult.data);
@@ -53,12 +56,21 @@ const SecondShiftDashboard = () => {
         const secondShiftData = aggregated.filter(d => d.shift === '2nd');
         setOnPremiseData(secondShiftData);
 
-        // Map onPremiseData to shiftData format for charts
-        const mappedData = secondShiftData.map(d => ({
-          ...d,
-          headcount: d.working || 0,
-          hours: (d.working || 0) * 8 // Estimate 8 hours per person if actual hours not available
-        }));
+        // Merge hours data from labor reports
+        const hoursData = hoursResult.success ? hoursResult.data : {};
+        const mappedData = secondShiftData.map(d => {
+          const dateKey = dayjs(d.date).format('YYYY-MM-DD');
+          const hoursForDate = hoursData[dateKey] || {};
+          
+          return {
+            ...d,
+            headcount: d.working || 0,
+            hours: hoursForDate.shift2Hours || 0,
+            directHours: hoursForDate.shift2Direct || 0,
+            indirectHours: hoursForDate.shift2Indirect || 0,
+            avgHoursPerPerson: d.working > 0 ? (hoursForDate.shift2Hours || 0) / d.working : 0
+          };
+        });
         setShiftData(mappedData);
       }
     } catch (err) {
@@ -82,14 +94,18 @@ const SecondShiftDashboard = () => {
   }
 
   const totalHours = shiftData.reduce((sum, d) => sum + (d.hours || 0), 0);
+  const totalDirectHours = shiftData.reduce((sum, d) => sum + (d.directHours || 0), 0);
   const totalHeadcount = shiftData.reduce((sum, d) => sum + (d.headcount || 0), 0);
   const avgHeadcount = shiftData.length > 0 ? (totalHeadcount / shiftData.length).toFixed(1) : 0;
   const avgHoursPerDay = shiftData.length > 0 ? (totalHours / shiftData.length).toFixed(1) : 0;
 
-  const onPremiseHours = onPremiseData.reduce((sum, d) => sum + (d.onPremise || 0), 0);
+  const onPremiseHours = onPremiseData.reduce((sum, d) => sum + (parseFloat(d.onPremise) || 0), 0);
   const onPremiseAvg = onPremiseData.length > 0 ? (onPremiseHours / onPremiseData.length).toFixed(1) : 0;
 
   const totalNewStarts = onPremiseData.reduce((sum, d) => sum + (parseInt(d.newStarts) || 0), 0);
+  
+  // Calculate average hours per person
+  const avgHoursPerPerson = totalHeadcount > 0 ? (totalHours / totalHeadcount).toFixed(1) : 0;
 
   const chartLabels = shiftData.map(d => dayjs(d.date).format('MMM DD'));
   const chartData = {
@@ -207,11 +223,11 @@ const SecondShiftDashboard = () => {
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
                   <TrendingUp sx={{ marginRight: 1, color: 'info.main' }} />
-                  <Typography variant="h6">On-Premise Avg Headcount</Typography>
+                  <Typography variant="h6">On Premise Hrs</Typography>
                 </Box>
-                <Typography variant="h4">{avgHeadcount}</Typography>
+                <Typography variant="h4">{onPremiseAvg}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Per day (on-premise)
+                  Avg per day
                 </Typography>
               </CardContent>
             </Card>
@@ -220,12 +236,12 @@ const SecondShiftDashboard = () => {
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
-                  <AccessTime sx={{ marginRight: 1, color: 'warning.main' }} />
-                  <Typography variant="h6">Data Points</Typography>
+                  <AccessTime sx={{ marginRight": 1, color: 'warning.main' }} />
+                  <Typography variant="h6">Avg Hrs/Person</Typography>
                 </Box>
-                <Typography variant="h4">{shiftData.length}</Typography>
+                <Typography variant="h4">{avgHoursPerPerson}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {startDate.format('MMM D, YYYY')} - {endDate.format('MMM D, YYYY')}
+                  Total hours / headcount
                 </Typography>
               </CardContent>
             </Card>

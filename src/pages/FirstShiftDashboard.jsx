@@ -45,7 +45,10 @@ const FirstShiftDashboard = () => {
       const start = startDate.toDate();
       const end = endDate.toDate();
 
-      const onPremiseResult = await getOnPremiseData(start, end);
+      const [onPremiseResult, hoursResult] = await Promise.all([
+        getOnPremiseData(start, end),
+        require('../services/firestoreService').getAggregateHours(start, end, 'day')
+      ]);
 
       if (onPremiseResult.success) {
         // Aggregate duplicates by date/shift
@@ -54,14 +57,21 @@ const FirstShiftDashboard = () => {
         const firstShiftData = aggregated.filter(d => d.shift === '1st');
         setOnPremiseData(firstShiftData);
 
-        // Map onPremiseData to shiftData format for charts
-        // onPremiseData has: working, requested, required fields
-        // We need: headcount, hours fields for charts
-        const mappedData = firstShiftData.map(d => ({
-          ...d,
-          headcount: d.working || 0,
-          hours: (d.working || 0) * 8 // Estimate 8 hours per person if actual hours not available
-        }));
+        // Merge hours data from labor reports
+        const hoursData = hoursResult.success ? hoursResult.data : {};
+        const mappedData = firstShiftData.map(d => {
+          const dateKey = dayjs(d.date).format('YYYY-MM-DD');
+          const hoursForDate = hoursData[dateKey] || {};
+          
+          return {
+            ...d,
+            headcount: d.working || 0,
+            hours: hoursForDate.shift1Hours || 0,
+            directHours: hoursForDate.shift1Direct || 0,
+            indirectHours: hoursForDate.shift1Indirect || 0,
+            avgHoursPerPerson: d.working > 0 ? (hoursForDate.shift1Hours || 0) / d.working : 0
+          };
+        });
         setShiftData(mappedData);
       }
     } catch (err) {
@@ -84,17 +94,20 @@ const FirstShiftDashboard = () => {
     return <Alert severity="error">{error}</Alert>;
   }
 
-  // Calculate metrics
   const totalHours = shiftData.reduce((sum, d) => sum + (d.hours || 0), 0);
+  const totalDirectHours = shiftData.reduce((sum, d) => sum + (d.directHours || 0), 0);
   const totalHeadcount = shiftData.reduce((sum, d) => sum + (d.headcount || 0), 0);
   const avgHeadcount = shiftData.length > 0 ? (totalHeadcount / shiftData.length).toFixed(1) : 0;
   const avgHoursPerDay = shiftData.length > 0 ? (totalHours / shiftData.length).toFixed(1) : 0;
 
-  const onPremiseHours = onPremiseData.reduce((sum, d) => sum + (d.onPremise || 0), 0);
+  const onPremiseHours = onPremiseData.reduce((sum, d) => sum + (parseFloat(d.onPremise) || 0), 0);
   const onPremiseAvg = onPremiseData.length > 0 ? (onPremiseHours / onPremiseData.length).toFixed(1) : 0;
 
   // New starts (on-premise reported numeric) for this shift
   const totalNewStarts = onPremiseData.reduce((sum, d) => sum + (parseInt(d.newStarts) || 0), 0);
+  
+  // Calculate average hours per person
+  const avgHoursPerPerson = totalHeadcount > 0 ? (totalHours / totalHeadcount).toFixed(1) : 0;
 
   // Chart data
   const chartLabels = shiftData.map(d => dayjs(d.date).format('MMM DD'));
@@ -214,11 +227,11 @@ const FirstShiftDashboard = () => {
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
                   <TrendingUp sx={{ marginRight: 1, color: 'info.main' }} />
-                  <Typography variant="h6">On-Premise Avg Headcount</Typography>
+                  <Typography variant="h6">On Premise Hrs</Typography>
                 </Box>
-                <Typography variant="h4">{avgHeadcount}</Typography>
+                <Typography variant="h4">{onPremiseAvg}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Per day (on-premise)
+                  Avg per day
                 </Typography>
               </CardContent>
             </Card>
@@ -228,13 +241,65 @@ const FirstShiftDashboard = () => {
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
                   <AccessTime sx={{ marginRight: 1, color: 'warning.main' }} />
-                  <Typography variant="h6">Data Points</Typography>
+                  <Typography variant="h6">Avg Hrs/Person</Typography>
                 </Box>
-                <Typography variant="h4">{shiftData.length}</Typography>
+                <Typography variant="h4">{avgHoursPerPerson}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {startDate.format('MMM D, YYYY')} - {endDate.format('MMM D, YYYY')}
+                  Total hours / headcount
                 </Typography>
               </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Chart */}
+        <Paper sx={{ padding: 2, marginBottom: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Headcount & Hours Trends
+          </Typography>
+          <Line data={chartData} options={chartOptions} />
+        </Paper>
+
+        {/* Data Table */}
+        <Paper>
+          <Typography variant="h6" sx={{ padding: 2 }}>
+            Daily Breakdown
+          </Typography>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell><strong>Date</strong></TableCell>
+                  <TableCell align="right"><strong>Requested</strong></TableCell>
+                  <TableCell align="right"><strong>Working</strong></TableCell>
+                  <TableCell align="right"><strong>Total Hours</strong></TableCell>
+                  <TableCell align="right"><strong>Direct Hours</strong></TableCell>
+                  <TableCell align="right"><strong>New Starts</strong></TableCell>
+                  <TableCell align="right"><strong>Send Homes</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {shiftData.map((data, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{dayjs(data.date).format('MMM DD, YYYY')}</TableCell>
+                    <TableCell align="right">{data.requested || 0}</TableCell>
+                    <TableCell align="right">{data.working || 0}</TableCell>
+                    <TableCell align="right">{(data.hours || 0).toFixed(1)}</TableCell>
+                    <TableCell align="right">{(data.directHours || 0).toFixed(1)}</TableCell>
+                    <TableCell align="right">{data.newStarts || 0}</TableCell>
+                    <TableCell align="right">{data.sendHomes || 0}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      </Box>
+    </LocalizationProvider>
+  );
+};
+
+export default FirstShiftDashboard;
             </Card>
           </Grid>
         </Grid>

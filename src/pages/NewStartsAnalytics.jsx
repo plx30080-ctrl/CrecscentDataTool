@@ -51,6 +51,7 @@ const NewStartsAnalytics = () => {
         ...doc.data(),
         processDate: doc.data().processDate?.toDate(),
         tentativeStartDate: doc.data().tentativeStartDate?.toDate(),
+        actualStartDate: doc.data().actualStartDate?.toDate(),
         createdAt: doc.data().createdAt?.toDate()
       }));
 
@@ -122,11 +123,11 @@ const NewStartsAnalytics = () => {
       if (!applicant.processDate) metrics.missingProcessDates++;
       if (!applicant.tentativeStartDate && !applicant.actualStartDate) metrics.missingTentativeStartDates++;
 
-      // Calculate process to start time
+      // Calculate process to start time (use actualStartDate if available, otherwise tentative)
       const start = applicant.actualStartDate || applicant.tentativeStartDate;
       if (applicant.processDate && start) {
         const processTime = dayjs(start).diff(dayjs(applicant.processDate), 'day');
-        if (processTime >= 0 && processTime < 90) {
+        if (processTime >= 0 && processTime < 365) {  // Expanded from 90 to 365 days
           totalProcessTime += processTime;
           validProcessCount++;
 
@@ -136,11 +137,24 @@ const NewStartsAnalytics = () => {
         }
       }
 
-      // Find matching associate
-      const associate = associatesData.find(a => 
-        String(a.eid) === String(applicant.eid) || 
-        String(a.eid) === String(applicant.crmNumber)
-      );
+      // Find matching associate - check multiple fields
+      const associate = associatesData.find(a => {
+        const appEid = String(applicant.eid || '').trim();
+        const appCrm = String(applicant.crmNumber || '').trim();
+        const assocEid = String(a.eid || '').trim();
+        
+        // Match by EID or CRM number
+        if (appEid && appEid === assocEid) return true;
+        if (appCrm && appCrm === assocEid) return true;
+        
+        // Fallback: match by name
+        const appName = (applicant.firstName && applicant.lastName) 
+          ? `${applicant.firstName} ${applicant.lastName}`.toLowerCase()
+          : (applicant.name || '').toLowerCase();
+        const assocName = (a.name || '').toLowerCase();
+        
+        return appName && assocName && appName === assocName;
+      });
       if (associate) {
         metrics.matchedAssociates++;
 
@@ -383,17 +397,33 @@ const NewStartsAnalytics = () => {
                 <TableCell><strong>Name</strong></TableCell>
                 <TableCell><strong>EID</strong></TableCell>
                 <TableCell><strong>Process Date</strong></TableCell>
-                <TableCell><strong>Tentative Start</strong></TableCell>
+                <TableCell><strong>Actual Start</strong></TableCell>
                 <TableCell><strong>Days to Start</strong></TableCell>
                 <TableCell><strong>In Associates?</strong></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {applicants.map((app, index) => {
-                const processTime = app.processDate && app.tentativeStartDate
-                  ? dayjs(app.tentativeStartDate).diff(dayjs(app.processDate), 'day')
+                const startDate = app.actualStartDate || app.tentativeStartDate;
+                const processTime = app.processDate && startDate
+                  ? dayjs(startDate).diff(dayjs(app.processDate), 'day')
                   : null;
-                const hasAssociate = associates.some(a => a.eid === app.eid);
+                  
+                const hasAssociate = associates.some(a => {
+                  const appEid = String(app.eid || '').trim();
+                  const appCrm = String(app.crmNumber || '').trim();
+                  const assocEid = String(a.eid || '').trim();
+                  
+                  if (appEid && appEid === assocEid) return true;
+                  if (appCrm && appCrm === assocEid) return true;
+                  
+                  const appName = (app.firstName && app.lastName) 
+                    ? `${app.firstName} ${app.lastName}`.toLowerCase()
+                    : (app.name || '').toLowerCase();
+                  const assocName = (a.name || '').toLowerCase();
+                  
+                  return appName && assocName && appName === assocName;
+                });
 
                 return (
                   <TableRow key={index}>
@@ -404,7 +434,7 @@ const NewStartsAnalytics = () => {
                         <span style={{ color: 'red' }}>Missing</span>}
                     </TableCell>
                     <TableCell>
-                      {app.tentativeStartDate ? dayjs(app.tentativeStartDate).format('MMM DD, YYYY') :
+                      {startDate ? dayjs(startDate).format('MMM DD, YYYY') :
                         <span style={{ color: 'red' }}>Missing</span>}
                     </TableCell>
                     <TableCell>{processTime !== null ? processTime + ' days' : '-'}</TableCell>

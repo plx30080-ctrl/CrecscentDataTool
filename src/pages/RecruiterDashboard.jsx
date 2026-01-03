@@ -84,7 +84,7 @@ const RecruiterDashboard = () => {
     }
   };
 
-  const filterByDateRange = React.useCallback((date) => {
+  const filterByDateRange = (date) => {
     if (!date || dateRange === 'all') return true;
     
     const itemDate = date.toDate ? date.toDate() : new Date(date);
@@ -100,9 +100,9 @@ const RecruiterDashboard = () => {
       default:
         return true;
     }
-  }, [dateRange]);
+  };
 
-  const calculateRecruiterStats = React.useCallback(() => {
+  const calculateRecruiterStats = () => {
     try {
       const recruiterMap = new Map();
 
@@ -183,7 +183,7 @@ const RecruiterDashboard = () => {
       logger.error('Error in calculateRecruiterStats:', err);
       setError('Failed to calculate recruiter stats');
     }
-  }, [applicants, associates, dnrList, earlyLeaves, filterByDateRange]);
+  };
 
   useEffect(() => {
     if (applicants.length > 0) {
@@ -194,7 +194,7 @@ const RecruiterDashboard = () => {
         setError('Failed to calculate recruiter stats');
       }
     }
-  }, [calculateRecruiterStats, applicants.length]);
+  }, [applicants, associates, dnrList, earlyLeaves, dateRange]);
 
   const getRetentionColor = (score) => {
     const numScore = parseFloat(score);

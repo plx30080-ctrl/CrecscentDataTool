@@ -73,8 +73,13 @@ const YOYComparison = () => {
       const processData = (hoursData, onPremData) => {
         const merged = { ...hoursData };
         
+        // Import aggregation function
+        const { aggregateOnPremiseByDateAndShift } = require('../services/firestoreService');
+        
         if (onPremData && onPremData.success) {
-          onPremData.data.forEach(entry => {
+          const aggregated = aggregateOnPremiseByDateAndShift(onPremData.data);
+          
+          aggregated.forEach(entry => {
             const date = dayjs(entry.date);
             let key;
             if (groupBy === 'day') {
@@ -94,6 +99,7 @@ const YOYComparison = () => {
               };
             }
             
+            // Accumulate metrics from on-premise data
             merged[key].requested = (merged[key].requested || 0) + (parseInt(entry.requested) || 0);
             merged[key].working = (merged[key].working || 0) + (parseInt(entry.working) || 0);
           });
@@ -287,6 +293,81 @@ const YOYComparison = () => {
                   color={parseFloat(indirectChange) >= 0 ? 'success.main' : 'error.main'}
                 >
                   {indirectChange}% vs prior year
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={3} sx={{ marginBottom: 3 }}>
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
+                <CompareArrows sx={{ marginRight: 1, color: 'info.main' }} />
+                <Typography variant="h6">Requested</Typography>
+              </Box>
+              <Typography variant="h4">{currentRequested.toFixed(0)}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {parseFloat(requestedChange) >= 0 ? (
+                  <TrendingUp color="success" />
+                ) : (
+                  <TrendingDown color="error" />
+                )}
+                <Typography 
+                  variant="body2" 
+                  color={parseFloat(requestedChange) >= 0 ? 'success.main' : 'error.main'}
+                >
+                  {requestedChange}% vs prior year
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
+                <CompareArrows sx={{ marginRight: 1, color: 'info.main' }} />
+                <Typography variant="h6">Working</Typography>
+              </Box>
+              <Typography variant="h4">{currentWorking.toFixed(0)}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {parseFloat(workingChange) >= 0 ? (
+                  <TrendingUp color="success" />
+                ) : (
+                  <TrendingDown color="error" />
+                )}
+                <Typography 
+                  variant="body2" 
+                  color={parseFloat(workingChange) >= 0 ? 'success.main' : 'error.main'}
+                >
+                  {workingChange}% vs prior year
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
+                <CompareArrows sx={{ marginRight: 1, color: 'info.main' }} />
+                <Typography variant="h6">Fill Rate</Typography>
+              </Box>
+              <Typography variant="h4">{currentFillRate.toFixed(1)}%</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {parseFloat(fillRateChange) >= 0 ? (
+                  <TrendingUp color="success" />
+                ) : (
+                  <TrendingDown color="error" />
+                )}
+                <Typography 
+                  variant="body2" 
+                  color={parseFloat(fillRateChange) >= 0 ? 'success.main' : 'error.main'}
+                >
+                  {fillRateChange}pp vs prior year
                 </Typography>
               </Box>
             </CardContent>

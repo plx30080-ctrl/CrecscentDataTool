@@ -214,6 +214,25 @@ const ApplicantsPage = () => {
     });
 
     setFilteredApplicants(filtered);
+    
+    // Recalculate pipeline based on filtered data
+    const newPipeline = {
+      total: filtered.length,
+      byStatus: {}
+    };
+    
+    // Initialize all statuses to 0
+    ALL_STATUSES.forEach(status => {
+      newPipeline.byStatus[status] = 0;
+    });
+    
+    // Count filtered applicants by status
+    filtered.forEach(applicant => {
+      const status = applicant.status || 'Unknown';
+      newPipeline.byStatus[status] = (newPipeline.byStatus[status] || 0) + 1;
+    });
+    
+    setPipeline(newPipeline);
   }, [searchTerm, filterStatus, filterShift, filterDateFrom, filterDateTo, applicants, sortField, sortDirection]);
 
   const handleSort = (field) => {

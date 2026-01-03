@@ -35,7 +35,7 @@ const ScorecardPage = () => {
     const start = startDate.toDate();
     const end = endDate.toDate();
 
-    const [shiftResult, hoursResult, recruiterResult, earlyLeavesResult] = await Promise.all([
+    const [onPremiseResult, hoursResult, recruiterResult, earlyLeavesResult] = await Promise.all([
       getShiftData(start, end),
       getAggregateHours(start, end, 'day'),
       getRecruiterData(start, end),
@@ -56,7 +56,7 @@ const ScorecardPage = () => {
     }
 
     const calculatedMetrics = calculateMetrics(
-      shiftResult.data || [],
+      onPremiseResult.data || [],
       hoursResult.data || {},
       recruiterResult.data || [],
       earlyLeavesResult.data,
@@ -73,20 +73,24 @@ const ScorecardPage = () => {
     loadMetrics();
   }, [loadMetrics]);
 
-  const calculateMetrics = (shifts, hours, recruiter, earlyLeaves, reconciledNewStarts = null) => {
+  const calculateMetrics = (onPremiseData, hours, recruiter, earlyLeaves, reconciledNewStarts = null) => {
+    // Import aggregation helper
+    const { aggregateOnPremiseByDateAndShift } = require('../services/firestoreService');
+    const shifts = aggregateOnPremiseByDateAndShift(onPremiseData);
+    
     const totalShifts = shifts.length;
-    const avgAttendance = totalShifts > 0 ? shifts.reduce((sum, s) => sum + (s.numberWorking || s.working || 0), 0) / totalShifts : 0;
-    const totalRequested = shifts.reduce((sum, s) => sum + (s.numberRequested || s.requested || 0), 0);
-    const totalWorking = shifts.reduce((sum, s) => sum + (s.numberWorking || s.working || 0), 0);
+    const avgAttendance = totalShifts > 0 ? shifts.reduce((sum, s) => sum + (s.working || 0), 0) / totalShifts : 0;
+    const totalRequested = shifts.reduce((sum, s) => sum + (s.requested || 0), 0);
+    const totalWorking = shifts.reduce((sum, s) => sum + (s.working || 0), 0);
     const fillRate = totalRequested > 0 ? (totalWorking / totalRequested) * 100 : 0;
 
-    // Use reconciled count when available (applicants > shift EIDs > on-premise), otherwise fall back to counting shift arrays
+    // Use reconciled count when available (applicants > shift EIDs > on-premise), otherwise use numeric on-premise values
     const totalNewStarts = typeof reconciledNewStarts === 'number'
       ? reconciledNewStarts
-      : shifts.reduce((sum, s) => sum + (s.newStarts?.length || 0), 0);
+      : shifts.reduce((sum, s) => sum + (parseInt(s.newStarts) || 0), 0);
 
-    const totalSendHomes = shifts.reduce((sum, s) => sum + (s.sendHomes || 0), 0);
-    const totalLineCuts = shifts.reduce((sum, s) => sum + (s.lineCuts || 0), 0);
+    const totalSendHomes = shifts.reduce((sum, s) => sum + (parseInt(s.sendHomes) || 0), 0);
+    const totalLineCuts = shifts.reduce((sum, s) => sum + (parseInt(s.lineCuts) || 0), 0);
 
     // `hours` is an aggregated map keyed by date/month/week, so sum values across keys
     const hourValues = Object.values(hours || {});

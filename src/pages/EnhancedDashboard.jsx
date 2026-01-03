@@ -169,7 +169,7 @@ const EnhancedDashboard = () => {
 
 
   const calculateKPIs = () => {
-    if (!dashboardData || !dashboardData.shifts.length) {
+    if (!dashboardData || (!dashboardData.shifts.length && (!dashboardData.onPremise || !dashboardData.onPremise.length))) {
       return {
         avgAttendance: 0,
         fillRate: 0,
@@ -178,20 +178,28 @@ const EnhancedDashboard = () => {
       };
     }
 
-    const { shifts } = dashboardData;
+    // Use on-premise data if available, otherwise fall back to shifts
+    const sourceData = dashboardData.onPremise && dashboardData.onPremise.length > 0 
+      ? dashboardData.onPremise 
+      : dashboardData.shifts;
+
+    // Import aggregation helper
+    const { aggregateOnPremiseByDateAndShift } = require('../services/firestoreService');
+    const shifts = aggregateOnPremiseByDateAndShift(sourceData);
+    
     const totalShifts = shifts.length;
 
-    const avgAttendance = shifts.reduce((sum, s) => sum + (s.numberWorking || 0), 0) / totalShifts;
-    const totalRequested = shifts.reduce((sum, s) => sum + (s.numberRequested || 0), 0);
-    const totalWorking = shifts.reduce((sum, s) => sum + (s.numberWorking || 0), 0);
+    const avgAttendance = totalShifts > 0 ? shifts.reduce((sum, s) => sum + (s.working || 0), 0) / totalShifts : 0;
+    const totalRequested = shifts.reduce((sum, s) => sum + (s.requested || 0), 0);
+    const totalWorking = shifts.reduce((sum, s) => sum + (s.working || 0), 0);
     const fillRate = totalRequested > 0 ? (totalWorking / totalRequested) * 100 : 0;
-    const avgSendHomes = shifts.reduce((sum, s) => sum + (s.sendHomes || 0), 0) / totalShifts;
+    const avgSendHomes = totalShifts > 0 ? shifts.reduce((sum, s) => sum + (s.sendHomes || 0), 0) / totalShifts : 0;
     let totalNewStarts = 0;
 
     if (dashboardData && dashboardData.newStartsSummary && typeof dashboardData.newStartsSummary.chosenCount === 'number') {
       totalNewStarts = dashboardData.newStartsSummary.chosenCount;
     } else {
-      totalNewStarts = shifts.reduce((sum, s) => sum + (s.newStarts?.length || 0), 0);
+      totalNewStarts = shifts.reduce((sum, s) => sum + (parseInt(s.newStarts) || 0), 0);
     }
 
     return {
@@ -203,19 +211,28 @@ const EnhancedDashboard = () => {
   };
 
   const prepareAttendanceTrendData = () => {
-    if (!dashboardData || !dashboardData.shifts.length) {
+    if (!dashboardData || (!dashboardData.shifts.length && !dashboardData.onPremise?.length)) {
       return {labels: [], datasets: []};
     }
 
+    // Use on-premise data if available (primary source), otherwise fall back to shifts
+    const sourceData = dashboardData.onPremise && dashboardData.onPremise.length > 0 
+      ? dashboardData.onPremise 
+      : dashboardData.shifts;
+
+    // Import aggregation helper
+    const { aggregateOnPremiseByDateAndShift } = require('../services/firestoreService');
+    const aggregated = aggregateOnPremiseByDateAndShift(sourceData);
+
     // Group by date
     const byDate = {};
-    dashboardData.shifts.forEach(shift => {
-      const dateKey = dayjs(shift.date).format('MMM D');
+    aggregated.forEach(entry => {
+      const dateKey = dayjs(entry.date).format('MMM D');
       if (!byDate[dateKey]) {
         byDate[dateKey] = { requested: 0, working: 0, count: 0 };
       }
-      byDate[dateKey].requested += shift.numberRequested || 0;
-      byDate[dateKey].working += shift.numberWorking || 0;
+      byDate[dateKey].requested += entry.requested || 0;
+      byDate[dateKey].working += entry.working || 0;
       byDate[dateKey].count += 1;
     });
 
@@ -247,14 +264,14 @@ const EnhancedDashboard = () => {
   };
 
   const prepareHoursData = () => {
-    if (!dashboardData || !dashboardData.hours) {
+    if (!dashboardData || !dashboardData.hours || Object.keys(dashboardData.hours).length === 0) {
       return {labels: [], datasets: []};
     }
 
     const hoursData = dashboardData.hours;
     const labels = Object.keys(hoursData).sort().slice(-14);
-    const shift1 = labels.map(label => hoursData[label].shift1Hours);
-    const shift2 = labels.map(label => hoursData[label].shift2Hours);
+    const shift1 = labels.map(label => hoursData[label]?.shift1Hours || 0);
+    const shift2 = labels.map(label => hoursData[label]?.shift2Hours || 0);
 
     return {
       labels: labels.map(l => dayjs(l).format('MMM D')),
