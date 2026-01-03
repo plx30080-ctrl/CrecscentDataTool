@@ -20,6 +20,7 @@ import DataDebug from './pages/DataDebug';
 import EarlyLeavesPage from './pages/EarlyLeavesPage';
 import DNRManagement from './pages/DNRManagement';
 import DataBackup from './pages/DataBackup';
+import BulkHistoricalImport from './pages/BulkHistoricalImport';
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
             <Route path="dnr" element={<DNRManagement />} />
             <Route path="admin" element={<AdminPanel />} />
             <Route path="upload" element={<Upload />} />
+            <Route path="bulk-import" element={<BulkHistoricalImport />} />
             <Route path="backup" element={<DataBackup />} />
             <Route path="debug" element={<DataDebug />} />
             <Route path="profile" element={<ProfilePage />} />
