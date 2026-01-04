@@ -284,15 +284,16 @@ const BulkHistoricalImport = () => {
 
   const handleNext = () => {
     if (activeStep === 1) {
-      // Validate before moving to step 3
+      // Run validation but still advance so users can view detailed results
       const isValid = validateData();
       if (!isValid) {
         setMessage({ 
           type: 'error', 
-          text: 'Please fix validation errors before proceeding' 
+          text: 'Please review validation results before importing' 
         });
-        return;
       }
+      setActiveStep(2);
+      return;
     }
     setActiveStep(prev => prev + 1);
   };
