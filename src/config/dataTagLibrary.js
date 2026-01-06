@@ -47,6 +47,22 @@ export const DATA_TAG_LIBRARY = {
     collections: ['applicants'],
     examples: ['2024-01-15', '1/15/2024']
   },
+  startDate: {
+    label: 'Start Date',
+    type: 'date',
+    description: 'Assignment start date',
+    required: false,
+    collections: ['assignmentStarts'],
+    examples: ['2024-01-15', '1/15/2024']
+  },
+  dateAdded: {
+    label: 'Date Added',
+    type: 'date',
+    description: 'Date record was added to system',
+    required: false,
+    collections: ['dnr'],
+    examples: ['2024-01-15', '1/15/2024']
+  },
   timeLeft: {
     label: 'Time Left',
     type: 'string',
@@ -62,7 +78,7 @@ export const DATA_TAG_LIBRARY = {
     type: 'string',
     description: 'Full name of person',
     required: false,
-    collections: ['applicants', 'associates'],
+    collections: ['applicants', 'associates', 'dnr', 'badges'],
     examples: ['John Doe', 'Jane Smith']
   },
   firstName: {
@@ -70,7 +86,7 @@ export const DATA_TAG_LIBRARY = {
     type: 'string',
     description: 'First name only',
     required: false,
-    collections: ['applicants'],
+    collections: ['applicants', 'dnr'],
     examples: ['John', 'Jane']
   },
   lastName: {
@@ -78,7 +94,7 @@ export const DATA_TAG_LIBRARY = {
     type: 'string',
     description: 'Last name only',
     required: false,
-    collections: ['applicants'],
+    collections: ['applicants', 'dnr'],
     examples: ['Doe', 'Smith']
   },
   associateName: {
@@ -102,7 +118,7 @@ export const DATA_TAG_LIBRARY = {
     type: 'string',
     description: 'Employee identification number',
     required: false,
-    collections: ['applicants', 'associates', 'earlyLeaves'],
+    collections: ['applicants', 'associates', 'earlyLeaves', 'dnr', 'badges'],
     examples: ['12345', 'EMP-001', 'A12345']
   },
   crmNumber: {
@@ -366,10 +382,10 @@ export const DATA_TAG_LIBRARY = {
   reason: {
     label: 'Reason',
     type: 'string',
-    description: 'Reason for action (e.g., early leave)',
+    description: 'Reason for action (e.g., early leave, DNR)',
     required: false,
-    collections: ['earlyLeaves'],
-    examples: ['Family emergency', 'Sick', 'Personal']
+    collections: ['earlyLeaves', 'dnr'],
+    examples: ['Family emergency', 'Sick', 'Personal', 'Policy violation']
   },
   notes: {
     label: 'Notes',
@@ -409,25 +425,29 @@ export const COLLECTION_REQUIREMENTS = {
   applicants: {
     label: 'Applicants',
     description: 'Applicant pipeline tracking',
-    requiredTags: ['name', 'status', 'crmNumber', 'processDate'],
-    optionalTags: ['firstName', 'lastName', 'phoneNumber', 'email', 'eid', 'i9Cleared', 'backgroundStatus', 'shift', 'notes', 'fill', 'tentativeStartDate', 'recruiter'],
+    requiredTags: ['status', 'eid'],
+    optionalTags: ['name', 'firstName', 'lastName', 'phoneNumber', 'email', 'crmNumber', 'processDate', 'i9Cleared', 'backgroundStatus', 'shift', 'notes', 'fill', 'tentativeStartDate', 'recruiter'],
     firestoreCollection: 'applicants',
     computed: {
-      eid: (row) => row.crmNumber || row.eid // Use CRM as EID if not provided
+      name: (row) => {
+        if (row.name) return row.name;
+        return `${row.firstName || ''} ${row.lastName || ''}`.trim();
+      },
+      eid: (row) => row.eid || row.crmNumber // Use crmNumber as EID fallback
     }
   },
   earlyLeaves: {
     label: 'Early Leaves',
     description: 'Associates who left early',
-    requiredTags: ['date', 'shift', 'associateName', 'eid'],
-    optionalTags: ['timeLeft', 'reason', 'approved', 'notes'],
+    requiredTags: ['associateName'],
+    optionalTags: ['date', 'shift', 'eid', 'timeLeft', 'reason', 'approved', 'notes'],
     firestoreCollection: 'earlyLeaves'
   },
   associates: {
     label: 'Associates',
     description: 'Employee master list',
-    requiredTags: ['eid', 'name', 'shift'],
-    optionalTags: ['phoneNumber', 'email', 'position', 'status', 'hireDate', 'terminationDate', 'notes'],
+    requiredTags: ['eid', 'name'],
+    optionalTags: ['shift', 'phoneNumber', 'email', 'position', 'status', 'hireDate', 'terminationDate', 'notes'],
     firestoreCollection: 'associates'
   },
   onPremiseData: {
@@ -450,6 +470,36 @@ export const COLLECTION_REQUIREMENTS = {
     requiredTags: ['date', 'recruiterName'],
     optionalTags: ['applicationsReceived', 'interviewsScheduled', 'offers', 'newHires', 'notes'],
     firestoreCollection: 'recruiterData'
+  },
+  dnr: {
+    label: 'DNR List',
+    description: 'Do Not Rehire list (reference only)',
+    requiredTags: [],
+    optionalTags: ['name', 'firstName', 'lastName', 'eid', 'reason', 'dateAdded', 'notes'],
+    firestoreCollection: 'dnr',
+    computed: {
+      name: (row) => {
+        if (row.name) return row.name;
+        return `${row.firstName || ''} ${row.lastName || ''}`.trim();
+      }
+    }
+  },
+  badges: {
+    label: 'Badge System Export',
+    description: 'Badge/access system export',
+    requiredTags: ['eid', 'name'],
+    optionalTags: ['position', 'status', 'hireDate', 'shift', 'email', 'phoneNumber', 'notes'],
+    firestoreCollection: 'badges'
+  },
+  assignmentStarts: {
+    label: 'Assignment Starts',
+    description: 'New assignment start tracking',
+    requiredTags: ['eid', 'name', 'startDate'],
+    optionalTags: ['position', 'shift', 'status', 'notes'],
+    firestoreCollection: 'associates',
+    computed: {
+      hireDate: (row) => row.startDate // Map startDate to hireDate for associates
+    }
   }
 };
 
@@ -496,21 +546,27 @@ export const suggestTag = (columnName, collectionKey) => {
   const variations = {
     'date': ['date', 'workdate', 'day', 'dateofwork'],
     'processDate': ['processdate', 'dateprocessed', 'entrydate'],
+    'startDate': ['startdate', 'assignmentstart', 'hiredate', 'begindate'],
+    'dateAdded': ['dateadded', 'added', 'createdate'],
     'shift': ['shift', 'shifttype', 'shiftname', '1stor2nd'],
     'numberWorking': ['numberworking', 'working', 'numworking', 'presentassociates', 'associatespresent', 'attendees'],
     'numberRequested': ['numberrequested', 'requested', 'numrequested', 'associatesrequested'],
     'numberRequired': ['numberrequired', 'required', 'numrequired', 'minimumrequired'],
-    'name': ['name', 'fullname', 'employeename', 'associate'],
-    'firstName': ['firstname', 'fname', 'givenname'],
-    'lastName': ['lastname', 'lname', 'surname', 'familyname'],
+    'name': ['name', 'fullname', 'employeename', 'associate', 'associatename'],
+    'firstName': ['firstname', 'fname', 'givenname', 'first'],
+    'lastName': ['lastname', 'lname', 'surname', 'familyname', 'last'],
     'phoneNumber': ['phonenumber', 'phone', 'mobile', 'cellphone', 'telephone', 'contact'],
-    'email': ['email', 'emailaddress', 'e mail'],
-    'eid': ['eid', 'employeeid', 'empid', 'associateid', 'id'],
+    'email': ['email', 'emailaddress', 'e mail', 'mail'],
+    'eid': ['eid', 'employeeid', 'empid', 'associateid', 'id', 'employeenumber'],
     'crmNumber': ['crmnumber', 'crm', 'crmid', 'plxid'],
     'shift1Hours': ['shift1hours', '1sthours', 'firstshifthours', 's1hours'],
     'shift2Hours': ['shift2hours', '2ndhours', 'secondshifthours', 's2hours'],
     'totalHours': ['totalhours', 'total', 'allhours'],
-    'status': ['status', 'currentstatus', 'applicantstatus'],
+    'status': ['status', 'currentstatus', 'applicantstatus', 'employmentstatus'],
+    'position': ['position', 'jobtitle', 'title', 'role'],
+    'reason': ['reason', 'notes', 'comments'],
+    'timeLeft': ['timeleft', 'lefttime', 'departuretime', 'exittime'],
+    'associateName': ['associatename', 'associate', 'employeename', 'name'],
     'newStarts': ['newstarts', 'newhires', 'starts'],
     'sendHomes': ['sendhomes', 'senthome', 'overstaffed'],
     'lineCuts': ['linecuts', 'cuts'],
