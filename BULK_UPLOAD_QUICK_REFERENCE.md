@@ -4,8 +4,8 @@
 
 | Column Name | Description | Example |
 |-------------|-------------|---------|
-| **Name** | Full name of applicant | John Doe |
-| **Status** | Current status in pipeline | Started, CB Updated, Rejected, BG Pending, etc. |
+| **Name** | Full name of applicant | John Doe || **First Name** (optional if Name is provided) | First name | John |
+| **Last Name** (optional if Name is provided) | Last name | Doe || **Status** | Current status in pipeline | Started, CB Updated, Rejected, BG Pending, etc. |
 | **EID** (or Employee ID) | Unique employee identifier | 12345 |
 | **Process Date** | Date entered into system | 2026-01-06 |
 
@@ -21,6 +21,7 @@
 | Notes | Additional notes | Any text |
 | Fill | Fill information | Any text |
 | Recruiter | Recruiter name | Jane Smith |
+| Tentative Start | Projected start date | 2026-01-15 |
 | **CRM Number** (Legacy) | Old identifier format | 12345 |
 
 ## Valid Status Values
@@ -42,19 +43,36 @@
 
 ## Column Name Variations (All Accepted)
 
+### For Name:
+- `Name` (full name)
+- `First Name` + `Last Name` (automatically combined)
+
 ### For EID:
 - `EID`
 - `Employee ID`
 - `Employee Number`
 - `CRM Number` (legacy - automatically converted to EID)
+- `CRM` (legacy)
 
 ### For Phone:
 - `Phone`
 - `Phone Number`
 
+### For I-9:
+- `I-9 Cleared`
+- `I-9`
+
+### For Email:
+- `Email`
+- `Email Address`
+
 ### For Background Status:
 - `Background Status`
 - `Background Status (Valid, Pending or Flagged)`
+
+### For Tentative Start:
+- `Tentative Start`
+- `Tentative Start Date`
 
 ## Important Notes
 

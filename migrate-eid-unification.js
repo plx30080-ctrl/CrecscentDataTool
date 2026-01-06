@@ -16,24 +16,61 @@ import {
   getDocs, 
   updateDoc, 
   doc,
-  writeBatch,
-  query,
-  where
+  writeBatch
 } from 'firebase/firestore';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import readline from 'readline';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Load Firebase config
-const firebaseConfig = JSON.parse(
-  readFileSync(join(__dirname, '.firebase-config.json'), 'utf-8')
-);
+// Firebase configuration (from src/firebase.js)
+const firebaseConfig = {
+  apiKey: "AIzaSyAOlZFMyO4kSd1lqbT0ItM4zR97HAVwF4U",
+  authDomain: "mid-states-00821676-61ebe.firebaseapp.com",
+  projectId: "mid-states-00821676-61ebe",
+  storageBucket: "mid-states-00821676-61ebe.firebasestorage.app",
+  messagingSenderId: "985379591620",
+  appId: "1:985379591620:web:6fed48ff0c32e8b3704091"
+};
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+/**
+ * Prompt for user input
+ */
+function prompt(question) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise(resolve => {
+    rl.question(question, answer => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
+/**
+ * Authenticate user
+ */
+async function authenticate() {
+  console.log('\n🔐 Authentication Required');
+  console.log('Please sign in with your Firebase account to run this migration.\n');
+  
+  const email = await prompt('Email: ');
+  const password = await prompt('Password: ');
+  
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    console.log('✅ Authentication successful!\n');
+    return true;
+  } catch (error) {
+    console.error('❌ Authentication failed:', error.message);
+    return false;
+  }
+}
 
 /**
  * Migrate applicants collection to use EID as primary identifier
@@ -47,7 +84,7 @@ async function migrateApplicants() {
   let migratedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
-  const batch = writeBatch(db);
+  let batch = writeBatch(db);
   let batchCount = 0;
   const batchSize = 500;
   
@@ -95,6 +132,7 @@ async function migrateApplicants() {
       if (batchCount >= batchSize) {
         await batch.commit();
         console.log(`  💾 Committed batch of ${batchCount} updates`);
+        batch = writeBatch(db); // Reset batch
         batchCount = 0;
       }
     } catch (error) {
@@ -247,6 +285,13 @@ async function main() {
   console.log('This will update all applicant records to use EID as primary identifier\n');
   
   try {
+    // Step 0: Authenticate
+    const authenticated = await authenticate();
+    if (!authenticated) {
+      console.error('Migration aborted: Authentication required');
+      process.exit(1);
+    }
+    
     // Step 1: Migrate applicants
     const results = await migrateApplicants();
     

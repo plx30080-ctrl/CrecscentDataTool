@@ -36,24 +36,7 @@ node backup-data.js
 
 This creates a timestamped backup in the `backups/` directory.
 
-### Step 2: Prepare Firebase Configuration
-
-Create a `.firebase-config.json` file in the project root (if it doesn't exist):
-
-```json
-{
-  "apiKey": "your-api-key",
-  "authDomain": "your-project.firebaseapp.com",
-  "projectId": "your-project-id",
-  "storageBucket": "your-project.storage.app",
-  "messagingSenderId": "your-sender-id",
-  "appId": "your-app-id"
-}
-```
-
-**Note**: You can copy these values from `src/firebase.js`
-
-### Step 3: Run the Migration Script
+### Step 2: Run the Migration Script
 
 ```bash
 node migrate-eid-unification.js
@@ -118,14 +101,14 @@ Next Steps:
 ============================================================
 ```
 
-### Step 4: Review Migration Results
+### Step 2: Review Migration Results
 
 Check the output for:
 - **Errors**: Any records that couldn't be migrated (review manually)
 - **Warnings**: Cases where EID and CRM# differ (verify which is correct)
 - **Conflicts**: Same EID with different names across collections (data quality issue)
 
-### Step 5: Deploy Updated Code
+### Step 3: Deploy Updated Code
 
 The application code has already been updated to:
 - Use `eid` as the primary identifier

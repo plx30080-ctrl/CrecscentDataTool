@@ -71,25 +71,37 @@ const ApplicantBulkUpload = () => {
 
   // Column mapping to handle line breaks and variations
   const normalizeColumnName = (col) => {
-    const normalized = col.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    // Remove carriage returns, line feeds, and multiple spaces
+    const normalized = col
+      .replace(/\r/g, ' ')
+      .replace(/\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     const mapping = {
       'Status': 'status',
       'Name': 'name',
+      'First Name': 'firstName',
+      'Last Name': 'lastName',
       'Phone Number': 'phoneNumber',
+      'Phone': 'phoneNumber',
       'Email': 'email',
+      'Email Address': 'email',
       'EID': 'eid',
       'Employee ID': 'eid',
       'Employee Number': 'eid',
       'CRM Number': 'crmNumber',
+      'CRM': 'crmNumber',
       'Process Date': 'processDate',
       'I-9 Cleared': 'i9Cleared',
+      'I-9': 'i9Cleared',
       'Background Status (Valid, Pending or Flagged)': 'backgroundStatus',
       'Background Status': 'backgroundStatus',
       'Shift': 'shift',
       'Notes': 'notes',
       'Fill': 'fill',
-      'Recruiter': 'recruiter'
+      'Recruiter': 'recruiter',
+      'Tentative Start': 'tentativeStartDate'
     };
 
     return mapping[normalized] || normalized.toLowerCase().replace(/\s+/g, '');
@@ -139,10 +151,14 @@ const ApplicantBulkUpload = () => {
   const validateRow = (row, index) => {
     const errors = [];
 
-    // Required fields - convert to string first
-    const name = toString(row.name).trim();
+    // Construct full name if needed
+    let name = toString(row.name).trim();
+    if (!name && (row.firstName || row.lastName)) {
+      name = `${toString(row.firstName).trim()} ${toString(row.lastName).trim()}`.trim();
+    }
+
     if (!name) {
-      errors.push(`Row ${index + 2}: Missing required field 'name'`);
+      errors.push(`Row ${index + 2}: Missing required field 'name' (or 'First Name'/'Last Name')`);
     }
 
     const status = toString(row.status).trim();
@@ -194,18 +210,25 @@ const ApplicantBulkUpload = () => {
       s => s.toLowerCase() === statusStr.toLowerCase()
     ) || statusStr;
 
+    // Construct full name if needed
+    let name = toString(row.name).trim();
+    if (!name && (row.firstName || row.lastName)) {
+      name = `${toString(row.firstName).trim()} ${toString(row.lastName).trim()}`.trim();
+    }
+
     // Use EID as primary identifier, fallback to crmNumber for legacy support
     const eid = toString(row.eid).trim() || toString(row.crmNumber).trim();
     const crmNumber = toString(row.crmNumber).trim();
 
     return {
       status: normalizedStatus,
-      name: toString(row.name).trim(),
+      name: name,
       phoneNumber: normalizePhone(row.phoneNumber),
       email: toString(row.email).trim(),
       eid: eid, // Primary identifier
       crmNumber: crmNumber, // Keep for legacy support
       processDate: parseExcelDate(row.processDate),
+      tentativeStartDate: parseExcelDate(row.tentativeStartDate),
       i9Cleared: toString(row.i9Cleared) === 'Yes' ? 'Yes' : '',
       backgroundStatus: toString(row.backgroundStatus).trim(),
       shift: toString(row.shift).trim(),
