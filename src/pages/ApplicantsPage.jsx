@@ -30,7 +30,7 @@ import {
   Avatar,
   Stack
 } from '@mui/material';
-import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print, Download, Sync, Folder, Delete, DeleteSweep } from '@mui/icons-material';
+import { Add, Edit, TrendingUp, CameraAlt, PhotoCamera, Upload, Search, Print, Download, Sync, Folder, Delete, DeleteSweep, Cloud } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -42,7 +42,8 @@ import {
   deleteApplicant,
   bulkDeleteApplicants,
   getApplicantsPaginated,
-  getApplicantPipeline
+  getApplicantPipeline,
+  uploadApplicantPhoto
 } from '../services/firestoreService';
 import { createBadge, createOrUpdateBadgeFromApplicant, getBadgeByEID, deleteBadgesByEid } from '../services/badgeService';
 import BadgePrintPreview from '../components/BadgePrintPreview';
@@ -405,12 +406,32 @@ const ApplicantsPage = () => {
           await createOrUpdateBadgeFromApplicant(editingApplicant, null, currentUser.uid);
           const refreshed = await getBadgeByEID(employeeId);
           if (refreshed.success && refreshed.data) {
-            setBadgeToPrint(refreshed.data);
+            // Enrich badge with applicant data
+            setBadgeToPrint({
+              ...refreshed.data,
+              firstName: editingApplicant.firstName || refreshed.data.firstName,
+              lastName: editingApplicant.lastName || refreshed.data.lastName,
+              eid: employeeId,
+              photoURL: refreshed.data.photoURL || editingApplicant.photoURL
+            });
           } else {
-            setBadgeToPrint({ ...existingBadge.data, photoURL: editingApplicant.photoURL });
+            setBadgeToPrint({
+              ...existingBadge.data,
+              firstName: editingApplicant.firstName || existingBadge.data.firstName,
+              lastName: editingApplicant.lastName || existingBadge.data.lastName,
+              eid: employeeId,
+              photoURL: editingApplicant.photoURL
+            });
           }
         } else {
-          setBadgeToPrint(existingBadge.data);
+          // Enrich badge with applicant data
+          setBadgeToPrint({
+            ...existingBadge.data,
+            firstName: editingApplicant.firstName || existingBadge.data.firstName,
+            lastName: editingApplicant.lastName || existingBadge.data.lastName,
+            eid: employeeId,
+            photoURL: existingBadge.data.photoURL || editingApplicant.photoURL
+          });
         }
         setPrintPreviewOpen(true);
       } else {
@@ -425,7 +446,14 @@ const ApplicantsPage = () => {
           // Fetch the newly created badge
           const newBadge = await getBadgeByEID(employeeId);
           if (newBadge.success && newBadge.data) {
-            setBadgeToPrint(newBadge.data);
+            // Enrich badge with applicant data
+            setBadgeToPrint({
+              ...newBadge.data,
+              firstName: editingApplicant.firstName || newBadge.data.firstName,
+              lastName: editingApplicant.lastName || newBadge.data.lastName,
+              eid: employeeId,
+              photoURL: newBadge.data.photoURL || editingApplicant.photoURL
+            });
             setPrintPreviewOpen(true);
             setSuccess('Badge created from applicant data');
           }
@@ -575,6 +603,8 @@ const ApplicantsPage = () => {
     delete applicantData.phone; // Remove phone, use phoneNumber
 
     let result;
+    const applicantId = editingApplicant?.id;
+    
     if (editingApplicant) {
       result = await updateApplicant(editingApplicant.id, applicantData);
     } else {
@@ -582,6 +612,21 @@ const ApplicantsPage = () => {
     }
 
     if (result.success) {
+      const finalApplicantId = applicantId || result.id;
+      
+      // Upload applicant photo if provided
+      if (photoFile && finalApplicantId) {
+        try {
+          const photoResult = await uploadApplicantPhoto(finalApplicantId, formData.eid, photoFile);
+          if (photoResult.success) {
+            // Update applicant with photo URL
+            await updateApplicant(finalApplicantId, { photoURL: photoResult.photoURL });
+          }
+        } catch (err) {
+          logger.warn('Failed to upload applicant photo:', err);
+        }
+      }
+      
       // Auto-create badge for new applicants or when photo is provided
       if (!editingApplicant || photoFile) {
         const badgeData = {

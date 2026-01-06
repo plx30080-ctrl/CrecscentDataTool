@@ -52,6 +52,7 @@ import {
   bulkImportBadges
 } from '../services/bulkImportService';
 import dayjs from 'dayjs';
+import { parseLaborReportFile } from '../utils/laborParser';
 
 const DATA_TYPES = {
   APPLICANTS: {
@@ -68,8 +69,8 @@ const DATA_TYPES = {
   },
   LABOR_REPORTS: {
     label: 'Labor Reports',
-    description: 'Weekly labor reports with hours and headcount',
-    expectedColumns: ['weekEnding', 'totalHours', 'headcount'],
+    description: 'Weekly labor reports with daily breakdown and totals',
+    expectedColumns: ['weekEnding', 'totalHours', 'employeeCount', 'dailyBreakdown'],
     collection: 'laborReports'
   },
   EARLY_LEAVES: {
@@ -130,9 +131,14 @@ const BulkHistoricalImport = () => {
         data = results.data.filter(row => Object.values(row).some(v => v)); // Remove empty rows
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer);
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        data = XLSX.utils.sheet_to_json(firstSheet);
+        if (dataType === 'LABOR_REPORTS') {
+          const parsed = parseLaborReportFile(arrayBuffer, file.name);
+          data = parsed ? [parsed] : [];
+        } else {
+          const workbook = XLSX.read(arrayBuffer);
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          data = XLSX.utils.sheet_to_json(firstSheet);
+        }
       } else {
         throw new Error('Unsupported file format. Use CSV or Excel files.');
       }
@@ -191,6 +197,23 @@ const BulkHistoricalImport = () => {
             }
             if (!row.date) {
               errors.push(`Row ${index + 1}: Missing date`);
+            }
+          });
+          break;
+
+        case 'LABOR_REPORTS':
+          data.forEach((row, index) => {
+            if (!row.weekEnding) {
+              errors.push(`Row ${index + 1}: Missing week ending`);
+            }
+            if (!row.dailyBreakdown) {
+              errors.push(`Row ${index + 1}: Missing daily breakdown`);
+            }
+            if (!row.totalHours) {
+              warnings.push(`Row ${index + 1}: Missing totalHours (will compute from dailyBreakdown if present)`);
+            }
+            if (!row.employeeCount && (!row.employeeDetails || row.employeeDetails.length === 0)) {
+              warnings.push(`Row ${index + 1}: Missing employee count; set from employeeDetails length if available`);
             }
           });
           break;

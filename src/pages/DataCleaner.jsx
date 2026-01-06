@@ -16,7 +16,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Checkbox,
+  FormGroup
 } from '@mui/material';
 import { DeleteSweep, Warning, CheckCircle } from '@mui/icons-material';
 import { db } from '../firebase';
@@ -54,6 +56,7 @@ const DataCleaner = () => {
   const [results, setResults] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [selectedCollections, setSelectedCollections] = useState({});
 
   const clearCollection = async (collectionName) => {
     try {
@@ -97,8 +100,14 @@ const DataCleaner = () => {
   };
 
   const handleClearData = async () => {
-    if (confirmText !== 'DELETE ALL DATA') {
-      setMessage({ type: 'error', text: 'Please type "DELETE ALL DATA" to confirm' });
+    const selectedCount = Object.values(selectedCollections).filter(v => v).length;
+    if (selectedCount === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one collection to clear' });
+      return;
+    }
+
+    if (confirmText !== 'DELETE') {
+      setMessage({ type: 'error', text: 'Please type "DELETE" to confirm' });
       return;
     }
 
@@ -114,10 +123,12 @@ const DataCleaner = () => {
         totalDeleted: 0
       };
 
-      for (let i = 0; i < COLLECTIONS_TO_CLEAR.length; i++) {
-        const { name, label } = COLLECTIONS_TO_CLEAR[i];
+      const toDelete = COLLECTIONS_TO_CLEAR.filter(c => selectedCollections[c.name]);
+
+      for (let i = 0; i < toDelete.length; i++) {
+        const { name, label } = toDelete[i];
         setCurrentCollection(label);
-        setProgress(((i + 1) / COLLECTIONS_TO_CLEAR.length) * 100);
+        setProgress(((i + 1) / toDelete.length) * 100);
 
         const result = await clearCollection(name);
         
@@ -145,6 +156,11 @@ const DataCleaner = () => {
   };
 
   const handleOpenConfirm = () => {
+    const selectedCount = Object.values(selectedCollections).filter(v => v).length;
+    if (selectedCount === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one collection to clear' });
+      return;
+    }
     setConfirmText('');
     setConfirmOpen(true);
   };
@@ -177,19 +193,26 @@ const DataCleaner = () => {
 
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" gutterBottom color="error">
-            Collections That Will Be Cleared
+            Select Collections to Clear
           </Typography>
-          <List dense>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Check the boxes for any collections you want to delete. Unchecked collections will be preserved.
+          </Typography>
+          <FormGroup sx={{ mt: 2 }}>
             {COLLECTIONS_TO_CLEAR.map(({ name, label }) => (
-              <ListItem key={name}>
+              <Box key={name} sx={{ display: 'flex', alignItems: 'center', mb: 1, p: 1, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                <Checkbox
+                  checked={selectedCollections[name] || false}
+                  onChange={(e) => setSelectedCollections(prev => ({ ...prev, [name]: e.target.checked }))}
+                />
                 <ListItemText 
                   primary={label}
                   secondary={name}
+                  sx={{ ml: 1 }}
                 />
-                <Chip label="Will be deleted" color="error" size="small" />
-              </ListItem>
+              </Box>
             ))}
-          </List>
+          </FormGroup>
         </Box>
 
         <Divider sx={{ my: 3 }} />
@@ -282,7 +305,18 @@ const DataCleaner = () => {
             disabled={clearing}
             size="large"
           >
-            Clear All Data
+            Clear Selected Collections
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              // Clear all selections
+              setSelectedCollections({});
+              setMessage({ type: 'info', text: 'All selections cleared' });
+            }}
+            disabled={clearing || Object.values(selectedCollections).every(v => !v)}
+          >
+            Clear Selections
           </Button>
           <Button
             variant="outlined"
@@ -313,18 +347,28 @@ const DataCleaner = () => {
         </DialogTitle>
         <DialogContent>
           <Alert severity="error" sx={{ mb: 2 }}>
-            This action cannot be undone! All data will be permanently deleted.
+            This action cannot be undone! Selected collections will be permanently deleted.
           </Alert>
           <Typography variant="body2" paragraph>
-            To confirm, type <strong>DELETE ALL DATA</strong> in the box below:
+            To confirm, type <strong>DELETE</strong> in the box below:
           </Typography>
           <TextField
             fullWidth
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            placeholder="DELETE ALL DATA"
+            placeholder="DELETE"
             autoFocus
           />
+          <Box sx={{ mt: 2, p: 1, backgroundColor: '#fff3e0', borderRadius: 1 }}>
+            <Typography variant="caption">
+              <strong>Selected for deletion:</strong>
+              <br />
+              {COLLECTIONS_TO_CLEAR
+                .filter(c => selectedCollections[c.name])
+                .map(c => c.label)
+                .join(', ')}
+            </Typography>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>
@@ -334,9 +378,9 @@ const DataCleaner = () => {
             onClick={handleClearData}
             color="error"
             variant="contained"
-            disabled={confirmText !== 'DELETE ALL DATA'}
+            disabled={confirmText !== 'DELETE'}
           >
-            Delete All Data
+            Delete Selected
           </Button>
         </DialogActions>
       </Dialog>

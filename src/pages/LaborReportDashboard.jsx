@@ -23,6 +23,7 @@ import {
 import { Assessment, TrendingUp, Download } from '@mui/icons-material';
 import { getAllLaborReports } from '../services/laborReportService';
 import { exportLaborReportToExcel } from '../utils/exportUtils';
+import { getEmployeeDetailsForReport } from '../services/laborReportService';
 import dayjs from 'dayjs';
 
 const LaborReportDashboard = () => {
@@ -152,7 +153,17 @@ const LaborReportDashboard = () => {
                 <Button
                   variant="outlined"
                   startIcon={<Download />}
-                  onClick={() => exportLaborReportToExcel(selectedReport)}
+                  onClick={async () => {
+                    const report = selectedReport;
+                    let enriched = report;
+                    if (!report.employeeDetails) {
+                      const res = await getEmployeeDetailsForReport(report.id);
+                      if (res.success) {
+                        enriched = { ...report, employeeDetails: res.data };
+                      }
+                    }
+                    exportLaborReportToExcel(enriched);
+                  }}
                   size="small"
                 >
                   Export to Excel

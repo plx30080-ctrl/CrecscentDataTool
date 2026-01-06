@@ -686,6 +686,24 @@ export const getApplicantsPaginated = async ({
   }
 };
 
+// Upload applicant photo to Storage
+export const uploadApplicantPhoto = async (applicantId, eid, photoFile) => {
+  try {
+    if (!photoFile) {
+      return { success: false, error: 'No photo file provided' };
+    }
+
+    const storageRef = ref(storage, `applicants/${eid}/photo.jpg`);
+    await uploadBytes(storageRef, photoFile);
+    const photoURL = await getDownloadURL(storageRef);
+
+    return { success: true, photoURL };
+  } catch (error) {
+    logger.error('Error uploading applicant photo:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Get applicant pipeline metrics
 export const getApplicantPipeline = async () => {
   try {

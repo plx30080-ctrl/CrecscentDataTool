@@ -238,8 +238,8 @@ export const updateBadge = async (badgeId, updates) => {
 };
 
 /**
- * Get badge by EID with photo fallback from Storage
- * If badge exists but has no photoURL, checks Storage for photo at badges/{eid}/photo.*
+ * Get badge by EID with photo fallback from Storage and applicant records
+ * If badge exists but has no photoURL, checks Storage and applicant collection
  */
 export const getBadgeByEID = async (eid) => {
   try {
@@ -253,9 +253,10 @@ export const getBadgeByEID = async (eid) => {
     let badgeData = querySnapshot.docs[0].data();
     const badgeId = querySnapshot.docs[0].id;
 
-    // If badge has no photoURL but photos might exist in Storage, try to fetch from Storage
+    // If badge has no photoURL, try multiple fallbacks
     if (!badgeData.photoURL) {
       try {
+        // First check Storage for badge photos
         const storageRef = ref(storage, `badges/${eid}`);
         const files = await listAll(storageRef);
         
@@ -266,10 +267,30 @@ export const getBadgeByEID = async (eid) => {
           // Update badge with discovered photo URL
           await updateDoc(doc(db, 'badges', badgeId), { photoURL });
           badgeData.photoURL = photoURL;
-          logger.debug(`Found and linked photo for badge ${eid}`);
+          logger.debug(`Found and linked badge photo from Storage for EID ${eid}`);
         }
       } catch (storageErr) {
-        logger.debug(`No photo found in Storage for EID ${eid}`);
+        logger.debug(`No badge photo in Storage for EID ${eid}, checking applicant records...`);
+        
+        // Try to find applicant photo as fallback
+        try {
+          const applicantQuery = query(
+            collection(db, 'applicants'),
+            where('eid', '==', eid)
+          );
+          const applicantSnap = await getDocs(applicantQuery);
+          if (!applicantSnap.empty) {
+            const applicantData = applicantSnap.docs[0].data();
+            if (applicantData.photoURL) {
+              badgeData.photoURL = applicantData.photoURL;
+              // Also save to badge for future reference
+              await updateDoc(doc(db, 'badges', badgeId), { photoURL: applicantData.photoURL });
+              logger.debug(`Found applicant photo for EID ${eid} and saved to badge`);
+            }
+          }
+        } catch (appErr) {
+          logger.debug(`No applicant photo found for EID ${eid}`);
+        }
       }
     }
 

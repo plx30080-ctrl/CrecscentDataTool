@@ -208,17 +208,55 @@ const transformRow = (row, dataType) => {
       break;
       
     case 'LABOR_REPORTS':
-      // Parse week ending date
+      // Week ending -> Timestamp
       if (transformed.weekEnding) {
         transformed.weekEnding = parseDate(transformed.weekEnding);
       }
-      
-      // Parse numeric fields
-      ['totalHours', 'headcount', 'overtime', 'regularHours'].forEach(field => {
-        if (transformed[field]) {
+
+      // Normalize numeric aggregates if provided
+      ['totalHours', 'headcount', 'overtime', 'regularHours', 'employeeCount', 'directHours', 'indirectHours'].forEach(field => {
+        if (transformed[field] !== undefined) {
           transformed[field] = parseFloat(transformed[field]) || 0;
         }
       });
+
+      // Derive aggregates from dailyBreakdown when present
+      if (transformed.dailyBreakdown) {
+        let direct = 0;
+        let indirect = 0;
+        let total = 0;
+
+        Object.values(transformed.dailyBreakdown).forEach(day => {
+          const shift1Direct = day.shift1?.direct || 0;
+          const shift1Indirect = day.shift1?.indirect || 0;
+          const shift2Direct = day.shift2?.direct || 0;
+          const shift2Indirect = day.shift2?.indirect || 0;
+          const shift1Total = shift1Direct + shift1Indirect;
+          const shift2Total = shift2Direct + shift2Indirect;
+          const dayTotal = shift1Total + shift2Total;
+
+          day.shift1 = { direct: shift1Direct, indirect: shift1Indirect, total: shift1Total };
+          day.shift2 = { direct: shift2Direct, indirect: shift2Indirect, total: shift2Total };
+          day.total = dayTotal;
+
+          direct += shift1Direct + shift2Direct;
+          indirect += shift1Indirect + shift2Indirect;
+          total += dayTotal;
+        });
+
+        transformed.directHours = direct;
+        transformed.indirectHours = indirect;
+        transformed.totalHours = total;
+      }
+
+      // Employee count fallback from employeeDetails length
+      if (!transformed.employeeCount && Array.isArray(transformed.employeeDetails)) {
+        transformed.employeeCount = transformed.employeeDetails.length;
+      }
+      // Headcount field parity
+      if (!transformed.headcount && transformed.employeeCount) {
+        transformed.headcount = transformed.employeeCount;
+      }
       break;
   }
   

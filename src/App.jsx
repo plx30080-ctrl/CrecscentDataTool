@@ -24,6 +24,7 @@ import BulkHistoricalImport from './pages/BulkHistoricalImport';
 import DataCleaner from './pages/DataCleaner';
 import AdminBulkUpload from './pages/AdminBulkUpload';
 import BadgePhotoUpload from './pages/BadgePhotoUpload';
+import RepoLaborImport from './pages/RepoLaborImport';
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
             <Route path="admin" element={<AdminPanel />} />
             <Route path="upload" element={<Upload />} />
             <Route path="bulk-import" element={<BulkHistoricalImport />} />
+            <Route path="repo-labor-import" element={<RepoLaborImport />} />
             <Route path="admin-bulk-upload" element={<AdminBulkUpload />} />
             <Route path="badge-photo-upload" element={<BadgePhotoUpload />} />
             <Route path="backup" element={<DataBackup />} />

@@ -95,3 +95,21 @@ export const getRecentLaborReports = async (weeks = 12) => {
     return { success: false, error: error.message };
   }
 };
+
+/**
+ * Get employee details for a specific labor report from subcollection
+ * @param {string} reportId
+ * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+ */
+export const getEmployeeDetailsForReport = async (reportId) => {
+  try {
+    const q = collection(db, 'laborReports', reportId, 'employees');
+    const snap = await getDocs(q);
+    const employees = [];
+    snap.forEach((doc) => employees.push({ id: doc.id, ...doc.data() }));
+    return { success: true, data: employees };
+  } catch (error) {
+    logger.error('Error fetching employee details:', error);
+    return { success: false, error: error.message };
+  }
+};
