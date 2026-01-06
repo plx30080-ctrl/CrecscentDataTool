@@ -47,6 +47,7 @@ const ApplicantBulkUpload = () => {
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [showDnrDialog, setShowDnrDialog] = useState(false);
   const [statusBreakdown, setStatusBreakdown] = useState({});
+  const [filesProcessed, setFilesProcessed] = useState([]);
 
   // Valid status values (case-insensitive matching)
   const VALID_STATUSES = [
@@ -77,6 +78,9 @@ const ApplicantBulkUpload = () => {
       'Name': 'name',
       'Phone Number': 'phoneNumber',
       'Email': 'email',
+      'EID': 'eid',
+      'Employee ID': 'eid',
+      'Employee Number': 'eid',
       'CRM Number': 'crmNumber',
       'Process Date': 'processDate',
       'I-9 Cleared': 'i9Cleared',
@@ -84,7 +88,8 @@ const ApplicantBulkUpload = () => {
       'Background Status': 'backgroundStatus',
       'Shift': 'shift',
       'Notes': 'notes',
-      'Fill': 'fill'
+      'Fill': 'fill',
+      'Recruiter': 'recruiter'
     };
 
     return mapping[normalized] || normalized.toLowerCase().replace(/\s+/g, '');
@@ -153,9 +158,11 @@ const ApplicantBulkUpload = () => {
       }
     }
 
+    // Require either eid or crmNumber (preferring eid)
+    const eid = toString(row.eid).trim();
     const crmNumber = toString(row.crmNumber).trim();
-    if (!crmNumber) {
-      errors.push(`Row ${index + 2}: Missing required field 'crmNumber'`);
+    if (!eid && !crmNumber) {
+      errors.push(`Row ${index + 2}: Missing required field 'EID' or 'CRM Number'`);
     }
 
     if (!row.processDate) {
@@ -187,21 +194,24 @@ const ApplicantBulkUpload = () => {
       s => s.toLowerCase() === statusStr.toLowerCase()
     ) || statusStr;
 
-    const crmNumber = toString(row.crmNumber);
+    // Use EID as primary identifier, fallback to crmNumber for legacy support
+    const eid = toString(row.eid).trim() || toString(row.crmNumber).trim();
+    const crmNumber = toString(row.crmNumber).trim();
 
     return {
       status: normalizedStatus,
       name: toString(row.name).trim(),
       phoneNumber: normalizePhone(row.phoneNumber),
       email: toString(row.email).trim(),
-      crmNumber: crmNumber,
-      eid: crmNumber, // Use CRM Number as Employee ID
+      eid: eid, // Primary identifier
+      crmNumber: crmNumber, // Keep for legacy support
       processDate: parseExcelDate(row.processDate),
       i9Cleared: toString(row.i9Cleared) === 'Yes' ? 'Yes' : '',
       backgroundStatus: toString(row.backgroundStatus).trim(),
       shift: toString(row.shift).trim(),
       notes: toString(row.notes).trim(),
-      fill: toString(row.fill).trim()
+      fill: toString(row.fill).trim(),
+      recruiter: toString(row.recruiter).trim()
     };
   };
 
@@ -214,31 +224,40 @@ const ApplicantBulkUpload = () => {
   };
 
   const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
+    const files = Array.from(event.target.files);
     setError('');
     setSuccess('');
     setValidationErrors([]);
     setDuplicates([]);
+    setFilesProcessed([]);
 
-    if (!file) {
-      setError('No file selected');
+    if (files.length === 0) {
+      setError('No files selected');
       return;
     }
 
-    if (!file.name.match(/\.(xlsx|xls)$/i)) {
-      setError('Please select an Excel file (.xlsx or .xls)');
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File size exceeds 10MB limit');
-      return;
+    // Validate all files
+    for (const file of files) {
+      if (!file.name.match(/\.(xlsx|xls)$/i)) {
+        setError(`File "${file.name}" is not an Excel file (.xlsx or .xls)`);
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setError(`File "${file.name}" exceeds 10MB limit`);
+        return;
+      }
     }
 
     try {
-      const reader = new FileReader();
+      let allProcessedApplicants = [];
+      const processedFileNames = [];
 
-      reader.onload = async (e) => {
+      // Process each file
+      for (const file of files) {
+        await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = async (e) => {
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array', cellDates: true });
@@ -280,36 +299,45 @@ const ApplicantBulkUpload = () => {
 
           // Process applicant data
           const processedApplicants = normalizedData.map(row => processApplicantData(row));
-
-          // Check for duplicates
-          const crmNumbers = processedApplicants
-            .map(a => a.crmNumber)
-            .filter(crm => crm); // Filter out empty CRM numbers
-
-          if (crmNumbers.length > 0) {
-            const duplicateCheck = await checkDuplicateApplicants(crmNumbers);
-            if (duplicateCheck.success && duplicateCheck.duplicates.length > 0) {
-              setDuplicates(duplicateCheck.duplicates);
-            }
-          }
-
-          // Calculate status breakdown
-          const breakdown = calculateStatusBreakdown(processedApplicants);
-          setStatusBreakdown(breakdown);
-
-          setData(processedApplicants);
-          logger.info(`Parsed ${processedApplicants.length} applicants from Excel`);
+          allProcessedApplicants = allProcessedApplicants.concat(processedApplicants);
+          processedFileNames.push(file.name);
+          
+          logger.info(`Parsed ${processedApplicants.length} applicants from ${file.name}`);
+          resolve();
         } catch (parseError) {
           logger.error('Error parsing Excel:', parseError);
-          setError(`Failed to parse Excel file: ${parseError.message}`);
+          reject(parseError);
         }
       };
 
       reader.onerror = () => {
-        setError('Failed to read file');
+        reject(new Error('Failed to read file'));
       };
 
       reader.readAsArrayBuffer(file);
+        });
+      }
+
+      // After processing all files, check for duplicates and validate
+      setFilesProcessed(processedFileNames);
+      
+      const eids = allProcessedApplicants
+        .map(a => a.eid)
+        .filter(eid => eid);
+
+      if (eids.length > 0) {
+        const duplicateCheck = await checkDuplicateApplicants(eids);
+        if (duplicateCheck.success && duplicateCheck.duplicates.length > 0) {
+          setDuplicates(duplicateCheck.duplicates);
+        }
+      }
+
+      // Calculate status breakdown
+      const breakdown = calculateStatusBreakdown(allProcessedApplicants);
+      setStatusBreakdown(breakdown);
+
+      setData(allProcessedApplicants);
+      logger.info(`Total parsed: ${allProcessedApplicants.length} applicants from ${files.length} file(s)`);
     } catch (err) {
       logger.error('Error handling file:', err);
       setError(`Error processing file: ${err.message}`);
@@ -419,15 +447,15 @@ const ApplicantBulkUpload = () => {
       {duplicates.length > 0 && (
         <Alert severity="warning" sx={{ marginBottom: 2 }} icon={<Warning />}>
           <Typography variant="subtitle2" fontWeight="bold">
-            {duplicates.length} Duplicate CRM Number(s) Found
+            {duplicates.length} Duplicate EID(s) Found
           </Typography>
           <Typography variant="body2" sx={{ marginTop: 1 }}>
-            The following applicants already exist in the database:
+            The following associates already exist in the system:
           </Typography>
           <Box sx={{ marginTop: 1, maxHeight: 150, overflowY: 'auto' }}>
             {duplicates.slice(0, 10).map((dup, idx) => (
               <Typography key={idx} variant="caption" display="block">
-                • CRM {dup.crmNumber} - {dup.name} ({dup.status})
+                • EID {dup.eid} - {dup.name} ({dup.collection})
               </Typography>
             ))}
             {duplicates.length > 10 && (
@@ -443,9 +471,9 @@ const ApplicantBulkUpload = () => {
       )}
 
       <Paper sx={{ padding: 3, marginBottom: 3 }}>
-        <Typography variant="h6" gutterBottom>1. Upload Excel File</Typography>
+        <Typography variant="h6" gutterBottom>1. Upload Excel File(s)</Typography>
         <Typography variant="body2" sx={{ marginBottom: 2 }}>
-          Select an Excel file (.xlsx or .xls) containing applicant data. Maximum file size: 10MB.
+          Select one or multiple Excel files (.xlsx or .xls) containing applicant data. Maximum file size: 10MB per file.
         </Typography>
 
         <Alert severity="info" sx={{ marginBottom: 2 }} icon={<Info />}>
@@ -453,13 +481,13 @@ const ApplicantBulkUpload = () => {
           <Typography variant="body2" component="div">
             • <strong>Name</strong> - Full name<br/>
             • <strong>Status</strong> - One of: {VALID_STATUSES.join(', ')}<br/>
-            • <strong>CRM Number</strong> - ProLogistix CRM ID<br/>
+            • <strong>EID</strong> - Employee ID (or "CRM Number" for legacy files)<br/>
             • <strong>Process Date</strong> - Date entered into system
           </Typography>
 
           <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ marginTop: 2 }}>Optional Columns:</Typography>
           <Typography variant="body2" component="div">
-            • Phone Number, Email, I-9 Cleared, Background Status, Shift, Notes, Fill
+            • Phone Number, Email, I-9 Cleared, Background Status, Shift, Notes, Fill, Recruiter
           </Typography>
         </Alert>
 
@@ -467,16 +495,26 @@ const ApplicantBulkUpload = () => {
           <input
             type="file"
             accept=".xlsx,.xls"
+            multiple
             onChange={handleFileUpload}
             style={{ display: 'none' }}
             id="excel-upload"
           />
           <label htmlFor="excel-upload">
             <Button variant="contained" component="span" startIcon={<CloudUpload />}>
-              Select Excel File
+              Select Excel File(s)
             </Button>
           </label>
         </Box>
+
+        {filesProcessed.length > 0 && (
+          <Alert severity="success" sx={{ marginTop: 2 }}>
+            <Typography variant="subtitle2" fontWeight="bold">Files Processed:</Typography>
+            {filesProcessed.map((fileName, idx) => (
+              <Typography key={idx} variant="body2">• {fileName}</Typography>
+            ))}
+          </Alert>
+        )}
 
         {data.length > 0 && (
           <Box sx={{ marginTop: 3 }}>
@@ -536,11 +574,12 @@ const ApplicantBulkUpload = () => {
                   <TableRow>
                     <TableCell><strong>Name</strong></TableCell>
                     <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>CRM#</strong></TableCell>
+                    <TableCell><strong>EID</strong></TableCell>
                     <TableCell><strong>Process Date</strong></TableCell>
                     <TableCell><strong>Phone</strong></TableCell>
                     <TableCell><strong>Email</strong></TableCell>
                     <TableCell><strong>Shift</strong></TableCell>
+                    <TableCell><strong>Recruiter</strong></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -550,13 +589,14 @@ const ApplicantBulkUpload = () => {
                       <TableCell>
                         <Chip label={row.status} size="small" color="primary" />
                       </TableCell>
-                      <TableCell>{row.crmNumber}</TableCell>
+                      <TableCell>{row.eid}</TableCell>
                       <TableCell>
                         {row.processDate ? format(row.processDate, 'yyyy-MM-dd') : 'N/A'}
                       </TableCell>
                       <TableCell>{row.phoneNumber}</TableCell>
                       <TableCell>{row.email}</TableCell>
                       <TableCell>{row.shift}</TableCell>
+                      <TableCell>{row.recruiter}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

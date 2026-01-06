@@ -26,54 +26,46 @@ const syncApplicantStatuses = async (employeeIds, weekEnding = null) => {
       : null;
 
     for (const eid of employeeIds) {
-      // Find applicant by EID or crmNumber
+      // Find applicant by EID (primary identifier)
       const q = query(
         collection(db, 'applicants'),
         where('eid', '==', eid)
       );
 
-      const querySnapshot = await getDocs(q);
+      let querySnapshot = await getDocs(q);
 
-      // Also check crmNumber field for bulk uploads
+      // Fallback: Also check crmNumber field for legacy records
       if (querySnapshot.empty) {
         const q2 = query(
           collection(db, 'applicants'),
           where('crmNumber', '==', eid)
         );
-        const querySnapshot2 = await getDocs(q2);
+        querySnapshot = await getDocs(q2);
+      }
 
-        // Process all matches for crmNumber
-        for (const document of querySnapshot2.docs) {
-          const currentStatus = document.data().status;
-          // Only update if not already "Started"
-          if (currentStatus !== 'Started') {
-            const updatePayload = {
-              status: 'Started',
-              lastModified: serverTimestamp()
-            };
-            if (candidateStart) {
-              updatePayload.actualStartDate = candidateStart;
-            }
-            await updateDoc(doc(db, 'applicants', document.id), updatePayload);
-            updatedCount++;
+      // Process all matches
+      for (const document of querySnapshot.docs) {
+        const currentStatus = document.data().status;
+        const currentEid = document.data().eid;
+        
+        // Only update if not already "Started"
+        if (currentStatus !== 'Started') {
+          const updatePayload = {
+            status: 'Started',
+            lastModified: serverTimestamp()
+          };
+          
+          // Ensure EID is set if it's missing
+          if (!currentEid) {
+            updatePayload.eid = eid;
           }
-        }
-      } else {
-        // Process all matches for eid
-        for (const document of querySnapshot.docs) {
-          const currentStatus = document.data().status;
-          // Only update if not already "Started"
-          if (currentStatus !== 'Started') {
-            const updatePayload = {
-              status: 'Started',
-              lastModified: serverTimestamp()
-            };
-            if (candidateStart) {
-              updatePayload.actualStartDate = candidateStart;
-            }
-            await updateDoc(doc(db, 'applicants', document.id), updatePayload);
-            updatedCount++;
+          
+          if (candidateStart) {
+            updatePayload.actualStartDate = candidateStart;
           }
+          
+          await updateDoc(doc(db, 'applicants', document.id), updatePayload);
+          updatedCount++;
         }
       }
     }

@@ -494,8 +494,15 @@ export const getEarlyLeaveTrends = async (startDate, endDate) => {
 // ============ APPLICANTS ============
 export const addApplicant = async (applicantData, userId) => {
   try {
+    // Ensure EID is set (use crmNumber as fallback for legacy support)
+    const eid = applicantData.eid || applicantData.crmNumber;
+    if (!eid) {
+      return { success: false, error: 'EID or CRM Number is required' };
+    }
+
     const docRef = await addDoc(collection(db, 'applicants'), {
       ...applicantData,
+      eid: eid, // Ensure EID is always set
       appliedDate: applicantData.appliedDate ? Timestamp.fromDate(new Date(applicantData.appliedDate)) : serverTimestamp(),
       interviewDate: applicantData.interviewDate ? Timestamp.fromDate(new Date(applicantData.interviewDate)) : null,
       processedDate: applicantData.processedDate ? Timestamp.fromDate(new Date(applicantData.processedDate)) : null,
@@ -719,9 +726,17 @@ export const bulkUploadApplicants = async (applicants, userId, replaceAll = fals
 
     // Add new applicants
     applicants.forEach((applicant) => {
+      // Ensure EID is set (use crmNumber as fallback for legacy support)
+      const eid = applicant.eid || applicant.crmNumber;
+      if (!eid) {
+        logger.warn('Skipping applicant without EID:', applicant.name);
+        return;
+      }
+
       const docRef = doc(collection(db, 'applicants'));
       currentBatch.set(docRef, {
         ...applicant,
+        eid: eid, // Ensure EID is always set as primary identifier
         uploadedAt: serverTimestamp(),
         uploadedBy: userId,
         lastModified: serverTimestamp(),
@@ -760,24 +775,78 @@ export const bulkUploadApplicants = async (applicants, userId, replaceAll = fals
   }
 };
 
-// Check for duplicate CRM numbers
-export const checkDuplicateApplicants = async (crmNumbers) => {
+// Check for duplicate EIDs across all collections (unified identifier check)
+export const checkDuplicateApplicants = async (eids) => {
   try {
     const duplicates = [];
 
     // Query in chunks of 10 (Firestore 'in' query limit)
-    for (let i = 0; i < crmNumbers.length; i += 10) {
-      const chunk = crmNumbers.slice(i, i + 10);
-      const q = query(
+    for (let i = 0; i < eids.length; i += 10) {
+      const chunk = eids.slice(i, i + 10);
+      
+      // Check applicants collection (check both eid and legacy crmNumber)
+      const applicantsQuery = query(
+        collection(db, 'applicants'),
+        where('eid', 'in', chunk)
+      );
+      const applicantsSnapshot = await getDocs(applicantsQuery);
+      applicantsSnapshot.docs.forEach(doc => {
+        duplicates.push({
+          eid: doc.data().eid,
+          crmNumber: doc.data().crmNumber,
+          name: doc.data().name,
+          status: doc.data().status,
+          collection: 'applicants'
+        });
+      });
+
+      // Also check legacy crmNumber field in applicants
+      const legacyQuery = query(
         collection(db, 'applicants'),
         where('crmNumber', 'in', chunk)
       );
-      const snapshot = await getDocs(q);
-      snapshot.docs.forEach(doc => {
+      const legacySnapshot = await getDocs(legacyQuery);
+      legacySnapshot.docs.forEach(doc => {
+        // Only add if not already found by eid
+        const alreadyFound = duplicates.some(d => d.eid === doc.data().eid || d.crmNumber === doc.data().crmNumber);
+        if (!alreadyFound) {
+          duplicates.push({
+            eid: doc.data().eid,
+            crmNumber: doc.data().crmNumber,
+            name: doc.data().name,
+            status: doc.data().status,
+            collection: 'applicants (legacy)'
+          });
+        }
+      });
+
+      // Check associates collection
+      const associatesQuery = query(
+        collection(db, 'associates'),
+        where('eid', 'in', chunk)
+      );
+      const associatesSnapshot = await getDocs(associatesQuery);
+      associatesSnapshot.docs.forEach(doc => {
         duplicates.push({
-          crmNumber: doc.data().crmNumber,
+          eid: doc.data().eid,
           name: doc.data().name,
-          status: doc.data().status
+          status: doc.data().status,
+          collection: 'associates'
+        });
+      });
+
+      // Check badges collection
+      const badgesQuery = query(
+        collection(db, 'badges'),
+        where('eid', 'in', chunk)
+      );
+      const badgesSnapshot = await getDocs(badgesQuery);
+      badgesSnapshot.docs.forEach(doc => {
+        duplicates.push({
+          eid: doc.data().eid,
+          name: doc.data().name,
+          status: doc.data().status,
+          collection: 'badges'
         });
       });
     }
