@@ -38,7 +38,8 @@ import {
   Storage,
   Backup,
   DeleteSweep,
-  Upload as UploadIcon
+  Upload as UploadIcon,
+  Visibility
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -51,6 +52,7 @@ import { checkPrinterStatus, getAvailablePrinters } from '../services/printServi
 import dayjs from 'dayjs';
 import logger from '../utils/logger';
 import { useNavigate } from 'react-router-dom';
+import DataView from '../components/DataView';
 
 const AdminPanel = () => {
   const { currentUser, userProfile } = useAuth();
@@ -237,7 +239,8 @@ const AdminPanel = () => {
         <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
           <Tab label="User Management" icon={<People />} iconPosition="start" />
           <Tab label="Audit Logs" icon={<Assessment />} iconPosition="start" />
-                  <Tab label="Data Management" icon={<Storage />} iconPosition="start" />
+          <Tab label="Data Management" icon={<Storage />} iconPosition="start" />
+          <Tab label="Data View" icon={<Visibility />} iconPosition="start" />
         </Tabs>
       </Box>
 
@@ -552,6 +555,13 @@ const AdminPanel = () => {
               </Typography>
             )}
           </List>
+        </Paper>
+      )}
+
+      {/* Tab 3: Data View */}
+      {tabValue === 3 && (
+        <Paper sx={{ padding: 3 }}>
+          <DataView />
         </Paper>
       )}
 
