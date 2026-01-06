@@ -11,6 +11,8 @@ import {
   where,
   orderBy,
   limit,
+  startAfter,
+  getCountFromServer,
   Timestamp,
   writeBatch,
   serverTimestamp
@@ -636,23 +638,67 @@ export const getApplicants = async (status = null) => {
   }
 };
 
+// Paginated applicants fetch to avoid loading all documents at once
+export const getApplicantsPaginated = async ({
+  pageSize = 200,
+  sortField = 'processDate',
+  sortDirection = 'desc',
+  cursor = null,
+  status = null
+} = {}) => {
+  try {
+    const constraints = [];
+
+    if (status) {
+      constraints.push(where('status', '==', status));
+    }
+
+    // Order by requested field; processDate may be null for some docs but Firestore supports ordering on missing fields
+    constraints.push(orderBy(sortField, sortDirection));
+    constraints.push(limit(pageSize));
+
+    let q = query(collection(db, 'applicants'), ...constraints);
+    if (cursor) {
+      q = query(q, startAfter(cursor));
+    }
+
+    const querySnapshot = await getDocs(q);
+    const data = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      appliedDate: doc.data().appliedDate?.toDate(),
+      processDate: doc.data().processDate?.toDate(),
+      interviewDate: doc.data().interviewDate?.toDate(),
+      processedDate: doc.data().processedDate?.toDate(),
+      projectedStartDate: doc.data().projectedStartDate?.toDate(),
+      tentativeStartDate: doc.data().tentativeStartDate?.toDate(),
+      actualStartDate: doc.data().actualStartDate?.toDate()
+    }));
+
+    const lastDoc = querySnapshot.docs.length > 0
+      ? querySnapshot.docs[querySnapshot.docs.length - 1]
+      : null;
+
+    return { success: true, data, cursor: lastDoc };
+  } catch (error) {
+    logger.error('Error getting paginated applicants:', error);
+    return { success: false, error: error.message, data: [], cursor: null };
+  }
+};
+
 // Get applicant pipeline metrics
 export const getApplicantPipeline = async () => {
   try {
-    const result = await getApplicants();
-    if (!result.success) return result;
-
+    // Use count aggregations instead of fetching all applicants
     const pipeline = {
-      total: result.data.length,
+      total: 0,
       byStatus: {
-        // Support both old and new status formats
         'Applied': 0,
         'Interviewed': 0,
         'Processed': 0,
         'Hired': 0,
         'Started': 0,
         'Rejected': 0,
-        // New bulk upload statuses
         'CB Updated': 0,
         'BG Pending': 0,
         'Adjudication Pending': 0,
@@ -664,23 +710,21 @@ export const getApplicantPipeline = async () => {
       conversionRate: 0
     };
 
-    result.data.forEach(applicant => {
-      pipeline.byStatus[applicant.status] = (pipeline.byStatus[applicant.status] || 0) + 1;
+    // Total count
+    const totalSnap = await getCountFromServer(collection(db, 'applicants'));
+    pipeline.total = totalSnap.data().count || 0;
 
-      if (applicant.projectedStartDate && (applicant.status === 'Hired' || applicant.status === 'Started')) {
-        pipeline.projectedStarts.push({
-          name: applicant.name,
-          date: applicant.projectedStartDate
-        });
-      }
+    // Counts by status (parallelize for speed)
+    const statuses = Object.keys(pipeline.byStatus);
+    const countPromises = statuses.map(s => getCountFromServer(query(collection(db, 'applicants'), where('status', '==', s))));
+    const snaps = await Promise.all(countPromises);
+    snaps.forEach((snap, idx) => {
+      pipeline.byStatus[statuses[idx]] = snap.data().count || 0;
     });
 
-    // Calculate conversion rate (total -> Started)
-    const started = pipeline.byStatus['Started'];
+    // Conversion rate (Started / total)
+    const started = pipeline.byStatus['Started'] || 0;
     pipeline.conversionRate = pipeline.total > 0 ? ((started / pipeline.total) * 100).toFixed(1) : 0;
-
-    // Sort projected starts by date
-    pipeline.projectedStarts.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     return { success: true, data: pipeline };
   } catch (error) {

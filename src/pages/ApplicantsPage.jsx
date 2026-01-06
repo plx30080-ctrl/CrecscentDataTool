@@ -41,7 +41,7 @@ import {
   updateApplicant,
   deleteApplicant,
   bulkDeleteApplicants,
-  getApplicants,
+  getApplicantsPaginated,
   getApplicantPipeline
 } from '../services/firestoreService';
 import { createBadge, createOrUpdateBadgeFromApplicant, getBadgeByEID, deleteBadgesByEid } from '../services/badgeService';
@@ -76,6 +76,10 @@ const ApplicantsPage = () => {
   const [sortDirection, setSortDirection] = useState('desc');
   const [pipeline, setPipeline] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pageSize, setPageSize] = useState(200);
+  const [cursor, setCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Phone formatter utility
   const formatPhone = (phone) => {
@@ -127,13 +131,15 @@ const ApplicantsPage = () => {
   const loadData = async () => {
     setLoading(true);
     const [applicantsResult, pipelineResult] = await Promise.all([
-      getApplicants(),
+      getApplicantsPaginated({ pageSize, sortField: 'processDate', sortDirection: 'desc' }),
       getApplicantPipeline()
     ]);
 
     if (applicantsResult.success) {
       setApplicants(applicantsResult.data);
       setFilteredApplicants(applicantsResult.data);
+      setCursor(applicantsResult.cursor || null);
+      setHasMore((applicantsResult.data || []).length >= pageSize);
     }
 
     if (pipelineResult.success) {
@@ -141,6 +147,21 @@ const ApplicantsPage = () => {
     }
 
     setLoading(false);
+  };
+
+  const handleLoadMore = async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    const result = await getApplicantsPaginated({ pageSize, sortField: 'processDate', sortDirection: 'desc', cursor });
+    if (result.success) {
+      const combined = [...applicants, ...result.data];
+      setApplicants(combined);
+      // Re-apply current filters to include the new items
+      setFilteredApplicants(prev => [...combined]);
+      setCursor(result.cursor || null);
+      setHasMore((result.data || []).length >= pageSize);
+    }
+    setLoadingMore(false);
   };
 
   // Search and filter
@@ -1113,6 +1134,16 @@ const ApplicantsPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Showing {applicants.length}{pipeline?.total ? ` of ${pipeline.total}` : ''} applicants
+            </Typography>
+            {hasMore && (
+              <Button variant="outlined" onClick={handleLoadMore} disabled={loadingMore}>
+                {loadingMore ? 'Loading…' : 'Load More'}
+              </Button>
+            )}
+          </Box>
         </Paper>
 
         {/* Add/Edit Dialog */}

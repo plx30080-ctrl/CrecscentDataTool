@@ -12,13 +12,15 @@ import {
   ListItemText,
   Chip
 } from '@mui/material';
-import { CloudUpload, CheckCircle } from '@mui/icons-material';
+import { CloudUpload, CheckCircle, Link as LinkIcon } from '@mui/icons-material';
 import { db, storage } from '../firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
+import { discoverAndLinkPhotos } from '../services/badgeService';
 
 const BadgePhotoUpload = () => {
   const [uploading, setUploading] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({ uploaded: 0, failed: 0, skipped: 0 });
@@ -27,6 +29,27 @@ const BadgePhotoUpload = () => {
 
   const addLog = (message) => {
     setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
+
+  const handleDiscoverAndLinkPhotos = async () => {
+    setLinking(true);
+    setError('');
+    setLogs([]);
+    addLog('🔍 Discovering and linking photos from Storage to badge records...');
+
+    const result = await discoverAndLinkPhotos();
+    setLinking(false);
+
+    if (result.success) {
+      const { linked, notFound, alreadyHave } = result.stats;
+      addLog(`✅ Discovery complete!`);
+      addLog(`   ${linked} photos linked to badge records`);
+      addLog(`   ${alreadyHave} badges already have photos`);
+      addLog(`   ${notFound} badges without photos in Storage`);
+    } else {
+      setError(result.error || 'Failed to discover photos');
+      addLog(`❌ Error: ${result.error}`);
+    }
   };
 
   const extractEIDFromFilename = (filename) => {
@@ -67,15 +90,35 @@ const BadgePhotoUpload = () => {
         }
 
         try {
-          // Upload to Firebase Storage: badges/{eid}/photo.{ext}
+          // Check if photo already exists in Storage
           const ext = file.name.split('.').pop();
           const storageRef = ref(storage, `badges/${eid}/photo.${ext}`);
           
+          try {
+            // Try to get the download URL - if it exists, skip
+            await getDownloadURL(storageRef);
+            addLog(`⏭️  Skipped ${file.name}: Photo already exists in Storage`);
+            skipped++;
+            continue;
+          } catch (error) {
+            // File doesn't exist, proceed with upload
+          }
+
+          // Check if badge record exists
+          const badgeRef = doc(db, 'badges', eid);
+          const badgeSnap = await getDoc(badgeRef);
+          
+          if (!badgeSnap.exists()) {
+            addLog(`⚠️  Skipped ${file.name}: No badge record found for EID ${eid}`);
+            skipped++;
+            continue;
+          }
+
+          // Upload file to Storage
           await uploadBytes(storageRef, file);
           const photoURL = await getDownloadURL(storageRef);
 
           // Update badge document with photo URL
-          const badgeRef = doc(db, 'badges', eid);
           await updateDoc(badgeRef, {
             photoURL: photoURL,
             photoUpdatedAt: new Date()
@@ -130,28 +173,49 @@ const BadgePhotoUpload = () => {
             Photos should be named with format: <code>EID-photo.png</code> (e.g., 10212782-photo.png)
           </Typography>
 
-          <Button
-            variant="contained"
-            component="label"
-            startIcon={<CloudUpload />}
-            disabled={uploading}
-            size="large"
-          >
-            Select Photos
-            <input
-              type="file"
-              hidden
-              multiple
-              accept="image/png,image/jpeg,image/jpg"
-              onChange={handlePhotoUpload}
-            />
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              component="label"
+              startIcon={<CloudUpload />}
+              disabled={uploading || linking}
+              size="large"
+            >
+              Select Photos
+              <input
+                type="file"
+                hidden
+                multiple
+                accept="image/png,image/jpeg,image/jpg"
+                onChange={handlePhotoUpload}
+              />
+            </Button>
+
+            <Button
+              variant="outlined"
+              startIcon={<LinkIcon />}
+              onClick={handleDiscoverAndLinkPhotos}
+              disabled={uploading || linking}
+              size="large"
+            >
+              Discover & Link Photos
+            </Button>
+          </Box>
 
           {uploading && (
             <Box sx={{ mt: 3 }}>
               <LinearProgress variant="determinate" value={progress} />
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                 {Math.round(progress)}% complete - {stats.uploaded} uploaded, {stats.failed} failed, {stats.skipped} skipped
+              </Typography>
+            </Box>
+          )}
+
+          {linking && (
+            <Box sx={{ mt: 3 }}>
+              <LinearProgress />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Discovering and linking photos...
               </Typography>
             </Box>
           )}

@@ -12,7 +12,7 @@ import {
   Timestamp,
   serverTimestamp
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { withTimeout } from '../utils/timeout';
 
@@ -238,7 +238,8 @@ export const updateBadge = async (badgeId, updates) => {
 };
 
 /**
- * Get badge by EID
+ * Get badge by EID with photo fallback from Storage
+ * If badge exists but has no photoURL, checks Storage for photo at badges/{eid}/photo.*
  */
 export const getBadgeByEID = async (eid) => {
   try {
@@ -249,11 +250,33 @@ export const getBadgeByEID = async (eid) => {
       return { success: true, data: null };
     }
 
-    const badgeData = querySnapshot.docs[0].data();
+    let badgeData = querySnapshot.docs[0].data();
+    const badgeId = querySnapshot.docs[0].id;
+
+    // If badge has no photoURL but photos might exist in Storage, try to fetch from Storage
+    if (!badgeData.photoURL) {
+      try {
+        const storageRef = ref(storage, `badges/${eid}`);
+        const files = await listAll(storageRef);
+        
+        // Find photo files (PNG, JPG, JPEG)
+        const photoFile = files.items.find(item => /\.(png|jpg|jpeg)$/i.test(item.name));
+        if (photoFile) {
+          const photoURL = await getDownloadURL(photoFile);
+          // Update badge with discovered photo URL
+          await updateDoc(doc(db, 'badges', badgeId), { photoURL });
+          badgeData.photoURL = photoURL;
+          logger.debug(`Found and linked photo for badge ${eid}`);
+        }
+      } catch (storageErr) {
+        logger.debug(`No photo found in Storage for EID ${eid}`);
+      }
+    }
+
     return {
       success: true,
       data: {
-        id: querySnapshot.docs[0].id,
+        id: badgeId,
         ...badgeData,
         createdAt: badgeData.createdAt?.toDate(),
         printedAt: badgeData.printedAt?.toDate(),
@@ -263,6 +286,60 @@ export const getBadgeByEID = async (eid) => {
     };
   } catch (error) {
     logger.error('Error getting badge:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Discover and link photos in Storage to badge records that are missing photoURL
+ * Useful after bulk photo uploads to sync photos with existing badge documents
+ */
+export const discoverAndLinkPhotos = async () => {
+  try {
+    const badgesRef = collection(db, 'badges');
+    const badgesSnapshot = await getDocs(badgesRef);
+    
+    let linked = 0;
+    let notFound = 0;
+    let alreadyHave = 0;
+
+    for (const badgeDoc of badgesSnapshot.docs) {
+      const badge = badgeDoc.data();
+      const eid = badge.eid;
+
+      // Skip if badge already has a photoURL
+      if (badge.photoURL) {
+        alreadyHave++;
+        continue;
+      }
+
+      try {
+        const storageRef = ref(storage, `badges/${eid}`);
+        const files = await listAll(storageRef);
+        
+        // Find photo files (PNG, JPG, JPEG)
+        const photoFile = files.items.find(item => /\.(png|jpg|jpeg)$/i.test(item.name));
+        if (photoFile) {
+          const photoURL = await getDownloadURL(photoFile);
+          // Update badge with discovered photo URL
+          await updateDoc(badgeDoc.ref, { photoURL });
+          linked++;
+          logger.debug(`Linked photo for EID ${eid}`);
+        } else {
+          notFound++;
+        }
+      } catch (err) {
+        notFound++;
+        logger.debug(`No photo folder found for EID ${eid}`);
+      }
+    }
+
+    return {
+      success: true,
+      stats: { linked, notFound, alreadyHave }
+    };
+  } catch (error) {
+    logger.error('Error discovering and linking photos:', error);
     return { success: false, error: error.message };
   }
 };

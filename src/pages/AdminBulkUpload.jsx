@@ -16,8 +16,9 @@ import {
 } from '@mui/material';
 import { CloudUpload } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
-import { collection, doc, setDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, doc, setDoc, writeBatch, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
+import { db, storage } from '../firebase';
+import { ref, listAll } from 'firebase/storage';
 import { useAuth } from '../hooks/useAuth';
 
 const AdminBulkUpload = () => {
@@ -56,6 +57,36 @@ const AdminBulkUpload = () => {
     return String(value).trim();
   };
 
+  // Check if a document exists by EID in a collection
+  const eidExists = async (collectionName, eid) => {
+    try {
+      const q = query(
+        collection(db, collectionName),
+        where('eid', '==', eid)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.size > 0;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  // Get all existing EIDs in a collection
+  const getExistingEids = async (collectionName) => {
+    try {
+      const snapshot = await getDocs(collection(db, collectionName));
+      const eids = new Set();
+      snapshot.docs.forEach(doc => {
+        if (doc.data().eid) {
+          eids.add(doc.data().eid);
+        }
+      });
+      return eids;
+    } catch (error) {
+      return new Set();
+    }
+  };
+
   const processApplicants = async (file) => {
     setProgress('Processing Applicants...');
     
@@ -77,6 +108,9 @@ const AdminBulkUpload = () => {
             return normalized;
           });
 
+          // Get existing EIDs to skip duplicates
+          const existingEids = await getExistingEids('applicants');
+
           let batch = writeBatch(db);
           let count = 0;
           let skipped = 0;
@@ -93,6 +127,12 @@ const AdminBulkUpload = () => {
             const status = toString(row.status);
 
             if (!eid || !status) {
+              skipped++;
+              continue;
+            }
+
+            // Skip if this EID already exists
+            if (existingEids.has(eid)) {
               skipped++;
               continue;
             }
@@ -246,6 +286,9 @@ const AdminBulkUpload = () => {
             return normalized;
           });
 
+          // Get existing EIDs to skip duplicates
+          const existingEids = await getExistingEids('earlyLeaves');
+
           let batch = writeBatch(db);
           let count = 0;
           let skipped = 0;
@@ -263,9 +306,17 @@ const AdminBulkUpload = () => {
               continue;
             }
 
+            const eid = toString(row.eid || row.employeeid || row.id);
+            
+            // Skip if EID exists (for records with EID)
+            if (eid && existingEids.has(eid)) {
+              skipped++;
+              continue;
+            }
+
             const earlyLeaveData = {
               associateName: name,
-              eid: toString(row.eid || row.employeeid || row.id),
+              eid: eid,
               date: parseExcelDate(row.date),
               shift: toString(row.shift),
               timeLeft: toString(row.timeleft),
@@ -323,6 +374,9 @@ const AdminBulkUpload = () => {
             return normalized;
           });
 
+          // Get existing EIDs to skip duplicates
+          const existingEids = await getExistingEids('dnr');
+
           let batch = writeBatch(db);
           let count = 0;
           let skipped = 0;
@@ -340,11 +394,19 @@ const AdminBulkUpload = () => {
               continue;
             }
 
+            const eid = toString(row.eid || row.employeeid || row.id);
+            
+            // Skip if EID exists (for records with EID)
+            if (eid && existingEids.has(eid)) {
+              skipped++;
+              continue;
+            }
+
             const dnrData = {
               name,
               firstName: toString(row.firstname),
               lastName: toString(row.lastname),
-              eid: toString(row.eid || row.employeeid || row.id),
+              eid: eid,
               reason: toString(row.reason || row.notes),
               dateAdded: parseExcelDate(row.dateadded || row.date),
               notes: toString(row.notes),
@@ -450,6 +512,7 @@ const AdminBulkUpload = () => {
               updatedAt: serverTimestamp()
             };
 
+            // Use EID as document ID so duplicates are merged/updated instead of duplicated
             const docRef = doc(db, 'badges', eid);
             batch.set(docRef, badgeData, { merge: true });
             batchCount++;

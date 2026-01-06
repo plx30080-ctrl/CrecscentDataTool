@@ -54,7 +54,8 @@ import {
   markBadgePrinted,
   markBadgeIssued,
   getBadgeStats,
-  deleteBadge
+  deleteBadge,
+  discoverAndLinkPhotos
 } from '../services/badgeService';
 import BadgePrintPreview from '../components/BadgePrintPreview';
 import BadgePlaceholder from '../components/BadgePlaceholder';
@@ -371,6 +372,22 @@ const BadgeManagement = () => {
     }
   };
 
+  const handleDiscoverAndLinkPhotos = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    const result = await discoverAndLinkPhotos();
+    setLoading(false);
+
+    if (result.success) {
+      const { linked, notFound, alreadyHave } = result.stats;
+      setSuccess(`Photo discovery complete: ${linked} linked, ${alreadyHave} already have photos, ${notFound} not found in Storage`);
+      loadStats();
+    } else {
+      setError('Failed to discover photos: ' + (result.error || 'Unknown error'));
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       'Pending': 'warning',
@@ -426,12 +443,20 @@ const BadgeManagement = () => {
         </Grid>
       )}
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', marginBottom: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', marginBottom: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
           <Tab label="Create Badge" icon={<Add />} iconPosition="start" />
           <Tab label="Lookup & Verify" icon={<Search />} iconPosition="start" />
           <Tab label="Print Queue" icon={<Print />} iconPosition="start" />
         </Tabs>
+        <Button
+          variant="outlined"
+          onClick={handleDiscoverAndLinkPhotos}
+          disabled={loading}
+          size="small"
+        >
+          Discover Photos
+        </Button>
       </Box>
 
       {/* Tab 0: Create Badge */}
