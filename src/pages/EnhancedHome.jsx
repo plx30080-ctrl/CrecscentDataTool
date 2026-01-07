@@ -3,7 +3,7 @@ import { Container, Typography, Grid, Card, CardContent, CardActions, Button, Pa
 import { Dashboard, Assessment, People, CloudUpload, AddCircle, TrendingUp, Badge } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getOnPremiseData, getApplicantPipeline, getApplicants } from '../services/firestoreService';
+import { getOnPremiseData, getAssociates } from '../services/firestoreService';
 import dayjs from 'dayjs';
 
 const EnhancedHome = () => {
@@ -18,8 +18,7 @@ const EnhancedHome = () => {
     const doLoad = async () => {
       const today = new Date();
       const result = await getOnPremiseData(today, today);
-      const pipelineResult = await getApplicantPipeline();
-      const applicantsResult = await getApplicants();
+      const associatesResult = await getAssociates();
 
       if (mounted && result.success) {
         const todayData = result.data;
@@ -27,17 +26,30 @@ const EnhancedHome = () => {
         setTodayStats({ shiftsRecorded: todayData.length, totalWorking });
       }
 
-      if (mounted && pipelineResult.success) {
-        setPipeline(pipelineResult.data);
-      }
+      if (mounted && associatesResult.success) {
+        // Count pipeline by pipelineStatus
+        const pipelineCounts = {
+          Applied: 0,
+          Interviewed: 0,
+          Processed: 0,
+          Hired: 0,
+          Started: 0
+        };
+        
+        associatesResult.data.forEach((assoc) => {
+          if (assoc.pipelineStatus && pipelineCounts.hasOwnProperty(assoc.pipelineStatus)) {
+            pipelineCounts[assoc.pipelineStatus]++;
+          }
+        });
+        
+        setPipeline(pipelineCounts);
 
-      if (mounted && applicantsResult.success) {
+        // Current pool: associates with pipelineStatus Processed within last 14 days
         const twoWeeksAgo = dayjs().subtract(14, 'day').toDate();
-        // Count applicants processed in last 2 weeks and not yet started/hired/declined/rejected
-        const excluded = new Set(['Started', 'Hired', 'Declined', 'Rejected']);
-        const poolCount = applicantsResult.data.reduce((sum, a) => {
-          const processed = a.processedDate;
-          if (processed && !excluded.has(a.status) && processed >= twoWeeksAgo) return sum + 1;
+        const poolCount = associatesResult.data.reduce((sum, a) => {
+          if (a.pipelineStatus === 'Processed' && a.startDate && a.startDate >= twoWeeksAgo) {
+            return sum + 1;
+          }
           return sum;
         }, 0);
         setCurrentPool(poolCount);

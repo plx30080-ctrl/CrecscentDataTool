@@ -8,149 +8,43 @@ service cloud.firestore {
       allow write: if request.auth.uid == uid;
     }
 
-    // Shift data
-    match /shiftData/{document=**} {
+    // Version 3.0 collections only
+
+    // Users
+    match /users/{uid} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow update: if request.auth.uid == uid || request.auth != null;
+      allow write: if request.auth.uid == uid;
     }
 
-    // Hours data
+    // On-premise daily headcount (per shift)
+    match /onPremiseData/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Hours data (per day, per shift)
     match /hoursData/{document=**} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
 
-    // Applicants
-    match /applicants/{applicantId} {
-      allow read: if request.auth != null;
-      allow create, update: if request.auth != null;
-      allow delete: if request.auth != null;
+    // Branch / recruiter daily metrics
+    match /branchMetrics/{document=**} {
+      allow read, write: if request.auth != null;
     }
 
-    // Upload history tracking
-    match /uploadHistory/{uploadId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // Early leaves
+    // Early leave incidents
     match /earlyLeaves/{document=**} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
 
-    // Admin collections
-    match /admin/{document=**} {
+    // Associates (single source of truth for people)
+    match /associates/{document=**} {
       allow read, write: if request.auth != null;
     }
 
     // Badges
     match /badges/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // Badge Templates (for admin panel)
-    match /badgeTemplates/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // Audit logs (singular - must match code)
-    match /auditLog/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // On Premise Data (Sprint 2)
-    match /onPremiseData/{document=**} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
-    }
-
-    // Labor Reports (Sprint 2)
-    match /laborReports/{document=**} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
-    }
-
-    // Branch Daily Metrics (Sprint 2)
-    match /branchDaily/{document=**} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
-    }
-
-    // Branch Weekly Metrics (Sprint 2)
-    match /branchWeekly/{document=**} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
-    }
-
-    // Badge Print Queue
-    match /badgePrintQueue/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // Associates
-    match /associates/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // DNR List
-    match /dnrList/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // DNR Database (alternative collection name)
-    match /dnrDatabase/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // Recruiter Data
-    match /recruiterData/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // Applicant Documents
-    match /applicantDocuments/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-    
-    // Forecasts
-    match /forecasts/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // Daily Summary (aggregated daily metrics)
-    match /dailySummary/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // Weekly Summary (aggregated weekly metrics)
-    match /weeklySummary/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    // Monthly Summary (aggregated monthly metrics)
-    match /monthlySummary/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
   }
 }

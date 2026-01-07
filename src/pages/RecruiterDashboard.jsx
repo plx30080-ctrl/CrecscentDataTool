@@ -28,9 +28,7 @@ import logger from '../utils/logger';
 const RecruiterDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [applicants, setApplicants] = useState([]);
   const [associates, setAssociates] = useState([]);
-  const [dnrList, setDnrList] = useState([]);
   const [earlyLeaves, setEarlyLeaves] = useState([]);
   const [recruiterStats, setRecruiterStats] = useState([]);
   const [dateRange, setDateRange] = useState('all');
@@ -40,23 +38,9 @@ const RecruiterDashboard = () => {
     setError('');
 
     try {
-      // Load applicants
-      const applicantsSnapshot = await getDocs(collection(db, 'applicants'));
-      const applicantsData = applicantsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // Load associates
+      // Load associates (includes pipeline data)
       const associatesSnapshot = await getDocs(collection(db, 'associates'));
       const associatesData = associatesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // Load DNR list
-      const dnrSnapshot = await getDocs(collection(db, 'dnrList'));
-      const dnrData = dnrSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
@@ -68,10 +52,14 @@ const RecruiterDashboard = () => {
         ...doc.data()
       }));
 
-      setApplicants(applicantsData);
       setAssociates(associatesData);
-      setDnrList(dnrData);
       setEarlyLeaves(earlyLeavesData);
+    } catch (err) {
+      logger.error('Error loading data:', err);
+      setError('Failed to load recruiter data');
+    } finally {
+      setLoading(false);
+    }
     } catch (err) {
       logger.error('Error loading data:', err);
       setError('Failed to load recruiter data');
@@ -106,14 +94,14 @@ const RecruiterDashboard = () => {
     try {
       const recruiterMap = new Map();
 
-      // Filter applicants by date range
-      const filteredApplicants = applicants.filter(app => 
-        filterByDateRange(app.createdAt || app.appliedDate)
+      // Filter associates by date range (using startDate or createdAt)
+      const filteredAssociates = associates.filter(assoc => 
+        filterByDateRange(assoc.startDate || assoc.createdAt)
       );
 
-      // Process each applicant
-      filteredApplicants.forEach(applicant => {
-        const recruiter = applicant.recruiter || 'Unassigned';
+      // Process each associate
+      filteredAssociates.forEach(associate => {
+        const recruiter = associate.recruiter || 'Unassigned';
         
         if (!recruiterMap.has(recruiter)) {
           recruiterMap.set(recruiter, {
@@ -128,41 +116,40 @@ const RecruiterDashboard = () => {
         }
 
         const stats = recruiterMap.get(recruiter);
-        stats.totalApplicants++;
+        
+        // Count anyone in pipeline as an "applicant"
+        if (associate.pipelineStatus) {
+          stats.totalApplicants++;
+        }
 
-        // Check if started
-        if (applicant.status === 'Started') {
+        // Check if started (pipelineStatus = 'Started' or status = 'Active')
+        if (associate.pipelineStatus === 'Started' || associate.status === 'Active') {
           stats.started++;
         }
 
-        // Check if in DNR list
-        const inDnr = dnrList.some(dnr => 
-          dnr.eid === applicant.eid || 
-          (dnr.name?.toLowerCase().includes(applicant.firstName?.toLowerCase()) && 
-          dnr.name?.toLowerCase().includes(applicant.lastName?.toLowerCase()))
-        );
-        if (inDnr) {
+        // Check if in DNR (status field)
+        if (associate.status === 'DNR') {
           stats.dnr++;
         }
 
         // Check early leaves
         const hasEarlyLeave = earlyLeaves.some(leave => 
-          leave.eid === applicant.eid ||
-          leave.name?.toLowerCase().includes(applicant.firstName?.toLowerCase())
+          leave.eid === associate.eid ||
+          leave.associateId === associate.eid
         );
         if (hasEarlyLeave) {
           stats.earlyLeaves++;
         }
-        // Check for short-term (associates who worked 1-4 days)
-        const associate = associates.find(a => a.eid === applicant.eid);
-        if (associate) {
-          const daysWorked = associate.daysWorked || 0;
-          if (daysWorked >= 1 && daysWorked <= 4) {
-            stats.shortTerm++;
-          }
-          if (associate.status === 'Active') {
-            stats.active++;
-          }
+
+        // Check for short-term (worked 1-4 days)
+        const daysWorked = associate.daysWorked || 0;
+        if (daysWorked >= 1 && daysWorked <= 4) {
+          stats.shortTerm++;
+        }
+
+        // Check if currently active
+        if (associate.status === 'Active') {
+          stats.active++;
         }
       });
 
@@ -186,7 +173,7 @@ const RecruiterDashboard = () => {
   };
 
   useEffect(() => {
-    if (applicants.length > 0) {
+    if (associates.length > 0) {
       try {
         calculateRecruiterStats();
       } catch (err) {
@@ -194,7 +181,7 @@ const RecruiterDashboard = () => {
         setError('Failed to calculate recruiter stats');
       }
     }
-  }, [applicants, associates, dnrList, earlyLeaves, dateRange]);
+  }, [associates, earlyLeaves, dateRange]);
 
   const getRetentionColor = (score) => {
     const numScore = parseFloat(score);

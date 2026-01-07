@@ -275,7 +275,7 @@ export const getBadgeByEID = async (eid) => {
         // Try to find applicant photo as fallback
         try {
           const applicantQuery = query(
-            collection(db, 'applicants'),
+            collection(db, 'associates'),
             where('eid', '==', eid)
           );
           const applicantSnap = await getDocs(applicantQuery);
@@ -413,9 +413,9 @@ export const searchBadges = async (searchTerm) => {
       }
     });
 
-    // Also search applicants by CRM Number (which is used as EID)
+    // V3: Also search associates by CRM Number (which is used as EID)
     const crmQuery = query(
-      collection(db, 'applicants'),
+      collection(db, 'associates'),
       where('crmNumber', '>=', searchTerm),
       where('crmNumber', '<=', searchTerm + '\uf8ff')
     );
@@ -425,19 +425,19 @@ export const searchBadges = async (searchTerm) => {
       applicants.push({
         id: doc.id,
         ...data,
-        source: 'applicant',
-        // Convert applicant data to badge-like format for display
-        firstName: data.name?.split(' ')[0]?.toUpperCase() || '',
-        lastName: data.name?.split(' ').slice(1).join(' ')?.toUpperCase() || '',
+        source: 'associate',
+        // Convert associate data to badge-like format for display
+        firstName: data.firstName || data.name?.split(' ')[0]?.toUpperCase() || '',
+        lastName: data.lastName || data.name?.split(' ').slice(1).join(' ')?.toUpperCase() || '',
         eid: data.eid || data.crmNumber
       });
     });
 
-    // Search applicants by name (case-insensitive partial match)
-    const allApplicantsSnapshot = await getDocs(collection(db, 'applicants'));
+    // V3: Search associates by name (case-insensitive partial match)
+    const allApplicantsSnapshot = await getDocs(collection(db, 'associates'));
     allApplicantsSnapshot.forEach(doc => {
       const data = doc.data();
-      const name = (data.name || '').toLowerCase();
+      const name = (data.name || `${data.firstName} ${data.lastName}` || '').toLowerCase();
       const searchLower = searchTerm.toLowerCase();
 
       if (name.includes(searchLower) && !applicants.find(a => a.id === doc.id)) {

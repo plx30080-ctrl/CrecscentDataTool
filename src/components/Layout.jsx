@@ -44,14 +44,11 @@ const Layout = () => {
           <Button color="inherit" component={Link} to="/">Home</Button>
           <Button color="inherit" component={Link} to="/data-entry">Data Entry</Button>
           <Button color="inherit" component={Link} to="/analytics">Analytics</Button>
-          <Button color="inherit" component={Link} to="/applicants">Applicants</Button>
           <Button color="inherit" component={Link} to="/badges">Badges</Button>
           <Button color="inherit" component={Link} to="/early-leaves">Early Leaves</Button>
-          <Button color="inherit" component={Link} to="/dnr">DNR</Button>
           {userProfile && (userProfile.role === 'Market Manager' || userProfile.role === 'admin') && (
             <Button color="inherit" component={Link} to="/admin">Admin</Button>
           )}
-          <Button color="inherit" component={Link} to="/upload">Upload</Button>
 
           {currentUser && (
             <Box sx={{ marginLeft: 2, display: 'flex', alignItems: 'center', gap: 1 }}>

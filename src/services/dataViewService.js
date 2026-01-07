@@ -1,11 +1,5 @@
 import { db } from '../firebase';
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  limit
-} from 'firebase/firestore';
+import { collection, getDocs, query, limit } from 'firebase/firestore';
 import logger from '../utils/logger';
 
 /**
@@ -16,18 +10,18 @@ import logger from '../utils/logger';
 export async function getCollectionData(collectionName) {
   try {
     logger.info(`Fetching data from collection: ${collectionName}`);
-    
+
     const collectionRef = collection(db, collectionName);
-    const q = query(collectionRef, limit(1000)); // Limit to prevent overwhelming the UI
+    const q = query(collectionRef, limit(1000));
     const querySnapshot = await getDocs(q);
-    
-    const data = querySnapshot.docs.map(doc => ({
+
+    const data = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data()
     }));
 
     logger.info(`Successfully fetched ${data.length} records from ${collectionName}`);
-    
+
     return {
       success: true,
       data,
@@ -35,12 +29,12 @@ export async function getCollectionData(collectionName) {
     };
   } catch (error) {
     logger.error(`Error fetching collection data for ${collectionName}:`, error);
-    
-    // Check if it's a permission error
-    const isPermissionError = error.code === 'permission-denied' || 
-                              error.message.includes('permission') ||
-                              error.message.includes('Permission');
-    
+
+    const isPermissionError =
+      error.code === 'permission-denied' ||
+      error.message.includes('permission') ||
+      error.message.includes('Permission');
+
     return {
       success: false,
       data: [],
@@ -58,28 +52,20 @@ export async function getCollectionData(collectionName) {
 export async function getCollectionStats(collectionName) {
   try {
     logger.info(`Fetching stats for collection: ${collectionName}`);
-    
+
     const collectionRef = collection(db, collectionName);
     const querySnapshot = await getDocs(collectionRef);
-    
+
     const docs = querySnapshot.docs;
     let lastUpdated = null;
     let totalSize = 0;
 
-    // Find the most recent update
-    docs.forEach(doc => {
+    docs.forEach((doc) => {
       const data = doc.data();
-      
-      // Check various timestamp fields
-      const timestamps = [
-        data.updatedAt,
-        data.submittedAt,
-        data.createdAt,
-        data.timestamp,
-        data.date
-      ].filter(Boolean);
 
-      timestamps.forEach(ts => {
+      const timestamps = [data.updatedAt, data.submittedAt, data.createdAt, data.timestamp, data.date].filter(Boolean);
+
+      timestamps.forEach((ts) => {
         try {
           const date = ts.toDate ? ts.toDate() : new Date(ts);
           if (!lastUpdated || date > lastUpdated) {
@@ -90,7 +76,6 @@ export async function getCollectionStats(collectionName) {
         }
       });
 
-      // Rough size estimate (not exact, but gives an idea)
       totalSize += JSON.stringify(data).length;
     });
 
@@ -109,11 +94,12 @@ export async function getCollectionStats(collectionName) {
     };
   } catch (error) {
     logger.error(`Error fetching collection stats for ${collectionName}:`, error);
-    
-    const isPermissionError = error.code === 'permission-denied' || 
-                              error.message.includes('permission') ||
-                              error.message.includes('Permission');
-    
+
+    const isPermissionError =
+      error.code === 'permission-denied' ||
+      error.message.includes('permission') ||
+      error.message.includes('Permission');
+
     return {
       success: false,
       stats: {
@@ -136,7 +122,7 @@ export async function getCollectionStats(collectionName) {
 export async function validateCollectionData(collectionName, data) {
   try {
     logger.info(`Validating data for collection: ${collectionName}`);
-    
+
     const warnings = [];
 
     if (data.length === 0) {
@@ -150,19 +136,21 @@ export async function validateCollectionData(collectionName, data) {
       };
     }
 
-    // Collection-specific validations - warnings only, not critical errors
     switch (collectionName) {
       case 'users':
         validateUsers(data, warnings);
         break;
-      case 'shiftData':
-        validateShiftData(data, warnings);
+      case 'onPremiseData':
+        validateOnPremiseData(data, warnings);
         break;
       case 'hoursData':
         validateHoursData(data, warnings);
         break;
-      case 'applicants':
-        validateApplicants(data, warnings);
+      case 'branchMetrics':
+        validateBranchMetrics(data, warnings);
+        break;
+      case 'earlyLeaves':
+        validateEarlyLeaves(data, warnings);
         break;
       case 'associates':
         validateAssociates(data, warnings);
@@ -170,20 +158,7 @@ export async function validateCollectionData(collectionName, data) {
       case 'badges':
         validateBadges(data, warnings);
         break;
-      case 'earlyLeaves':
-        validateEarlyLeaves(data, warnings);
-        break;
-      case 'recruiterData':
-        validateRecruiterData(data, warnings);
-        break;
-      case 'onPremiseData':
-      case 'laborReports':
-      case 'branchDaily':
-      case 'branchWeekly':
-        validateBasic(data, warnings);
-        break;
       default:
-        // Generic validation
         validateGeneric(data, warnings);
     }
 
@@ -219,161 +194,89 @@ function validateUsers(data, warnings) {
     if (!user.role) recordsWithMissingRole++;
   });
 
-  if (recordsWithMissingEmail > 0) {
-    warnings.push(`${recordsWithMissingEmail} record(s) missing email address`);
-  }
-  if (recordsWithMissingRole > 0) {
-    warnings.push(`${recordsWithMissingRole} record(s) missing user role`);
-  }
+  if (recordsWithMissingEmail > 0) warnings.push(`${recordsWithMissingEmail} record(s) missing email address`);
+  if (recordsWithMissingRole > 0) warnings.push(`${recordsWithMissingRole} record(s) missing user role`);
 }
 
-function validateShiftData(data, warnings) {
-  let recordsWithIssues = 0;
-  
+function validateOnPremiseData(data, warnings) {
+  let issues = 0;
   data.forEach((record) => {
-    const hasIssues = !record.date || !record.shift || 
-                      (record.numberWorking > record.numberRequired) ||
-                      (record.numberWorking < 0 || record.numberRequired < 0);
-    if (hasIssues) recordsWithIssues++;
+    const hasIssues =
+      !record.date ||
+      !record.shift ||
+      record.numberRequested === undefined ||
+      record.numberRequired === undefined ||
+      record.numberWorking === undefined;
+    if (hasIssues) issues++;
   });
-
-  if (recordsWithIssues > 0) {
-    warnings.push(`${recordsWithIssues} record(s) have potential data issues (missing date/shift, negative values, or count mismatches)`);
-  }
+  if (issues > 0) warnings.push(`${issues} on-premise record(s) missing date/shift/requested/required/working`);
 }
 
 function validateHoursData(data, warnings) {
-  let recordsWithIssues = 0;
-  
+  let issues = 0;
   data.forEach((record) => {
-    if (!record.date || record.totalHours < 0) {
-      recordsWithIssues++;
-    }
+    const hasDate = !!record.date;
+    const shift1 = record.shift1 || {};
+    const shift2 = record.shift2 || {};
+    const hasHours =
+      typeof shift1.total === 'number' ||
+      typeof shift2.total === 'number' ||
+      typeof record.totalHours === 'number';
+    if (!hasDate || !hasHours) issues++;
   });
-
-  if (recordsWithIssues > 0) {
-    warnings.push(`${recordsWithIssues} record(s) missing date or have negative hours`);
-  }
+  if (issues > 0) warnings.push(`${issues} hours record(s) missing date or hour totals`);
 }
 
-function validateApplicants(data, warnings) {
-  const validStatuses = ['Applied', 'Interviewed', 'Processed', 'Hired', 'Started', 'Rejected'];
-  let missingName = 0;
-  let invalidStatus = 0;
-
-  data.forEach((applicant) => {
-    if (!applicant.name) missingName++;
-    if (applicant.status && !validStatuses.includes(applicant.status)) {
-      invalidStatus++;
-    }
+function validateBranchMetrics(data, warnings) {
+  let issues = 0;
+  data.forEach((record) => {
+    if (!record.date || !record.recruiter) issues++;
   });
-
-  if (missingName > 0) {
-    warnings.push(`${missingName} record(s) missing applicant name`);
-  }
-  if (invalidStatus > 0) {
-    warnings.push(`${invalidStatus} record(s) have invalid status values`);
-  }
+  if (issues > 0) warnings.push(`${issues} branch metrics record(s) missing date or recruiter`);
 }
 
 function validateAssociates(data, warnings) {
-  const validStatuses = ['Active', 'Inactive', 'Terminated'];
   let missingEid = 0;
   let missingName = 0;
-  let invalidStatus = 0;
+  let missingStatus = 0;
 
-  data.forEach((associate) => {
-    if (!associate.eid) missingEid++;
-    if (!associate.name) missingName++;
-    if (associate.status && !validStatuses.includes(associate.status)) {
-      invalidStatus++;
-    }
+  data.forEach((assoc) => {
+    if (!assoc.eid) missingEid++;
+    if (!assoc.name) missingName++;
+    if (!assoc.pipelineStatus && !assoc.status) missingStatus++;
   });
 
-  if (missingEid > 0) {
-    warnings.push(`${missingEid} record(s) missing employee ID (EID)`);
-  }
-  if (missingName > 0) {
-    warnings.push(`${missingName} record(s) missing associate name`);
-  }
-  if (invalidStatus > 0) {
-    warnings.push(`${invalidStatus} record(s) have invalid status values`);
-  }
+  if (missingEid > 0) warnings.push(`${missingEid} associate record(s) missing EID`);
+  if (missingName > 0) warnings.push(`${missingName} associate record(s) missing name`);
+  if (missingStatus > 0) warnings.push(`${missingStatus} associate record(s) missing pipeline/status`);
 }
 
 function validateBadges(data, warnings) {
   let missingEid = 0;
-  let missingName = 0;
+  let missingStatus = 0;
 
   data.forEach((badge) => {
     if (!badge.eid) missingEid++;
-    if (!badge.name) missingName++;
+    if (!badge.status) missingStatus++;
   });
 
-  if (missingEid > 0) {
-    warnings.push(`${missingEid} record(s) missing employee ID (EID)`);
-  }
-  if (missingName > 0) {
-    warnings.push(`${missingName} record(s) missing badge holder name`);
-  }
+  if (missingEid > 0) warnings.push(`${missingEid} badge record(s) missing EID linkage`);
+  if (missingStatus > 0) warnings.push(`${missingStatus} badge record(s) missing status`);
 }
 
 function validateEarlyLeaves(data, warnings) {
-  let missingAssociateId = 0;
-  let missingDate = 0;
-  let missingReason = 0;
-
+  let issues = 0;
   data.forEach((leave) => {
-    if (!leave.associateId) missingAssociateId++;
-    if (!leave.date) missingDate++;
-    if (!leave.reason) missingReason++;
+    if (!leave.date || !leave.shift || !leave.leaveTime || !leave.reason) issues++;
   });
-
-  if (missingAssociateId > 0) {
-    warnings.push(`${missingAssociateId} record(s) missing associate ID`);
-  }
-  if (missingDate > 0) {
-    warnings.push(`${missingDate} record(s) missing date`);
-  }
-  if (missingReason > 0) {
-    warnings.push(`${missingReason} record(s) missing reason for early leave`);
-  }
-}
-
-function validateRecruiterData(data, warnings) {
-  let missingRecruiterName = 0;
-  let missingDate = 0;
-
-  data.forEach((record) => {
-    if (!record.recruiterName) missingRecruiterName++;
-    if (!record.date) missingDate++;
-  });
-
-  if (missingRecruiterName > 0) {
-    warnings.push(`${missingRecruiterName} record(s) missing recruiter name`);
-  }
-  if (missingDate > 0) {
-    warnings.push(`${missingDate} record(s) missing date`);
-  }
-}
-
-function validateBasic(data, warnings) {
-  // Basic validation for generic collections
-  const ids = data.map(d => d.id).filter(Boolean);
-  const uniqueIds = new Set(ids);
-  if (ids.length !== uniqueIds.size) {
-    warnings.push('Duplicate IDs detected in collection');
-  }
+  if (issues > 0) warnings.push(`${issues} early leave record(s) missing date/shift/time/reason`);
 }
 
 function validateGeneric(data, warnings) {
-  // Generic validation for unknown collections
   if (data.length > 0) {
-    const ids = data.map(d => d.id).filter(Boolean);
+    const ids = data.map((d) => d.id).filter(Boolean);
     const uniqueIds = new Set(ids);
-    if (ids.length !== uniqueIds.size) {
-      warnings.push('Duplicate IDs detected in collection');
-    }
+    if (ids.length !== uniqueIds.size) warnings.push('Duplicate IDs detected in collection');
   }
 }
 
@@ -384,11 +287,11 @@ function validateGeneric(data, warnings) {
  */
 function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
 

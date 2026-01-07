@@ -15,68 +15,7 @@ import {
 import { getAuth } from 'firebase/auth';
 import * as XLSX from 'xlsx';
 
-/**
- * Sync applicant statuses to "Started" when they appear in labor reports
- */
-const syncApplicantStatuses = async (employeeIds, weekEnding = null) => {
-  try {
-    let updatedCount = 0;
-    const candidateStart = weekEnding
-      ? Timestamp.fromDate(dayjs(weekEnding).subtract(6, 'day').toDate())
-      : null;
-
-    for (const eid of employeeIds) {
-      // Find applicant by EID (primary identifier)
-      const q = query(
-        collection(db, 'applicants'),
-        where('eid', '==', eid)
-      );
-
-      let querySnapshot = await getDocs(q);
-
-      // Fallback: Also check crmNumber field for legacy records
-      if (querySnapshot.empty) {
-        const q2 = query(
-          collection(db, 'applicants'),
-          where('crmNumber', '==', eid)
-        );
-        querySnapshot = await getDocs(q2);
-      }
-
-      // Process all matches
-      for (const document of querySnapshot.docs) {
-        const currentStatus = document.data().status;
-        const currentEid = document.data().eid;
-        
-        // Only update if not already "Started"
-        if (currentStatus !== 'Started') {
-          const updatePayload = {
-            status: 'Started',
-            lastModified: serverTimestamp()
-          };
-          
-          // Ensure EID is set if it's missing
-          if (!currentEid) {
-            updatePayload.eid = eid;
-          }
-          
-          if (candidateStart) {
-            updatePayload.actualStartDate = candidateStart;
-          }
-          
-          await updateDoc(doc(db, 'applicants', document.id), updatePayload);
-          updatedCount++;
-        }
-      }
-    }
-
-    logger.info(`Updated ${updatedCount} applicant statuses to "Started"`);
-    return { success: true, updatedCount };
-  } catch (error) {
-    logger.error('Error syncing applicant statuses:', error);
-    return { success: false, error: error.message };
-  }
-};
+// V3 Note: syncApplicantStatuses removed - now handled inline with associates collection
 
 /**
  * Submit On Premise data
@@ -117,7 +56,7 @@ export const submitOnPremiseData = async (formData, file) => {
 
     const docRef = await addDoc(collection(db, 'onPremiseData'), dataToSubmit);
 
-    // Update applicants by EID
+    // Update associates by EID (V3 - use pipelineStatus and status fields)
     if (formData.newStartEIDs && formData.newStartEIDs.length > 0 && formData.eidValidation) {
       try {
         const date = formData.date.toDate();
@@ -129,11 +68,13 @@ export const submitOnPremiseData = async (formData, file) => {
           
           if (!eid || !eid.trim() || !validation || !validation.applicantData) continue;
           
-          // Only update if not already "Started"
-          if (validation.applicantData.status !== 'Started') {
-            await updateDoc(doc(db, 'applicants', validation.applicantData.id), {
-              status: 'Started',
-              actualStartDate: Timestamp.fromDate(date),
+          // V3: Update associates collection with pipelineStatus and status
+          // Only update if not already "Started" or "Active"
+          if (validation.applicantData.pipelineStatus !== 'Started' && validation.applicantData.status !== 'Active') {
+            await updateDoc(doc(db, 'associates', validation.applicantData.id), {
+              pipelineStatus: 'Started',
+              status: 'Active',
+              startDate: Timestamp.fromDate(date),
               lastModified: serverTimestamp()
             });
             updatedCount++;
@@ -141,10 +82,10 @@ export const submitOnPremiseData = async (formData, file) => {
         }
         
         if (updatedCount > 0) {
-          logger.info(`Updated ${updatedCount} applicants to Started based on new start EIDs`);
+          logger.info(`Updated ${updatedCount} associates to Started/Active based on new start EIDs`);
         }
       } catch (err) {
-        logger.error('Error updating applicants from new start EIDs:', err);
+        logger.error('Error updating associates from new start EIDs:', err);
       }
     }
 
@@ -195,7 +136,7 @@ const parseOnPremiseFile = async (file) => {
 };
 
 /**
- * Submit Labor Report
+ * Submit Labor Report (V3 - uses hoursData collection)
  */
 export const submitLaborReport = async (data) => {
   try {
@@ -206,39 +147,70 @@ export const submitLaborReport = async (data) => {
       throw new Error('User not authenticated');
     }
 
+    // V3: Transform to hoursData structure with nested shift1/shift2
     const dataToSubmit = {
       weekEnding: Timestamp.fromDate(data.weekEnding.toDate()),
-      directHours: parseFloat(data.directHours) || 0,
-      indirectHours: parseFloat(data.indirectHours) || 0,
-      totalHours: parseFloat(data.totalHours) || 0,
+      shift1: {
+        total: parseFloat(data.shift1Total) || 0,
+        direct: parseFloat(data.shift1Direct) || 0,
+        indirect: parseFloat(data.shift1Indirect) || 0,
+        byDate: data.shift1ByDate || {}
+      },
+      shift2: {
+        total: parseFloat(data.shift2Total) || 0,
+        direct: parseFloat(data.shift2Direct) || 0,
+        indirect: parseFloat(data.shift2Indirect) || 0,
+        byDate: data.shift2ByDate || {}
+      },
       employeeCount: parseInt(data.employeeCount) || 0,
       employeeIds: data.employeeIds || [],
-      dailyBreakdown: data.dailyBreakdown || null, // Store shift-level daily breakdown
-      employeeDetails: data.employeeDetails || [], // Store per-employee details
+      employeeDetails: data.employeeDetails || [],
       fileName: data.fileName || '',
       submittedAt: serverTimestamp(),
       submittedBy: user.email,
       submittedByUid: user.uid
     };
 
-    const docRef = await addDoc(collection(db, 'laborReports'), dataToSubmit);
+    const docRef = await addDoc(collection(db, 'hoursData'), dataToSubmit);
 
-    // Auto-update applicant statuses to "Started" for EIDs in labor report
+    // V3: Auto-update associate statuses to "Active" for EIDs in hours report
     let statusesUpdated = 0;
     if (data.employeeIds && data.employeeIds.length > 0) {
-      const syncResult = await syncApplicantStatuses(data.employeeIds, data.weekEnding?.toDate ? data.weekEnding.toDate() : data.weekEnding);
-      statusesUpdated = syncResult.updatedCount || 0;
+      try {
+        const associatesRef = collection(db, 'associates');
+        for (const eid of data.employeeIds) {
+          const q = query(associatesRef, where('eid', '==', eid));
+          const snapshot = await getDocs(q);
+          
+          if (!snapshot.empty) {
+            const associateDoc = snapshot.docs[0];
+            const associateData = associateDoc.data();
+            
+            // Update to Active if not already
+            if (associateData.status !== 'Active') {
+              await updateDoc(doc(db, 'associates', associateDoc.id), {
+                status: 'Active',
+                pipelineStatus: 'Started',
+                lastModified: serverTimestamp()
+              });
+              statusesUpdated++;
+            }
+          }
+        }
+      } catch (err) {
+        logger.error('Error updating associate statuses from hours report:', err);
+      }
     }
 
     return { success: true, id: docRef.id, statusesUpdated };
   } catch (error) {
-    logger.error('Error submitting labor report:', error);
+    logger.error('Error submitting hours data:', error);
     return { success: false, error: error.message };
   }
 };
 
 /**
- * Submit Branch Daily metrics
+ * Submit Branch Daily metrics (V3 - uses branchMetrics collection)
  */
 export const submitBranchDaily = async (formData) => {
   try {
@@ -249,31 +221,36 @@ export const submitBranchDaily = async (formData) => {
       throw new Error('User not authenticated');
     }
 
+    // V3: Transform to branchMetrics structure
     const dataToSubmit = {
       date: Timestamp.fromDate(formData.date.toDate()),
-      interviewsScheduled: parseInt(formData.interviewsScheduled) || 0,
-      interviewShows: parseInt(formData.interviewShows) || 0,
-      shift1Processed: parseInt(formData.shift1Processed) || 0,
-      shift2Processed: parseInt(formData.shift2Processed) || 0,
-      shift2Confirmations: parseInt(formData.shift2Confirmations) || 0,
-      nextDayConfirmations: parseInt(formData.nextDayConfirmations) || 0,
+      branch: formData.branch || 'Main',
+      shift: formData.shift || 1, // Can be specified or default to 1
+      recruiterStats: {
+        interviewsScheduled: parseInt(formData.interviewsScheduled) || 0,
+        interviewShows: parseInt(formData.interviewShows) || 0,
+        shift1Processed: parseInt(formData.shift1Processed) || 0,
+        shift2Processed: parseInt(formData.shift2Processed) || 0,
+        shift2Confirmations: parseInt(formData.shift2Confirmations) || 0,
+        nextDayConfirmations: parseInt(formData.nextDayConfirmations) || 0
+      },
       notes: formData.notes || '',
       submittedAt: serverTimestamp(),
       submittedBy: user.email,
       submittedByUid: user.uid
     };
 
-    const docRef = await addDoc(collection(db, 'branchDaily'), dataToSubmit);
+    const docRef = await addDoc(collection(db, 'branchMetrics'), dataToSubmit);
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    logger.error('Error submitting branch daily:', error);
+    logger.error('Error submitting branch metrics:', error);
     return { success: false, error: error.message };
   }
 };
 
 /**
- * Submit Branch Weekly metrics
+ * Submit Branch Weekly metrics (V3 - uses branchMetrics collection)
  */
 export const submitBranchWeekly = async (formData) => {
   try {
@@ -284,22 +261,29 @@ export const submitBranchWeekly = async (formData) => {
       throw new Error('User not authenticated');
     }
 
+    // V3: Transform to branchMetrics structure (weekly aggregation)
     const dataToSubmit = {
       weekEnding: Timestamp.fromDate(formData.weekEnding.toDate()),
-      totalApplicants: parseInt(formData.totalApplicants) || 0,
-      totalProcessed: parseInt(formData.totalProcessed) || 0,
-      totalHeadcount: parseInt(formData.totalHeadcount) || 0,
+      branch: formData.branch || 'Main',
+      isWeeklySummary: true, // Flag to distinguish from daily metrics
+      recruiterStats: {
+        totalApplicants: parseInt(formData.totalApplicants) || 0,
+        totalProcessed: parseInt(formData.totalProcessed) || 0
+      },
+      dailyMetrics: {
+        totalHeadcount: parseInt(formData.totalHeadcount) || 0
+      },
       notes: formData.notes || '',
       submittedAt: serverTimestamp(),
       submittedBy: user.email,
       submittedByUid: user.uid
     };
 
-    const docRef = await addDoc(collection(db, 'branchWeekly'), dataToSubmit);
+    const docRef = await addDoc(collection(db, 'branchMetrics'), dataToSubmit);
 
     return { success: true, id: docRef.id };
   } catch (error) {
-    logger.error('Error submitting branch weekly:', error);
+    logger.error('Error submitting branch weekly metrics:', error);
     return { success: false, error: error.message };
   }
 };

@@ -10,21 +10,16 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import DataEntry from './pages/DataEntry';
 import UnifiedDashboard from './pages/UnifiedDashboard';
-import Upload from './pages/EnhancedUpload';
 import ProfilePage from './pages/EnhancedProfile';
-import ApplicantsPage from './pages/ApplicantsPage';
-import ScorecardPage from './pages/ScorecardPage';
 import BadgeManagement from './pages/BadgeManagement';
 import AdminPanel from './pages/AdminPanel';
 import DataDebug from './pages/DataDebug';
 import EarlyLeavesPage from './pages/EarlyLeavesPage';
-import DNRManagement from './pages/DNRManagement';
 import DataBackup from './pages/DataBackup';
 import BulkHistoricalImport from './pages/BulkHistoricalImport';
 import DataCleaner from './pages/DataCleaner';
 import AdminBulkUpload from './pages/AdminBulkUpload';
 import BadgePhotoUpload from './pages/BadgePhotoUpload';
-import RepoLaborImport from './pages/RepoLaborImport';
 
 function App() {
   return (
@@ -49,15 +44,10 @@ function App() {
             <Route index element={<Home />} />
             <Route path="data-entry" element={<DataEntry />} />
             <Route path="analytics" element={<UnifiedDashboard />} />
-            <Route path="scorecard" element={<ScorecardPage />} />
-            <Route path="applicants" element={<ApplicantsPage />} />
             <Route path="badges" element={<BadgeManagement />} />
             <Route path="early-leaves" element={<EarlyLeavesPage />} />
-            <Route path="dnr" element={<DNRManagement />} />
             <Route path="admin" element={<AdminPanel />} />
-            <Route path="upload" element={<Upload />} />
             <Route path="bulk-import" element={<BulkHistoricalImport />} />
-            <Route path="repo-labor-import" element={<RepoLaborImport />} />
             <Route path="admin-bulk-upload" element={<AdminBulkUpload />} />
             <Route path="badge-photo-upload" element={<BadgePhotoUpload />} />
             <Route path="backup" element={<DataBackup />} />

@@ -9,8 +9,9 @@ import {
   Typography
 } from '@mui/material';
 import { Dashboard as DashboardIcon } from '@mui/icons-material';
-import EnhancedDashboard from './EnhancedDashboard';
-import LaborReportDashboard from './LaborReportDashboard';
+// V3 Note: Some dashboards temporarily disabled pending refactor to V3 APIs
+// import EnhancedDashboard from './EnhancedDashboard';
+// import LaborReportDashboard from './LaborReportDashboard';
 import RecruiterDashboard from './RecruiterDashboard';
 import FirstShiftDashboard from './FirstShiftDashboard';
 import SecondShiftDashboard from './SecondShiftDashboard';
@@ -18,8 +19,8 @@ import YOYComparison from './YOYComparison';
 import NewStartsAnalytics from './NewStartsAnalytics';
 
 const DASHBOARD_TYPES = [
-  { value: 'overview', label: 'Overview', component: EnhancedDashboard },
-  { value: 'labor-reports', label: 'Labor Reports', component: LaborReportDashboard },
+  // { value: 'overview', label: 'Overview', component: EnhancedDashboard }, // Uses getShiftData, getBranchDailyData
+  // { value: 'labor-reports', label: 'Labor Reports', component: LaborReportDashboard }, // Uses getLaborReports
   { value: 'recruiter-efficiency', label: 'Recruiter Efficiency', component: RecruiterDashboard },
   { value: 'first-shift', label: '1st Shift Metrics', component: FirstShiftDashboard },
   { value: 'second-shift', label: '2nd Shift Metrics', component: SecondShiftDashboard },
@@ -28,7 +29,7 @@ const DASHBOARD_TYPES = [
 ];
 
 const UnifiedDashboard = () => {
-  const [selectedDashboard, setSelectedDashboard] = useState('overview');
+  const [selectedDashboard, setSelectedDashboard] = useState('first-shift');
 
   const handleDashboardChange = (event) => {
     setSelectedDashboard(event.target.value);

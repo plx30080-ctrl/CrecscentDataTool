@@ -95,20 +95,20 @@ const OnPremiseForm = () => {
     setValidatingEID(index);
 
     try {
-      // Search for applicant by EID
+      // V3: Search for associate by EID
       const eidQuery = query(
-        collection(db, 'applicants'),
+        collection(db, 'associates'),
         where('eid', '==', value.trim())
       );
       const eidSnapshot = await getDocs(eidQuery);
 
-      // Also check crmNumber as fallback
+      // Also check crmNumber as fallback for legacy data
       let applicantData = null;
       if (!eidSnapshot.empty) {
         applicantData = { id: eidSnapshot.docs[0].id, ...eidSnapshot.docs[0].data() };
       } else {
         const crmQuery = query(
-          collection(db, 'applicants'),
+          collection(db, 'associates'),
           where('crmNumber', '==', value.trim())
         );
         const crmSnapshot = await getDocs(crmQuery);

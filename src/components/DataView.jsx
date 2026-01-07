@@ -44,23 +44,12 @@ import dayjs from 'dayjs';
 
 const COLLECTIONS = [
   { value: 'users', label: 'Users', description: 'User profiles and roles' },
-  { value: 'shiftData', label: 'Shift Data', description: 'Per-shift attendance and metrics' },
-  { value: 'hoursData', label: 'Hours Data', description: 'Hours worked by associates' },
-  { value: 'recruiterData', label: 'Recruiter Data', description: 'Recruiting activities and pipeline' },
+  { value: 'onPremiseData', label: 'On Premise Data', description: 'Daily headcount by shift' },
+  { value: 'hoursData', label: 'Hours Data', description: 'Hours by shift with direct/indirect' },
+  { value: 'branchMetrics', label: 'Branch Metrics', description: 'Recruiter/branch daily metrics' },
   { value: 'earlyLeaves', label: 'Early Leaves', description: 'Early leave incidents' },
-  { value: 'applicants', label: 'Applicants', description: 'Applicant pipeline and status' },
-  { value: 'associates', label: 'Associates', description: 'Master list of employees' },
-  { value: 'badges', label: 'Badges', description: 'Badge management' },
-  { value: 'badgePrintQueue', label: 'Badge Print Queue', description: 'Badges ready to print' },
-  { value: 'onPremiseData', label: 'On Premise Data', description: 'On-premises collected data' },
-  { value: 'laborReports', label: 'Labor Reports', description: 'Labor data and reports' },
-  { value: 'branchDaily', label: 'Branch Daily', description: 'Daily branch metrics' },
-  { value: 'branchWeekly', label: 'Branch Weekly', description: 'Weekly branch metrics' },
-  { value: 'applicantDocuments', label: 'Applicant Documents', description: 'Applicant-related documents' },
-  { value: 'auditLog', label: 'Audit Logs', description: 'System activity logs' },
-  { value: 'badgeTemplates', label: 'Badge Templates', description: 'Badge template designs' },
-  { value: 'dnrList', label: 'DNR List', description: 'Do Not Recruit list' },
-  { value: 'dnrDatabase', label: 'DNR Database', description: 'Alternative DNR storage' }
+  { value: 'associates', label: 'Associates', description: 'Single source of truth for people' },
+  { value: 'badges', label: 'Badges', description: 'Badge details and print counts' }
 ];
 
 const DataView = () => {

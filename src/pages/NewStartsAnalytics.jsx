@@ -44,7 +44,7 @@ const NewStartsAnalytics = () => {
     try {
       // Load applicants who started
       const applicantsSnap = await getDocs(
-        query(collection(db, 'applicants'), where('status', '==', 'Started'))
+        query(collection(db, 'associates'), where('pipelineStatus', '==', 'Started'))
       );
       const applicantsData = applicantsSnap.docs.map(doc => ({
         id: doc.id,
