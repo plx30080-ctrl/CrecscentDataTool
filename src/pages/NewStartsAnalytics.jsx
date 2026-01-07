@@ -23,7 +23,6 @@ import { Timeline, TrendingUp, Group, EventAvailable } from '@mui/icons-material
 import { Bar } from 'react-chartjs-2';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getNewStartsSummary } from '../services/firestoreService';
 import dayjs from 'dayjs';
 import logger from '../utils/logger';
 
@@ -67,14 +66,6 @@ const NewStartsAnalytics = () => {
       setApplicants(applicantsData);
       setAssociates(associatesData);
 
-      // Cross-source new starts reconciliation for debugging
-      try {
-        const ns = await getNewStartsSummary(startDate.toDate(), endDate.toDate());
-        if (ns && ns.success) setNewStartsSummary(ns.data);
-      } catch (err) {
-        logger.error('Failed to get new starts summary:', err);
-      }
-      
       calculateMetrics(applicantsData, associatesData);
     } catch (err) {
       logger.error('Error loading new starts data:', err);

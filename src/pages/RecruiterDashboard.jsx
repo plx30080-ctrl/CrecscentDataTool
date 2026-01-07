@@ -60,12 +60,6 @@ const RecruiterDashboard = () => {
     } finally {
       setLoading(false);
     }
-    } catch (err) {
-      logger.error('Error loading data:', err);
-      setError('Failed to load recruiter data');
-    } finally {
-      setLoading(false);
-    }
   }, []);
 
   useEffect(() => {

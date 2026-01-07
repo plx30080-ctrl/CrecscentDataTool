@@ -43,7 +43,6 @@ import {
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import { bulkUploadApplicants } from '../services/firestoreService';
 import { bulkUploadEarlyLeaves, bulkUploadDNR } from '../services/earlyLeaveService';
 import {
   bulkImportApplicants,
