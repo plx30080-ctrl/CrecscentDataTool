@@ -52,12 +52,15 @@ const COLLECTIONS = [
   { value: 'associates', label: 'Associates', description: 'Master list of employees' },
   { value: 'badges', label: 'Badges', description: 'Badge management' },
   { value: 'badgePrintQueue', label: 'Badge Print Queue', description: 'Badges ready to print' },
-  { value: 'forecasts', label: 'Forecasts', description: 'Forecasting data and predictions' },
-  { value: 'dailySummary', label: 'Daily Summary', description: 'Pre-aggregated daily metrics' },
-  { value: 'weeklySummary', label: 'Weekly Summary', description: 'Weekly aggregations' },
-  { value: 'monthlySummary', label: 'Monthly Summary', description: 'Monthly aggregations' },
-  { value: 'auditLogs', label: 'Audit Logs', description: 'System activity logs' },
-  { value: 'badgeTemplates', label: 'Badge Templates', description: 'Badge template designs' }
+  { value: 'onPremiseData', label: 'On Premise Data', description: 'On-premises collected data' },
+  { value: 'laborReports', label: 'Labor Reports', description: 'Labor data and reports' },
+  { value: 'branchDaily', label: 'Branch Daily', description: 'Daily branch metrics' },
+  { value: 'branchWeekly', label: 'Branch Weekly', description: 'Weekly branch metrics' },
+  { value: 'applicantDocuments', label: 'Applicant Documents', description: 'Applicant-related documents' },
+  { value: 'auditLog', label: 'Audit Logs', description: 'System activity logs' },
+  { value: 'badgeTemplates', label: 'Badge Templates', description: 'Badge template designs' },
+  { value: 'dnrList', label: 'DNR List', description: 'Do Not Recruit list' },
+  { value: 'dnrDatabase', label: 'DNR Database', description: 'Alternative DNR storage' }
 ];
 
 const DataView = () => {
@@ -89,7 +92,11 @@ const DataView = () => {
       if (dataResult.success) {
         setData(dataResult.data);
       } else {
-        setError(dataResult.error);
+        if (dataResult.permissionDenied) {
+          setError(`Permission denied: You don't have access to read the "${selectedCollection}" collection. Check Firestore security rules.`);
+        } else {
+          setError(dataResult.error);
+        }
         setData([]);
       }
 
@@ -100,9 +107,11 @@ const DataView = () => {
       }
 
       // Validate data
-      const validationResult = await validateCollectionData(selectedCollection, dataResult.data);
-      if (validationResult.success) {
-        setValidation(validationResult.validation);
+      if (dataResult.success) {
+        const validationResult = await validateCollectionData(selectedCollection, dataResult.data);
+        if (validationResult.success) {
+          setValidation(validationResult.validation);
+        }
       }
     } catch (err) {
       setError('Failed to load collection data: ' + err.message);
@@ -289,11 +298,21 @@ const DataView = () => {
                     <Typography color="text.secondary" gutterBottom>
                       Data Status
                     </Typography>
-                    <Chip
-                      icon={<CheckCircle />}
-                      label={validation?.isValid ? 'Valid' : 'Has Issues'}
-                      color={validation?.isValid ? 'success' : 'warning'}
-                    />
+                    {validation?.isValid ? (
+                      <Chip
+                        icon={<CheckCircle />}
+                        label="Valid"
+                        color="success"
+                      />
+                    ) : validation?.issues?.length > 0 ? (
+                      <Chip
+                        icon={<Warning />}
+                        label={`${validation.issues.length} Warnings`}
+                        color="warning"
+                      />
+                    ) : (
+                      <Chip label="Unknown" />
+                    )}
                   </CardContent>
                 </Card>
               </Grid>
@@ -312,15 +331,15 @@ const DataView = () => {
             </Grid>
           )}
 
-          {/* Validation Results */}
-          {validation && !validation.isValid && (
+      {/* Validation Results */}
+          {validation && validation.issues && validation.issues.length > 0 && (
             <Alert 
               severity="warning" 
               sx={{ marginBottom: 2 }}
               icon={<Warning />}
             >
               <Typography variant="subtitle2" gutterBottom>
-                Data Validation Issues Found:
+                Data Validation Warnings ({validation.issues.length}):
               </Typography>
               <ul style={{ margin: 0, paddingLeft: 20 }}>
                 {validation.issues.map((issue, index) => (

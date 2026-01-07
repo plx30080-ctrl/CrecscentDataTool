@@ -52,14 +52,14 @@ export const getShiftData = async (startDate, endDate, shift = null) => {
     const constraints = [
       where('date', '>=', Timestamp.fromDate(start)),
       where('date', '<=', Timestamp.fromDate(end)),
-      orderBy('date', 'asc')  // Changed from 'desc' to 'asc' for chronological order
+      orderBy('date', 'asc')
     ];
 
     if (shift) {
       constraints.push(where('shift', '==', shift));
     }
 
-    const q = query(collection(db, 'onPremiseData'), ...constraints);
+    const q = query(collection(db, 'shiftData'), ...constraints);
     const querySnapshot = await getDocs(q);
     const data = querySnapshot.docs.map(doc => ({
       id: doc.id,

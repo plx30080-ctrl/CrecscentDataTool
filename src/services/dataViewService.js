@@ -11,7 +11,7 @@ import logger from '../utils/logger';
 /**
  * Get all data from a specific collection
  * @param {string} collectionName - Name of the Firestore collection
- * @returns {Promise<{success: boolean, data: Array, error?: string}>}
+ * @returns {Promise<{success: boolean, data: Array, error?: string, permissionDenied?: boolean}>}
  */
 export async function getCollectionData(collectionName) {
   try {
@@ -30,14 +30,22 @@ export async function getCollectionData(collectionName) {
     
     return {
       success: true,
-      data
+      data,
+      permissionDenied: false
     };
   } catch (error) {
     logger.error(`Error fetching collection data for ${collectionName}:`, error);
+    
+    // Check if it's a permission error
+    const isPermissionError = error.code === 'permission-denied' || 
+                              error.message.includes('permission') ||
+                              error.message.includes('Permission');
+    
     return {
       success: false,
       data: [],
-      error: error.message
+      error: error.message,
+      permissionDenied: isPermissionError
     };
   }
 }
@@ -45,7 +53,7 @@ export async function getCollectionData(collectionName) {
 /**
  * Get statistics about a collection
  * @param {string} collectionName - Name of the Firestore collection
- * @returns {Promise<{success: boolean, stats: Object, error?: string}>}
+ * @returns {Promise<{success: boolean, stats: Object, error?: string, permissionDenied?: boolean}>}
  */
 export async function getCollectionStats(collectionName) {
   try {
@@ -67,13 +75,18 @@ export async function getCollectionStats(collectionName) {
         data.updatedAt,
         data.submittedAt,
         data.createdAt,
-        data.timestamp
+        data.timestamp,
+        data.date
       ].filter(Boolean);
 
       timestamps.forEach(ts => {
-        const date = ts.toDate ? ts.toDate() : new Date(ts);
-        if (!lastUpdated || date > lastUpdated) {
-          lastUpdated = date;
+        try {
+          const date = ts.toDate ? ts.toDate() : new Date(ts);
+          if (!lastUpdated || date > lastUpdated) {
+            lastUpdated = date;
+          }
+        } catch (e) {
+          // Skip invalid dates
         }
       });
 
@@ -91,10 +104,16 @@ export async function getCollectionStats(collectionName) {
 
     return {
       success: true,
-      stats
+      stats,
+      permissionDenied: false
     };
   } catch (error) {
     logger.error(`Error fetching collection stats for ${collectionName}:`, error);
+    
+    const isPermissionError = error.code === 'permission-denied' || 
+                              error.message.includes('permission') ||
+                              error.message.includes('Permission');
+    
     return {
       success: false,
       stats: {
@@ -102,7 +121,8 @@ export async function getCollectionStats(collectionName) {
         lastUpdated: null,
         sizeEstimate: 'N/A'
       },
-      error: error.message
+      error: error.message,
+      permissionDenied: isPermissionError
     };
   }
 }
@@ -117,51 +137,62 @@ export async function validateCollectionData(collectionName, data) {
   try {
     logger.info(`Validating data for collection: ${collectionName}`);
     
-    const issues = [];
+    const warnings = [];
 
     if (data.length === 0) {
       return {
         success: true,
         validation: {
           isValid: true,
-          issues: []
+          issues: [],
+          warnings: []
         }
       };
     }
 
-    // Collection-specific validations
+    // Collection-specific validations - warnings only, not critical errors
     switch (collectionName) {
       case 'users':
-        validateUsers(data, issues);
+        validateUsers(data, warnings);
         break;
       case 'shiftData':
-        validateShiftData(data, issues);
+        validateShiftData(data, warnings);
         break;
       case 'hoursData':
-        validateHoursData(data, issues);
+        validateHoursData(data, warnings);
         break;
       case 'applicants':
-        validateApplicants(data, issues);
+        validateApplicants(data, warnings);
         break;
       case 'associates':
-        validateAssociates(data, issues);
+        validateAssociates(data, warnings);
         break;
       case 'badges':
-        validateBadges(data, issues);
+        validateBadges(data, warnings);
         break;
       case 'earlyLeaves':
-        validateEarlyLeaves(data, issues);
+        validateEarlyLeaves(data, warnings);
+        break;
+      case 'recruiterData':
+        validateRecruiterData(data, warnings);
+        break;
+      case 'onPremiseData':
+      case 'laborReports':
+      case 'branchDaily':
+      case 'branchWeekly':
+        validateBasic(data, warnings);
         break;
       default:
         // Generic validation
-        validateGeneric(data, issues);
+        validateGeneric(data, warnings);
     }
 
     return {
       success: true,
       validation: {
-        isValid: issues.length === 0,
-        issues
+        isValid: warnings.length === 0,
+        issues: warnings,
+        warnings: warnings
       }
     };
   } catch (error) {
@@ -170,7 +201,8 @@ export async function validateCollectionData(collectionName, data) {
       success: false,
       validation: {
         isValid: false,
-        issues: ['Validation error: ' + error.message]
+        issues: [],
+        warnings: ['Validation error: ' + error.message]
       }
     };
   }
@@ -178,148 +210,170 @@ export async function validateCollectionData(collectionName, data) {
 
 // Validation helper functions
 
-function validateUsers(data, issues) {
-  data.forEach((user, index) => {
-    if (!user.email) {
-      issues.push(`Record ${index + 1}: Missing email address`);
-    }
-    if (!user.role) {
-      issues.push(`Record ${index + 1}: Missing user role`);
-    }
-    if (!user.displayName) {
-      issues.push(`Record ${index + 1}: Missing display name`);
-    }
+function validateUsers(data, warnings) {
+  let recordsWithMissingEmail = 0;
+  let recordsWithMissingRole = 0;
+
+  data.forEach((user) => {
+    if (!user.email) recordsWithMissingEmail++;
+    if (!user.role) recordsWithMissingRole++;
   });
-}
 
-function validateShiftData(data, issues) {
-  data.forEach((record, index) => {
-    if (!record.date) {
-      issues.push(`Record ${index + 1}: Missing date`);
-    }
-    if (!record.shift) {
-      issues.push(`Record ${index + 1}: Missing shift designation`);
-    }
-    if (record.numberWorking > record.numberRequired) {
-      issues.push(`Record ${index + 1}: Working count exceeds required count`);
-    }
-    if (record.numberWorking < 0 || record.numberRequired < 0) {
-      issues.push(`Record ${index + 1}: Negative values detected`);
-    }
-  });
-}
-
-function validateHoursData(data, issues) {
-  data.forEach((record, index) => {
-    if (!record.date) {
-      issues.push(`Record ${index + 1}: Missing date`);
-    }
-    if (record.totalHours < 0) {
-      issues.push(`Record ${index + 1}: Negative total hours`);
-    }
-    const calculatedTotal = (record.shift1Hours || 0) + (record.shift2Hours || 0);
-    if (record.totalHours && Math.abs(record.totalHours - calculatedTotal) > 1) {
-      issues.push(`Record ${index + 1}: Total hours mismatch (${record.totalHours} vs ${calculatedTotal})`);
-    }
-  });
-}
-
-function validateApplicants(data, issues) {
-  const validStatuses = ['Applied', 'Interviewed', 'Processed', 'Hired', 'Started', 'Rejected'];
-  
-  data.forEach((applicant, index) => {
-    if (!applicant.name) {
-      issues.push(`Record ${index + 1}: Missing applicant name`);
-    }
-    if (!applicant.status) {
-      issues.push(`Record ${index + 1}: Missing status`);
-    } else if (!validStatuses.includes(applicant.status)) {
-      issues.push(`Record ${index + 1}: Invalid status "${applicant.status}"`);
-    }
-    if (applicant.status === 'Hired' && !applicant.projectedStartDate) {
-      issues.push(`Record ${index + 1}: Hired applicant missing projected start date`);
-    }
-  });
-}
-
-function validateAssociates(data, issues) {
-  const validStatuses = ['Active', 'Inactive', 'Terminated'];
-  
-  data.forEach((associate, index) => {
-    if (!associate.eid) {
-      issues.push(`Record ${index + 1}: Missing employee ID (EID)`);
-    }
-    if (!associate.name) {
-      issues.push(`Record ${index + 1}: Missing associate name`);
-    }
-    if (!associate.status) {
-      issues.push(`Record ${index + 1}: Missing status`);
-    } else if (!validStatuses.includes(associate.status)) {
-      issues.push(`Record ${index + 1}: Invalid status "${associate.status}"`);
-    }
-    if (!associate.startDate) {
-      issues.push(`Record ${index + 1}: Missing start date`);
-    }
-  });
-}
-
-function validateBadges(data, issues) {
-  data.forEach((badge, index) => {
-    if (!badge.eid) {
-      issues.push(`Record ${index + 1}: Missing employee ID (EID)`);
-    }
-    if (!badge.name) {
-      issues.push(`Record ${index + 1}: Missing badge holder name`);
-    }
-    if (!badge.status) {
-      issues.push(`Record ${index + 1}: Missing badge status`);
-    }
-    if (!badge.createdAt) {
-      issues.push(`Record ${index + 1}: Missing creation timestamp`);
-    }
-  });
-}
-
-function validateEarlyLeaves(data, issues) {
-  data.forEach((leave, index) => {
-    if (!leave.associateId) {
-      issues.push(`Record ${index + 1}: Missing associate ID`);
-    }
-    if (!leave.date) {
-      issues.push(`Record ${index + 1}: Missing date`);
-    }
-    if (!leave.reason) {
-      issues.push(`Record ${index + 1}: Missing reason for early leave`);
-    }
-    if (!leave.leaveTime) {
-      issues.push(`Record ${index + 1}: Missing leave time`);
-    }
-  });
-}
-
-function validateGeneric(data, issues) {
-  // Check for common missing fields
-  const commonFields = ['createdAt', 'updatedAt', 'timestamp'];
-  let hasTimestamp = false;
-
-  if (data.length > 0) {
-    const firstRecord = data[0];
-    commonFields.forEach(field => {
-      if (firstRecord[field]) {
-        hasTimestamp = true;
-      }
-    });
-
-    if (!hasTimestamp) {
-      issues.push('Collection may be missing timestamp fields (createdAt, updatedAt, or timestamp)');
-    }
+  if (recordsWithMissingEmail > 0) {
+    warnings.push(`${recordsWithMissingEmail} record(s) missing email address`);
   }
+  if (recordsWithMissingRole > 0) {
+    warnings.push(`${recordsWithMissingRole} record(s) missing user role`);
+  }
+}
 
-  // Check for duplicate IDs
+function validateShiftData(data, warnings) {
+  let recordsWithIssues = 0;
+  
+  data.forEach((record) => {
+    const hasIssues = !record.date || !record.shift || 
+                      (record.numberWorking > record.numberRequired) ||
+                      (record.numberWorking < 0 || record.numberRequired < 0);
+    if (hasIssues) recordsWithIssues++;
+  });
+
+  if (recordsWithIssues > 0) {
+    warnings.push(`${recordsWithIssues} record(s) have potential data issues (missing date/shift, negative values, or count mismatches)`);
+  }
+}
+
+function validateHoursData(data, warnings) {
+  let recordsWithIssues = 0;
+  
+  data.forEach((record) => {
+    if (!record.date || record.totalHours < 0) {
+      recordsWithIssues++;
+    }
+  });
+
+  if (recordsWithIssues > 0) {
+    warnings.push(`${recordsWithIssues} record(s) missing date or have negative hours`);
+  }
+}
+
+function validateApplicants(data, warnings) {
+  const validStatuses = ['Applied', 'Interviewed', 'Processed', 'Hired', 'Started', 'Rejected'];
+  let missingName = 0;
+  let invalidStatus = 0;
+
+  data.forEach((applicant) => {
+    if (!applicant.name) missingName++;
+    if (applicant.status && !validStatuses.includes(applicant.status)) {
+      invalidStatus++;
+    }
+  });
+
+  if (missingName > 0) {
+    warnings.push(`${missingName} record(s) missing applicant name`);
+  }
+  if (invalidStatus > 0) {
+    warnings.push(`${invalidStatus} record(s) have invalid status values`);
+  }
+}
+
+function validateAssociates(data, warnings) {
+  const validStatuses = ['Active', 'Inactive', 'Terminated'];
+  let missingEid = 0;
+  let missingName = 0;
+  let invalidStatus = 0;
+
+  data.forEach((associate) => {
+    if (!associate.eid) missingEid++;
+    if (!associate.name) missingName++;
+    if (associate.status && !validStatuses.includes(associate.status)) {
+      invalidStatus++;
+    }
+  });
+
+  if (missingEid > 0) {
+    warnings.push(`${missingEid} record(s) missing employee ID (EID)`);
+  }
+  if (missingName > 0) {
+    warnings.push(`${missingName} record(s) missing associate name`);
+  }
+  if (invalidStatus > 0) {
+    warnings.push(`${invalidStatus} record(s) have invalid status values`);
+  }
+}
+
+function validateBadges(data, warnings) {
+  let missingEid = 0;
+  let missingName = 0;
+
+  data.forEach((badge) => {
+    if (!badge.eid) missingEid++;
+    if (!badge.name) missingName++;
+  });
+
+  if (missingEid > 0) {
+    warnings.push(`${missingEid} record(s) missing employee ID (EID)`);
+  }
+  if (missingName > 0) {
+    warnings.push(`${missingName} record(s) missing badge holder name`);
+  }
+}
+
+function validateEarlyLeaves(data, warnings) {
+  let missingAssociateId = 0;
+  let missingDate = 0;
+  let missingReason = 0;
+
+  data.forEach((leave) => {
+    if (!leave.associateId) missingAssociateId++;
+    if (!leave.date) missingDate++;
+    if (!leave.reason) missingReason++;
+  });
+
+  if (missingAssociateId > 0) {
+    warnings.push(`${missingAssociateId} record(s) missing associate ID`);
+  }
+  if (missingDate > 0) {
+    warnings.push(`${missingDate} record(s) missing date`);
+  }
+  if (missingReason > 0) {
+    warnings.push(`${missingReason} record(s) missing reason for early leave`);
+  }
+}
+
+function validateRecruiterData(data, warnings) {
+  let missingRecruiterName = 0;
+  let missingDate = 0;
+
+  data.forEach((record) => {
+    if (!record.recruiterName) missingRecruiterName++;
+    if (!record.date) missingDate++;
+  });
+
+  if (missingRecruiterName > 0) {
+    warnings.push(`${missingRecruiterName} record(s) missing recruiter name`);
+  }
+  if (missingDate > 0) {
+    warnings.push(`${missingDate} record(s) missing date`);
+  }
+}
+
+function validateBasic(data, warnings) {
+  // Basic validation for generic collections
   const ids = data.map(d => d.id).filter(Boolean);
   const uniqueIds = new Set(ids);
   if (ids.length !== uniqueIds.size) {
-    issues.push('Duplicate IDs detected in collection');
+    warnings.push('Duplicate IDs detected in collection');
+  }
+}
+
+function validateGeneric(data, warnings) {
+  // Generic validation for unknown collections
+  if (data.length > 0) {
+    const ids = data.map(d => d.id).filter(Boolean);
+    const uniqueIds = new Set(ids);
+    if (ids.length !== uniqueIds.size) {
+      warnings.push('Duplicate IDs detected in collection');
+    }
   }
 }
 

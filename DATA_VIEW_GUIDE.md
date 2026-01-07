@@ -229,10 +229,11 @@ Planned features for future releases:
 ## Support
 
 For issues or questions about the Data View feature:
-1. Check validation messages for specific guidance
-2. Review related documentation for data entry
-3. Contact system administrator
-4. Check audit logs for recent changes
+1. Check the **[DATA_VIEW_TROUBLESHOOTING.md](DATA_VIEW_TROUBLESHOOTING.md)** guide for common problems
+2. Review validation messages for specific guidance
+3. Review related documentation for data entry
+4. Contact system administrator
+5. Check audit logs for recent changes
 
 ## Change Log
 
