@@ -1,345 +1,300 @@
-# Comprehensive Prompt: Crescent Management Platform
+# Crescent Management Platform - Rebuild Specification
 
-## Project Overview
+## Vision
 
-Build a **Workforce Management Platform** called "Crescent Management Platform" for managing staffing operations at a warehouse/distribution center. The platform tracks daily shift attendance, labor hours, employee badges, early leave incidents, and recruiter metrics. It is built with **React 19** + **Vite** + **Firebase** (Firestore, Auth, Storage) + **Material-UI 7**.
+Build a **Workforce Management Platform** for staffing operations at a warehouse/distribution center. The platform tracks the complete employee lifecycle: recruitment pipeline, daily attendance, labor hours, badge management, and corrective actions.
+
+**Core Principle:** All data flows into a **single unified database** centered around the `associates` table. Every upload, import, or data entry updates this central source of truth—never creating disconnected datasets.
 
 ---
 
 ## Technology Stack
 
-```
-Frontend:
-- React 19.2.0 with Vite 7.2.4 (ES modules)
-- React Router DOM 7.11.0 (BrowserRouter with nested routes)
-- Material-UI 7.3.6 (@mui/material, @mui/icons-material)
-- @emotion/react & @emotion/styled 11.14.x
-- MUI X Date Pickers 8.23.0 with dayjs 1.11.19
-- Chart.js 4.5.1 with react-chartjs-2 5.3.1
+### Frontend
+- **Next.js 14+** with App Router
+- **TypeScript** for type safety
+- **Server Actions** for form handling (minimal client-side state)
+- **Shadcn/ui** or **Material-UI** for components
+- **Tailwind CSS** for styling
+- **Recharts** or **Tremor** for analytics visualizations
 
-Data Processing:
-- papaparse 5.5.3 (CSV parsing)
-- xlsx 0.18.5 (Excel parsing)
-- jsbarcode 3.12.1 (barcode generation)
+### Backend
+- **Supabase** (hosted PostgreSQL + Auth + Storage + Edge Functions)
+- **Prisma ORM** (optional, for type-safe database queries)
+- **Row Level Security (RLS)** for data protection
 
-Backend:
-- Firebase 12.7.0 (Authentication, Firestore, Storage)
-
-Testing:
-- Vitest 4.0.16
-- @testing-library/react
-
-Build:
-- Vite with manual chunks for code splitting (react-vendor, mui-vendor, chart-vendor, firebase-vendor, xlsx-vendor)
-- GitHub Pages deployment with base path: /CrecscentDataTool/
-```
+### Deployment
+- **Vercel** (optimized for Next.js)
+- Environment-based configuration (dev/staging/prod)
 
 ---
 
-## Project Structure
+## Core Data Architecture
 
-```
-/
-├── index.html                    # Entry HTML with SPA redirect handler
-├── vite.config.js               # Vite config with manual chunks
-├── package.json
-├── firebase.json                # Firebase hosting config
-├── firestore.rules              # Firestore security rules
-├── storage.rules                # Storage security rules
-├── public/
-│   ├── images/plx-logo.png      # Company logo
-│   └── placeholder-avatar.png
-└── src/
-    ├── main.jsx                 # React entry + Chart.js registration
-    ├── App.jsx                  # Route definitions
-    ├── firebase.js              # Firebase initialization
-    ├── theme.js                 # MUI theme (deepPurple primary, amber secondary)
-    ├── index.css
-    ├── contexts/
-    │   ├── AuthContext.js       # Context definition
-    │   ├── AuthProvider.jsx     # Firebase Auth provider
-    │   ├── NotificationContextCore.js
-    │   └── NotificationContext.jsx
-    ├── hooks/
-    │   ├── useAuth.js
-    │   └── useNotification.js
-    ├── services/
-    │   ├── firestoreService.js  # Core CRUD operations
-    │   ├── adminService.js      # User management, audit logs
-    │   ├── badgeService.js      # Badge lifecycle management
-    │   ├── dataEntryService.js  # Form submission logic
-    │   ├── earlyLeaveService.js # Early leave + DNR tracking
-    │   └── printService.js      # Badge printing
-    ├── pages/
-    │   ├── Login.jsx
-    │   ├── Signup.jsx
-    │   ├── EnhancedHome.jsx     # Dashboard home
-    │   ├── DataEntry.jsx        # Form selector
-    │   ├── UnifiedDashboard.jsx # Analytics selector
-    │   ├── FirstShiftDashboard.jsx
-    │   ├── SecondShiftDashboard.jsx
-    │   ├── RecruiterDashboard.jsx
-    │   ├── NewStartsAnalytics.jsx
-    │   ├── YOYComparison.jsx
-    │   ├── BadgeManagement.jsx
-    │   ├── EarlyLeavesPage.jsx
-    │   ├── AdminPanel.jsx
-    │   ├── EnhancedProfile.jsx
-    │   ├── BulkHistoricalImport.jsx
-    │   ├── AdminBulkUpload.jsx
-    │   ├── BadgePhotoUpload.jsx
-    │   ├── DataBackup.jsx
-    │   ├── DataCleaner.jsx
-    │   └── DataDebug.jsx
-    ├── components/
-    │   ├── Layout.jsx           # AppBar with navigation
-    │   ├── PrivateRoute.jsx     # Auth protection
-    │   ├── ErrorBoundary.jsx
-    │   ├── BadgePreview.jsx
-    │   ├── BadgePrintPreview.jsx
-    │   ├── BadgePlaceholder.jsx
-    │   ├── BarcodeGenerator.jsx
-    │   ├── DataView.jsx         # Generic data table
-    │   ├── FlexibleUpload.jsx
-    │   └── dataEntry/
-    │       ├── OnPremiseForm.jsx
-    │       ├── LaborReportForm.jsx
-    │       ├── BranchDailyForm.jsx
-    │       └── BranchWeeklyForm.jsx
-    ├── config/
-    │   ├── badgeTemplate.js     # CR80 card template config
-    │   └── dataTagLibrary.js    # Field mapping definitions
-    └── utils/
-        ├── logger.js            # Dev-only console logging
-        ├── exportUtils.js
-        ├── laborParser.js
-        ├── recruiterUtils.js
-        └── timeout.js           # Promise timeout utility
-```
+### Design Philosophy
+
+The database is **associate-centric**. The `associates` table is the single source of truth for all people in the system. All other tables link back to associates via foreign keys.
+
+When users upload Excel files, CSV data, or enter forms:
+1. Parse the incoming data
+2. Match records to existing associates (by EID or name)
+3. **Update existing records** or **create new associates** as needed
+4. Log the activity with timestamps and user attribution
+
+**Never create orphan datasets.** All data must connect to the central schema.
 
 ---
 
-## Firebase Database Schema (Firestore Collections)
+## Database Schema (PostgreSQL)
 
-### 1. users/{uid}
+### Core Tables
 
-```javascript
-{
-  email: string,
-  displayName: string,
-  role: "On-Site Manager" | "Recruiter" | "Market Manager" | "admin",
-  photoURL: string | null,
-  createdAt: Timestamp,
-  lastLogin: Timestamp,
-  lastUpdated: Timestamp
-}
+```sql
+-- Central source of truth for all people
+CREATE TABLE associates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  eid VARCHAR(20) UNIQUE NOT NULL,          -- Employee ID (primary identifier)
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
+  email VARCHAR(255),
+  phone VARCHAR(20),
+
+  -- Current Status
+  status VARCHAR(20) DEFAULT 'Active',       -- Active, Inactive, Terminated, DNR
+  pipeline_status VARCHAR(30),               -- Applied, Interviewed, Processed, CB_Updated, Finalized, Started
+
+  -- Assignment
+  shift VARCHAR(10),                         -- 1st, 2nd, Flex
+  position VARCHAR(100),
+  line VARCHAR(50),
+  recruiter VARCHAR(100),
+
+  -- Dates
+  start_date DATE,
+  termination_date DATE,
+
+  -- Photo
+  photo_url TEXT,
+
+  -- Metadata
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES users(id),
+  updated_by UUID REFERENCES users(id)
+);
+
+-- System users (managers, recruiters, admins)
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(200),
+  role VARCHAR(30) DEFAULT 'On-Site Manager',  -- On-Site Manager, Recruiter, Market Manager, Admin
+  photo_url TEXT,
+  last_login TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Daily attendance records (links to associates)
+CREATE TABLE attendance_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  associate_id UUID REFERENCES associates(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  shift VARCHAR(10) NOT NULL,
+
+  -- Attendance data
+  scheduled BOOLEAN DEFAULT true,
+  present BOOLEAN DEFAULT false,
+  hours_worked DECIMAL(4,2),
+  is_new_start BOOLEAN DEFAULT false,
+  sent_home BOOLEAN DEFAULT false,
+  sent_home_reason TEXT,
+
+  -- Source tracking
+  source VARCHAR(50),                        -- 'manual_entry', 'excel_upload', 'labor_report'
+  source_file VARCHAR(255),
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES users(id),
+
+  UNIQUE(associate_id, date, shift)
+);
+
+-- Hours worked (aggregated from labor reports)
+CREATE TABLE hours_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  associate_id UUID REFERENCES associates(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  shift VARCHAR(10) NOT NULL,
+
+  total_hours DECIMAL(5,2),
+  direct_hours DECIMAL(5,2),
+  indirect_hours DECIMAL(5,2),
+  overtime_hours DECIMAL(5,2),
+
+  -- Source tracking
+  source_file VARCHAR(255),
+  week_ending DATE,
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES users(id),
+
+  UNIQUE(associate_id, date, shift)
+);
+
+-- Early leave incidents
+CREATE TABLE early_leaves (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  associate_id UUID REFERENCES associates(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  shift VARCHAR(10) NOT NULL,
+
+  time_left TIME,
+  hours_worked DECIMAL(4,2),
+  reason VARCHAR(50),                        -- Personal, Medical, Family Emergency, Transportation, Childcare, NCNS, Other
+  corrective_action VARCHAR(30),             -- None, Warning, 5_Day_Suspension, DNR
+
+  -- Occurrence tracking (calculated or entered)
+  occurrences_14_days INT DEFAULT 0,
+  occurrences_30_days INT DEFAULT 0,
+  occurrences_90_days INT DEFAULT 0,
+
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES users(id),
+  updated_at TIMESTAMPTZ,
+  updated_by UUID REFERENCES users(id)
+);
+
+-- Badge records
+CREATE TABLE badges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  associate_id UUID REFERENCES associates(id) ON DELETE CASCADE,
+  badge_id VARCHAR(50) UNIQUE NOT NULL,      -- Format: PLX-{eid}-{initials}
+
+  status VARCHAR(20) DEFAULT 'Pending',      -- Pending, Cleared, Not_Cleared, Suspended
+  photo_url TEXT,
+
+  -- Lifecycle timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES users(id),
+  printed_at TIMESTAMPTZ,
+  printed_by UUID REFERENCES users(id),
+  issued_at TIMESTAMPTZ,
+  issued_by UUID REFERENCES users(id)
+);
+
+-- Daily shift summaries (aggregated metrics)
+CREATE TABLE daily_summaries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL,
+  shift VARCHAR(10) NOT NULL,
+
+  -- Headcount metrics
+  requested INT,
+  required INT,
+  working INT,
+  new_starts INT,
+  send_homes INT,
+  line_cuts INT,
+
+  -- Hour metrics (aggregated)
+  total_hours DECIMAL(8,2),
+  direct_hours DECIMAL(8,2),
+  indirect_hours DECIMAL(8,2),
+
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES users(id),
+
+  UNIQUE(date, shift)
+);
+
+-- Recruiter/branch metrics
+CREATE TABLE recruiter_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL,
+  branch VARCHAR(100),
+  recruiter VARCHAR(100),
+
+  interviews_scheduled INT DEFAULT 0,
+  interview_shows INT DEFAULT 0,
+  shift1_processed INT DEFAULT 0,
+  shift2_processed INT DEFAULT 0,
+  confirmations INT DEFAULT 0,
+
+  -- Weekly summary fields
+  is_weekly_summary BOOLEAN DEFAULT false,
+  week_ending DATE,
+  total_applicants INT,
+  total_processed INT,
+
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES users(id)
+);
+
+-- DNR (Do Not Rehire) list
+CREATE TABLE dnr_list (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  associate_id UUID REFERENCES associates(id),
+  eid VARCHAR(20) NOT NULL,                  -- Stored separately in case associate deleted
+  name VARCHAR(200) NOT NULL,
+
+  reason TEXT NOT NULL,
+  source VARCHAR(50),                        -- 'early_leave', 'manual', 'termination'
+  source_record_id UUID,
+
+  status VARCHAR(20) DEFAULT 'Active',       -- Active, Removed
+  date_added TIMESTAMPTZ DEFAULT NOW(),
+  added_by UUID REFERENCES users(id),
+  removed_at TIMESTAMPTZ,
+  removed_by UUID REFERENCES users(id),
+  notes TEXT
+);
+
+-- Audit log for all actions
+CREATE TABLE audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  action VARCHAR(100) NOT NULL,
+  table_name VARCHAR(50),
+  record_id UUID,
+  user_id UUID REFERENCES users(id),
+  user_email VARCHAR(255),
+  details JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- File upload history
+CREATE TABLE upload_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  file_name VARCHAR(255) NOT NULL,
+  file_type VARCHAR(50),                     -- 'labor_report', 'attendance', 'applicants', 'early_leaves'
+  file_size INT,
+
+  records_processed INT,
+  records_created INT,
+  records_updated INT,
+  errors JSONB,
+
+  uploaded_at TIMESTAMPTZ DEFAULT NOW(),
+  uploaded_by UUID REFERENCES users(id)
+);
 ```
 
-### 2. onPremiseData/{id} - Daily shift attendance
+### Key Indexes
 
-```javascript
-{
-  date: Timestamp,
-  shift: "1st" | "2nd",
-  requested: number,          // Requested headcount
-  required: number,           // Required headcount
-  working: number,            // Actually working
-  newStarts: number,          // Count of new starts
-  newStartEIDs: string[],     // Array of EIDs for new starts
-  eidValidation: object[],    // Validation results for each EID
-  sendHomes: number,          // People sent home
-  lineCuts: number,           // Line cuts
-  notes: string,
-  fileName: string | null,    // If Excel file uploaded
-  employeeData: object[] | null,
-  submittedBy: string,        // Email
-  submittedByUid: string,
-  submittedAt: Timestamp
-}
-```
-
-### 3. hoursData/{id} - Labor hours (weekly)
-
-```javascript
-{
-  weekEnding: Timestamp,
-  shift1: {
-    total: number,
-    direct: number,
-    indirect: number,
-    byDate: object
-  },
-  shift2: {
-    total: number,
-    direct: number,
-    indirect: number,
-    byDate: object
-  },
-  employeeCount: number,
-  employeeIds: string[],
-  employeeDetails: object[],
-  fileName: string,
-  submittedAt: Timestamp,
-  submittedBy: string,
-  submittedByUid: string
-}
-```
-
-### 4. branchMetrics/{id} - Branch/recruiter metrics
-
-```javascript
-{
-  date: Timestamp | null,
-  weekEnding: Timestamp | null,  // For weekly summaries
-  branch: string,
-  shift: number,
-  isWeeklySummary: boolean | null,
-  recruiterStats: {
-    interviewsScheduled: number,
-    interviewShows: number,
-    shift1Processed: number,
-    shift2Processed: number,
-    shift2Confirmations: number,
-    nextDayConfirmations: number,
-    totalApplicants: number,    // Weekly only
-    totalProcessed: number      // Weekly only
-  },
-  dailyMetrics: {
-    totalHeadcount: number
-  },
-  notes: string,
-  submittedAt: Timestamp,
-  submittedBy: string,
-  submittedByUid: string
-}
-```
-
-### 5. associates/{id} - Employee records (single source of truth)
-
-```javascript
-{
-  eid: string,                  // Employee ID (6-8 digits)
-  firstName: string,
-  lastName: string,
-  name: string,                 // Full name fallback
-  status: "Active" | "Inactive" | "Terminated",
-  pipelineStatus: "Applied" | "Interviewed" | "Processed" | "CB Updated" | "Finalized" | "Hired" | "Started",
-  shift: "1st" | "2nd",
-  position: string,
-  recruiter: string,
-  startDate: Timestamp,
-  photoURL: string | null,
-  crmNumber: string | null,     // Legacy field, same as eid
-  notes: string,
-  lastModified: Timestamp,
-  lastUpdated: Timestamp
-}
-```
-
-### 6. badges/{id} - Badge records
-
-```javascript
-{
-  eid: string,
-  badgeId: string,              // Format: "PLX-{eid}-{lastName3chars}"
-  firstName: string,
-  lastName: string,
-  photoURL: string,
-  position: string,
-  shift: "1st" | "2nd",
-  recruiter: string,
-  status: "Pending" | "Cleared" | "Not Cleared" | "Suspended",
-  notes: string,
-  createdAt: Timestamp,
-  createdBy: string,
-  printedAt: Timestamp | null,
-  printedBy: string | null,
-  issuedAt: Timestamp | null,
-  issuedBy: string | null,
-  updatedAt: Timestamp
-}
-```
-
-### 7. earlyLeaves/{id} - Early leave incidents
-
-```javascript
-{
-  eid: string,
-  associateName: string,
-  date: Timestamp,
-  shift: "1st" | "2nd",
-  line: string,
-  timeLeft: string,             // e.g., "2:30 PM"
-  hoursWorked: number,
-  reason: "Personal" | "Medical" | "Family Emergency" | "Transportation" | "Childcare" | "No Call No Show" | "Other",
-  correctiveAction: "None" | "Warning" | "5 Day Suspension" | "DNR",
-  days14: number,               // Occurrences in 14 days
-  days30: number,               // Occurrences in 30 days
-  days90: number,               // Occurrences in 90 days
-  uploadedAt: Timestamp,
-  uploadedBy: string,
-  lastModified: Timestamp,
-  lastModifiedBy: string
-}
-```
-
-### 8. badgePrintQueue/{id} - Print queue
-
-```javascript
-{
-  badgeDocId: string,
-  badgeId: string,
-  eid: string,
-  firstName: string,
-  lastName: string,
-  priority: "Normal" | "High",
-  status: "Queued" | "Printing" | "Completed",
-  printerName: string,
-  queuedAt: Timestamp,
-  queuedBy: string,
-  completedAt: Timestamp | null,
-  error: string | null
-}
-```
-
-### 9. auditLog/{id} - Audit trail
-
-```javascript
-{
-  action: string,               // e.g., "UPDATE_USER_ROLE", "CREATE_BADGE"
-  performedBy: string,          // User UID
-  targetUserId: string | null,
-  details: object,
-  timestamp: Timestamp
-}
-```
-
-### 10. dnrDatabase/{id} - Do Not Rehire list
-
-```javascript
-{
-  eid: string,
-  associateName: string,
-  reason: string,
-  source: string,               // e.g., "Early Leave"
-  earlyLeaveId: string | null,
-  status: "Active" | "Removed",
-  dateAdded: Timestamp,
-  addedBy: string,
-  removedAt: Timestamp | null,
-  removedBy: string | null,
-  notes: string
-}
-```
-
----
-
-## Firebase Storage Structure
-
-```
-/badges/{eid}_{timestamp}.jpg     - Badge photos
-/user-photos/{uid}                - User profile photos
-/applicant-documents/{id}/        - Applicant documents
+```sql
+CREATE INDEX idx_associates_eid ON associates(eid);
+CREATE INDEX idx_associates_status ON associates(status);
+CREATE INDEX idx_associates_pipeline ON associates(pipeline_status);
+CREATE INDEX idx_attendance_date ON attendance_records(date);
+CREATE INDEX idx_attendance_associate ON attendance_records(associate_id);
+CREATE INDEX idx_hours_date ON hours_records(date);
+CREATE INDEX idx_hours_associate ON hours_records(associate_id);
+CREATE INDEX idx_early_leaves_associate ON early_leaves(associate_id);
+CREATE INDEX idx_early_leaves_date ON early_leaves(date);
+CREATE INDEX idx_daily_summaries_date ON daily_summaries(date, shift);
 ```
 
 ---
@@ -348,352 +303,551 @@ Build:
 
 ### Roles
 
-- **On-Site Manager**: Default role. Can enter on-premise data, view dashboards.
-- **Recruiter**: Can enter branch metrics, view recruiter dashboards.
-- **Market Manager**: Can access Admin Panel, manage users, view all data.
-- **admin**: Full access to all features.
+| Role | Permissions |
+|------|-------------|
+| **On-Site Manager** | Enter attendance, view shift dashboards, manage badges |
+| **Recruiter** | Enter recruiter metrics, view pipeline dashboards |
+| **Market Manager** | All above + Admin Panel, user management, all reports |
+| **Admin** | Full system access |
 
-### AuthProvider Implementation
+### Implementation
 
-- Firebase email/password authentication
-- On auth state change: fetch user profile from `users/{uid}`
-- Update `lastLogin` timestamp on login
-- Create profile in Firestore on signup with default role "On-Site Manager"
-- Provide: `currentUser`, `userProfile`, `loading`, `login`, `logout`, `signup`, `resetPassword`, `hasRole`, `isAdmin`, `refreshUserProfile`
-
-### Protected Routes
-
-Wrap all routes except `/login` and `/signup` in `<PrivateRoute>` which redirects to `/login` if not authenticated.
-
-### Role-Based Navigation
-
-Show "Admin" button in navbar only for `Market Manager` or `admin` roles.
+- Use **Supabase Auth** with email/password
+- Store role in `users` table
+- Implement **Row Level Security (RLS)** policies
+- Server-side role checks for sensitive operations
+- Middleware protection for admin routes
 
 ---
 
-## Core Features
+## Features & Requirements
 
-### 1. Home Dashboard (EnhancedHome.jsx)
+### 1. Authentication
 
-- Welcome message with user's name and current date
-- Quick stats cards with gradient backgrounds:
-  - Today's Attendance (from onPremiseData)
-  - Active Pipeline (associates with pipelineStatus)
-  - Current Pool (Processed in last 14 days)
-  - Conversion Rate
-- Quick action cards: Enter Data, View Dashboard, Badge Management, Performance Scorecard, Manage Applicants, Upload Data
-- Role-specific tips section
+**Login Page**
+- Email/password authentication
+- "Forgot password" flow
+- Redirect to dashboard on success
 
-### 2. Data Entry (DataEntry.jsx)
+**Signup Page**
+- Email, password, name fields
+- Auto-create user profile with default role "On-Site Manager"
+- Email verification (optional)
 
-Dropdown selector for four form types:
+**Session Management**
+- Persistent sessions with refresh tokens
+- Auto-logout on inactivity (configurable)
+- Track last login timestamp
 
-#### a) OnPremiseForm
+---
 
-- Date picker, Shift selector (1st/2nd)
-- Numeric fields: Requested, Required, Working, New Starts, Send Homes, Line Cuts
-- Dynamic EID input fields based on New Starts count
-- EID validation against `associates` collection:
-  - Show green checkmark if found and status is "CB Updated" or "Finalized"
-  - Show yellow warning if found but different status
-  - Show red error if not found
-- Optional Excel file upload for employee roster
-- On submit: Save to `onPremiseData`, update associate statuses to "Started"/"Active"
+### 2. Dashboard / Home
 
-#### b) LaborReportForm
+**Welcome Section**
+- Greeting with user's name
+- Current date display
+- Role-specific quick tips
 
-- Week Ending date picker
-- Excel file upload (required)
-- Parse Excel to calculate:
-  - Total/Direct/Indirect hours
-  - Employee count
-  - Daily breakdown by shift
-  - Per-shift totals
-- Display parsed data in tables before submission
-- On submit: Save to `hoursData`, update associate statuses to "Active"
+**Metric Cards** (real-time from database)
+- Today's Working Headcount (by shift)
+- Active Pipeline Count (associates not yet started)
+- Current Pool (processed in last 14 days)
+- Weekly Hours Total
 
-#### c) BranchDailyForm
+**Quick Actions**
+- Enter Daily Data
+- View Analytics
+- Badge Management
+- Upload Data
 
-- Date, Branch, Shift fields
-- Recruiter stats: Interviews Scheduled, Interview Shows, Shift 1/2 Processed, etc.
-- Save to `branchMetrics`
+---
 
-#### d) BranchWeeklyForm
+### 3. Data Entry
 
-- Week Ending date, Branch
-- Weekly summary fields
-- Save to `branchMetrics` with `isWeeklySummary: true`
+#### A. Daily Attendance Entry
 
-### 3. Analytics Dashboard (UnifiedDashboard.jsx)
+**Form Fields:**
+- Date (default: today)
+- Shift selector (1st / 2nd)
+- Requested headcount
+- Required headcount
+- Working headcount
+- New starts count
+- Send homes count
+- Line cuts count
+- Notes
 
-Dropdown selector for dashboards:
+**New Starts EID Entry:**
+- Dynamic input fields based on new starts count
+- Real-time EID validation against `associates` table
+- Visual indicators: ✓ Found & Ready | ⚠ Found but wrong status | ✗ Not found
+- Option to quick-add unknown EIDs as new associates
 
-#### a) First/Second Shift Dashboard
+**On Submit:**
+1. Save to `daily_summaries` table
+2. For each validated EID: Update associate's `status` → "Active", `pipeline_status` → "Started"
+3. Create `attendance_records` for new starts
+4. Log action to `audit_log`
 
+#### B. Labor Report Upload
+
+**Interface:**
+- Week ending date picker
+- Excel file upload (.xlsx, .xls)
+- Parse preview before submission
+
+**Excel Parsing Logic:**
+1. Extract employee names/EIDs and hours by day
+2. Match each row to an associate (by EID first, then fuzzy name match)
+3. Show matching results with confidence scores
+4. Allow manual corrections for unmatched records
+
+**On Submit:**
+1. Create/update `hours_records` for each employee-date
+2. Update `associates` status to "Active" if hours > 0
+3. Calculate and update `daily_summaries` aggregates
+4. Save to `upload_history` with stats
+5. Log action to `audit_log`
+
+#### C. Recruiter Daily Metrics
+
+**Form Fields:**
+- Date
+- Branch
+- Recruiter name (optional)
+- Interviews Scheduled
+- Interview Shows
+- Shift 1 Processed
+- Shift 2 Processed
+- Confirmations
+- Notes
+
+**On Submit:**
+1. Save to `recruiter_metrics` table
+2. Log action
+
+#### D. Recruiter Weekly Summary
+
+**Form Fields:**
+- Week ending date
+- Branch
+- Total Applicants
+- Total Processed
+- All daily metric fields (aggregated)
+
+**On Submit:**
+1. Save to `recruiter_metrics` with `is_weekly_summary: true`
+
+---
+
+### 4. Analytics Dashboards
+
+#### A. Shift Dashboard (1st / 2nd)
+
+**Filters:**
 - Date range picker (default: last 30 days)
-- Summary cards: Total Hours, New Starts, Avg Headcount, On Premise Hours, Avg Hrs/Person
-- Line chart: Headcount & Hours trends (dual Y-axis)
-- Data table: Daily breakdown with Requested, Working, Hours, Direct Hours, New Starts, Send Homes
+- Compare to previous period toggle
 
-#### b) RecruiterDashboard
+**Metrics Cards:**
+- Total Hours Worked
+- Average Daily Headcount
+- New Starts Count
+- Send Home Rate (%)
 
-- Recruiter efficiency metrics from `branchMetrics`
+**Charts:**
+- Line chart: Daily headcount trend
+- Line chart: Daily hours trend (dual Y-axis with headcount)
+- Bar chart: New starts by week
 
-#### c) NewStartsAnalytics
+**Data Table:**
+- Date | Requested | Working | Hours | Direct Hours | New Starts | Send Homes
+- Sortable columns
+- Export to CSV
 
-- New starts trend analysis from `onPremiseData`
+#### B. Recruiter Dashboard
 
-#### d) YOYComparison
+**Metrics:**
+- Conversion rate (shows / scheduled)
+- Processing rate (processed / shows)
+- Pipeline velocity
 
-- Year-over-year comparison charts
+**Charts:**
+- Funnel: Scheduled → Shows → Processed → Started
+- Trend: Weekly processing volume
 
-### 4. Badge Management (BadgeManagement.jsx)
+#### C. New Starts Analytics
 
-Three tabs:
+**Metrics:**
+- Total new starts (period)
+- Retention rate (still active after 30/60/90 days)
+- Average time from processed to started
 
-#### a) Create Badge
+**Charts:**
+- New starts trend over time
+- Retention cohort analysis
 
-- Form: First Name*, Last Name*, EID*, Status, Position, Shift, Recruiter, Notes
-- Photo capture: Webcam button or File upload
-- Badge ID auto-generated: `PLX-{eid}-{lastName3chars}`
-- Save to `badges` collection with photo in Storage
+#### D. Year-over-Year Comparison
 
-#### b) Lookup & Verify
+**Interface:**
+- Select two date ranges to compare
+- Side-by-side metrics
+- Percentage change indicators
 
-- Search by name or EID (searches both `badges` and `associates`)
-- Display results as cards with photo, name, EID, status chip
-- View Details dialog: full info, update status buttons (Mark Cleared/Not Cleared), Print button, Mark Issued
-- Delete badge button (for badge source only)
+---
 
-#### c) Print Queue
+### 5. Badge Management
 
-- List badges in queue (status: Queued/Printing)
-- Select all / individual selection
-- Bulk print button
-- Mark as Printed button per item
+#### A. Create Badge
 
-#### Stats Cards
+**Form Fields:**
+- First Name (required)
+- Last Name (required)
+- EID (required, validates against associates)
+- Position
+- Shift
+- Status (Pending / Cleared / Not Cleared)
+- Notes
 
-- Total Badges, Cleared, Printed, Pending Print
+**Photo Capture:**
+- Webcam capture button (with preview)
+- File upload alternative
+- Crop/adjust interface
 
-#### Badge Template (CR80 Card Standard)
+**Badge ID Generation:**
+- Format: `PLX-{eid}-{first 3 chars of lastName}`
+- Auto-generated, displayed before save
 
-```javascript
-{
-  cardSize: { width: 212.5, height: 337.5 },  // Portrait at 100 DPI
-  elements: {
-    logo: { x: 66, y: 30, width: 80, height: 30, url: '/images/plx-logo.png' },
-    photo: { x: 56, y: 75, width: 100, height: 120 },
-    firstName: { x: 0, y: 205, fontSize: 16, fontWeight: 'bold', textAlign: 'center', width: 212.5 },
-    lastName: { x: 0, y: 225, fontSize: 16, fontWeight: 'bold', textAlign: 'center', width: 212.5 },
-    eid: { x: 0, y: 225, fontSize: 12, textAlign: 'center', hidden: true },
-    position: { x: 0, y: 250, fontSize: 11, textAlign: 'center', width: 212.5 },
-    shift: { x: 0, y: 262, fontSize: 11, textAlign: 'center', hidden: true },
-    barcode: { x: 6, y: 275, width: 200, height: 40 }
-  }
-}
+**On Submit:**
+1. Upload photo to Supabase Storage
+2. Create badge record linked to associate
+3. Update associate's `photo_url` if not set
+4. Log action
+
+#### B. Badge Lookup & Verification
+
+**Search:**
+- Search by name or EID
+- Searches both `badges` and `associates` tables
+- Shows all matches with source indicator
+
+**Results Display:**
+- Card grid with photo, name, EID, status badge
+- Click to view full details
+
+**Detail View (Modal/Sheet):**
+- Full badge preview (CR80 card layout)
+- All badge fields
+- Action buttons:
+  - Mark Cleared / Not Cleared
+  - Print Badge
+  - Mark as Issued
+  - Edit
+  - Delete (with confirmation)
+
+#### C. Print Queue
+
+**Queue List:**
+- Badges with status "Pending" or "Cleared" not yet printed
+- Checkbox selection (individual + select all)
+- Priority indicator
+
+**Actions:**
+- Print Selected (opens print dialog with badge layout)
+- Mark as Printed (batch update)
+- Remove from Queue
+
+**Badge Print Layout (CR80 Standard: 2.125" × 3.375" portrait):**
+- Company logo (top center)
+- Photo (centered)
+- First name (bold, centered)
+- Last name (bold, centered)
+- Position (smaller, centered)
+- Barcode with badge ID (bottom)
+
+---
+
+### 6. Early Leaves Tracker
+
+**Stats Cards:**
+- Total Early Leaves (period)
+- Warnings Issued
+- Suspensions Issued
+- DNR Count
+
+**Filters:**
+- Search by name or EID
+- Shift filter
+- Corrective action filter
+- Date range
+
+**Data Table:**
+- Date | Name | EID | Shift | Time Left | Hours Worked | Reason | Action | 14/30/90 Days | Actions
+- Edit/Delete buttons per row
+
+**Add/Edit Form:**
+- Associate Name (required)
+- EID (required, validates)
+- Date
+- Shift
+- Time Left
+- Hours Worked
+- Reason (dropdown: Personal, Medical, Family Emergency, Transportation, Childcare, No Call No Show, Other)
+- Corrective Action (dropdown: None, Warning, 5 Day Suspension, DNR)
+- 14/30/90 Day occurrence counts
+
+**DNR Auto-Add:**
+- When corrective action is "DNR", automatically:
+  1. Add to `dnr_list` table
+  2. Update associate `status` to "DNR"
+  3. Show confirmation
+
+---
+
+### 7. Admin Panel
+
+**(Market Manager / Admin only)**
+
+#### A. User Management
+
+**User Table:**
+- Email | Name | Role | Created | Last Login | Actions
+- Role displayed as colored badge
+
+**Actions:**
+- Change Role (dropdown dialog)
+- Delete User (with confirmation, cannot delete self)
+
+**Add User:**
+- Create invitation or direct user creation
+
+#### B. Audit Logs
+
+**Filters:**
+- User filter (dropdown)
+- Action type filter
+- Date range
+
+**Log Display:**
+- Timestamp | User | Action | Details
+- Expandable details panel
+
+#### C. Data Management
+
+**Bulk Import:**
+- Upload CSV/Excel with field mapping interface
+- Preview before import
+- Progress indicator for large files
+
+**Data Backup:**
+- Export all data as CSV or JSON
+- Table-by-table or full database
+
+**Data Cleanup:**
+- Remove orphan records
+- Deduplicate associates
+- Archive old records
+
+#### D. DNR Database
+
+**Table:**
+- Name | EID | Reason | Date Added | Status | Actions
+
+**Actions:**
+- Remove from DNR (with reason)
+- Restore to DNR
+
+**DNR Check:**
+- Search interface to check if name/EID is on DNR
+- Fuzzy matching for name variations
+
+---
+
+### 8. Bulk Upload System
+
+**Unified Upload Interface:**
+
+1. **File Selection**
+   - Drag & drop or click to upload
+   - Support: .xlsx, .xls, .csv
+   - File size limit indicator
+
+2. **Type Detection**
+   - Auto-detect file type based on columns
+   - Manual override dropdown
+
+3. **Column Mapping**
+   - Display detected columns
+   - Map to database fields
+   - Show sample data for each column
+   - Save mapping templates for reuse
+
+4. **Data Preview**
+   - Show first 10-20 rows
+   - Highlight validation errors
+   - Show match status for associate lookups
+
+5. **Processing**
+   - Progress bar
+   - Real-time stats: Created / Updated / Errors
+   - Error log download
+
+6. **Confirmation**
+   - Summary of changes
+   - Link to view affected records
+
+**Key Principle:** All uploads must map to the central schema. The system should:
+- Match incoming records to existing associates
+- Create new associates only when no match found
+- Update existing records rather than creating duplicates
+- Maintain referential integrity
+
+---
+
+### 9. User Profile
+
+**Display:**
+- Profile photo (with upload/change)
+- Name (editable)
+- Email (read-only)
+- Role (read-only)
+- Last login timestamp
+
+**Actions:**
+- Change password
+- Update photo
+- Edit name
+
+---
+
+## File Upload Processing Logic
+
+### Labor Report Excel Processing
+
+```
+Input: Excel file with columns like [Name, EID, Mon, Tue, Wed, Thu, Fri, Sat, Total]
+
+For each row:
+  1. Extract EID (clean/normalize)
+  2. Query: SELECT * FROM associates WHERE eid = {extracted_eid}
+  3. If found:
+     - Create hours_records for each day with hours > 0
+     - Update associate.status = 'Active' if not already
+  4. If not found:
+     - Attempt fuzzy name match
+     - If confident match: use that associate
+     - If no match: add to "unmatched" list for review
+  5. Log all operations
+
+Output:
+  - hours_records created/updated
+  - associates updated
+  - upload_history record
+  - List of unmatched for manual review
 ```
 
-### 5. Early Leaves Page (EarlyLeavesPage.jsx)
+### Applicant CSV Processing
 
-- Stats cards: Total Early Leaves, Warnings, Suspensions, DNR count
-- Filters: Search by name/EID, Shift filter, Corrective Action filter
-- Data table with all fields
-- Add/Edit dialog with full form
-- Delete confirmation
-- Corrective action options: None, Warning, 5 Day Suspension, DNR
-- Reasons: Personal, Medical, Family Emergency, Transportation, Childcare, No Call No Show, Other
-- Occurrence tracking: 14/30/90 day counts
-- Auto-add to DNR database when action is "DNR"
+```
+Input: CSV with applicant data [Name, EID, Status, Recruiter, etc.]
 
-### 6. Admin Panel (AdminPanel.jsx)
+For each row:
+  1. Extract and normalize EID
+  2. Query existing associate by EID
+  3. If exists: UPDATE with new data (merge, don't overwrite non-null)
+  4. If not exists: INSERT new associate
+  5. Track pipeline_status changes
 
-Four tabs (Market Manager/admin only):
-
-#### a) User Management
-
-- Table: Email, Name, Role, Created, Actions
-- Role chip colors: admin=error, Market Manager=primary, On-Site Manager=success, Recruiter=warning
-- Change Role button -> Dialog with role dropdown
-- Delete User button (cannot delete self)
-- Printer status section (stub)
-
-#### b) Audit Logs
-
-- Filter by User dropdown
-- Filter by Action dropdown
-- List with action chip, performer email, timestamp, details
-
-#### c) Data Management
-
-- Cards linking to:
-  - Backup Data (/backup)
-  - Clear All Data (/clear-data)
-  - Bulk Historical Import (/bulk-import)
-
-#### d) Data View
-
-- Generic DataView component for viewing raw collection data
-
-### 7. Profile Page (EnhancedProfile.jsx)
-
-- Display/edit name, email
-- Profile photo upload/delete
-- Last login time
-- Role display
-
-### 8. Bulk Import Pages
-
-- CSV/Excel file upload
-- Field mapping interface
-- Preview data before import
-- Batch write to Firestore (500 per batch)
-
----
-
-## Key Services
-
-### firestoreService.js
-
-Functions for each collection:
-
-- `addHoursData`, `getHoursData`, `getAggregateHours`
-- `addEarlyLeave`, `getEarlyLeaves`, `getEarlyLeaveTrends`
-- `addAssociate`, `updateAssociate`, `getAssociates`, `getAssociateByEID`
-- `addBadge`, `updateBadge`, `getBadges`, `getBadgeByEID`
-- `createUserProfile`, `getUserProfile`, `updateUserProfile`, `updateUserLastLogin`, `updateUserPhoto`, `deleteUserPhoto`, `deleteUserProfile`
-- `addOnPremiseData`, `getOnPremiseData`, `aggregateOnPremiseByDateAndShift`
-- `addBranchMetrics`, `getBranchMetrics`
-- `flexibleBulkUpload` - Batch write with 500-doc limit
-
-### badgeService.js
-
-- `generateBadgeId(eid, lastName)` -> `PLX-{eid}-{lastName3chars}`
-- `createBadge`, `updateBadge`, `deleteBadge`
-- `getBadgeByEID` - With photo fallback from Storage and associates
-- `searchBadges` - Searches badges AND associates
-- `createOrUpdateBadgeFromApplicant` - Sync from applicant data
-- `updateBadgePhoto`, `discoverAndLinkPhotos`
-- `addToPrintQueue`, `getPrintQueue`, `markBadgePrinted`, `markBadgeIssued`
-- `updateBadgeStatus`, `getBadgeStats`
-- `getDefaultTemplate`, `saveTemplate`, `updateTemplate`, `getAllTemplates`
-
-### adminService.js
-
-- `getAllUsers`, `updateUserRole`
-- `saveBadgeTemplate`, `getActiveBadgeTemplate`, `getAllBadgeTemplates`
-- `logAuditAction`, `getAuditLogs`, `getUserActivitySummary`
-
-### earlyLeaveService.js
-
-- `createEarlyLeave`, `updateEarlyLeave`, `deleteEarlyLeave`
-- `getEarlyLeaves`, `searchEarlyLeaves`, `getEarlyLeaveStats`
-- `addToDNR`, `removeFromDNR`, `restoreFromDNR`, `getDNRDatabase`, `checkDNR`
-- `calculateNameSimilarity` - Levenshtein distance for fuzzy matching
-- `bulkUploadEarlyLeaves`, `bulkUploadDNR`
-
-### printService.js
-
-- `sendToPrinter(badge, template)` - Opens print window with badge HTML
-- `buildPrintHTML(badge, template)` - Generates print-ready HTML
-- `checkPrinterStatus`, `getAvailablePrinters` - Stubs for HID printer integration
-
-### dataEntryService.js
-
-- `submitOnPremiseData(formData, file)`
-- `parseOnPremiseFile(file)` - Excel parsing
-- `submitLaborReport(data)` - With associate status updates
-- `submitBranchDaily(formData)`, `submitBranchWeekly(formData)`
-
----
-
-## UI Theme
-
-```javascript
-createTheme({
-  palette: {
-    primary: { main: deepPurple[500] },  // #673ab7
-    secondary: { main: amber[500] }       // #ffc107
-  },
-  typography: {
-    fontFamily: ['"Montserrat"', '"Roboto"', 'sans-serif'].join(',')
-  }
-})
+Output:
+  - associates created/updated
+  - Pipeline status change log
 ```
 
 ---
 
-## Chart.js Setup
+## UI/UX Guidelines
 
-Register in main.jsx:
+### Design Principles
+- Clean, professional interface suitable for warehouse environment
+- High contrast for visibility
+- Large touch targets for tablet use
+- Fast load times (< 2 seconds for any page)
 
-```javascript
-ChartJS.register(
-  CategoryScale, LinearScale, PointElement, LineElement,
-  BarElement, ArcElement, Title, Tooltip, Legend, Filler
-)
-```
+### Theme
+- Primary: Deep Purple (#673ab7)
+- Secondary: Amber (#ffc107)
+- Font: Montserrat (headings), Inter or Roboto (body)
 
-Use `<Line>` and `<Bar>` from react-chartjs-2 with dual Y-axis for headcount/hours charts.
+### Responsive Breakpoints
+- Desktop: Full feature set, multi-column layouts
+- Tablet: Simplified navigation, larger buttons
+- Mobile: Single column, bottom navigation
 
----
-
-## Firestore Security Rules
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{uid} {
-      allow read: if request.auth != null;
-      allow update: if request.auth.uid == uid || request.auth != null;
-      allow write: if request.auth.uid == uid;
-    }
-
-    match /onPremiseData/{document=**} { allow read, write: if request.auth != null; }
-    match /hoursData/{document=**} { allow read, write: if request.auth != null; }
-    match /branchMetrics/{document=**} { allow read, write: if request.auth != null; }
-    match /earlyLeaves/{document=**} { allow read, write: if request.auth != null; }
-    match /associates/{document=**} { allow read, write: if request.auth != null; }
-    match /badges/{document=**} { allow read, write: if request.auth != null; }
-  }
-}
-```
+### Accessibility
+- WCAG 2.1 AA compliance
+- Keyboard navigation support
+- Screen reader friendly labels
 
 ---
 
-## Critical Implementation Notes
+## Security Requirements
 
-1. **Date Handling**: Use `dayjs` for UI, convert to Firebase `Timestamp` for storage. Always convert back to Date on read.
+1. **Authentication**
+   - Secure password requirements (8+ chars, mixed case, numbers)
+   - Rate limiting on login attempts
+   - Session timeout after inactivity
 
-2. **Batch Writes**: Firestore limit is 500 operations per batch. Split larger uploads.
+2. **Authorization**
+   - Row Level Security on all tables
+   - Server-side role verification
+   - Admin actions require re-authentication
 
-3. **EID Validation**: When entering new starts, validate EID against `associates` collection. Check both `eid` and legacy `crmNumber` fields.
+3. **Data Protection**
+   - No sensitive data in URLs
+   - Sanitize all user inputs
+   - Prepared statements for all queries (Prisma handles this)
 
-4. **Photo Fallback Chain**: When displaying badge without photo, check Storage for `badges/{eid}/*`, then check associate record for photoURL.
-
-5. **DNR Auto-Add**: When early leave corrective action is "DNR", automatically create entry in `dnrDatabase`.
-
-6. **Status Updates**: When submitting on-premise data with new start EIDs or labor report with employee IDs, update corresponding associate records to `pipelineStatus: "Started"`, `status: "Active"`.
-
-7. **Barcode Format**: Use CODE128 format via jsbarcode. Badge ID format: `PLX-{eid}-{lastName first 3 chars padded with X}`.
-
-8. **Vite Base Path**: Set `base: '/CrecscentDataTool/'` for GitHub Pages deployment.
-
-9. **SPA Redirect**: Include 404.html and redirect handler script in index.html for GitHub Pages.
-
-10. **Logger**: Create development-only logger that's silent in production.
-
----
-
-## Getting Started
-
-1. Create Firebase project, enable Auth (email/password), Firestore, Storage
-2. Copy Firebase config to `src/firebase.js`
-3. Deploy Firestore rules and Storage rules
-4. Create initial admin user manually or via signup
-5. Run `npm install && npm run dev`
+4. **Audit Trail**
+   - Log all data modifications
+   - Include user ID, timestamp, before/after values
+   - Immutable audit log
 
 ---
 
-This prompt contains everything needed to recreate the Crescent Management Platform from scratch with identical functionality, architecture, and database structure.
+## Performance Requirements
+
+- Page load: < 2 seconds
+- Form submission: < 1 second response
+- Dashboard queries: < 500ms
+- File upload processing: Real-time progress, < 30 seconds for 1000 rows
+- Support 50+ concurrent users
+
+---
+
+## Deployment Checklist
+
+1. Set up Supabase project
+2. Run database migrations
+3. Configure RLS policies
+4. Set up Storage buckets (badges, user-photos)
+5. Configure auth providers
+6. Deploy to Vercel
+7. Set environment variables
+8. Create initial admin user
+9. Test all features in production
+
+---
+
+## Success Criteria
+
+The rebuild is successful when:
+
+1. **Single Source of Truth**: All data flows through the central `associates` table
+2. **No Orphan Data**: Every record links back to the core schema
+3. **File Uploads Update, Don't Create**: Imports merge with existing data
+4. **Type Safety**: Full TypeScript coverage with no `any` types
+5. **Performance**: All metrics within requirements
+6. **User Adoption**: Existing users can perform all current tasks
+
+---
+
+This specification provides the requirements and architecture. Implementation details (file structure, component naming, state management approach) are intentionally flexible to allow for optimal solutions during development.
